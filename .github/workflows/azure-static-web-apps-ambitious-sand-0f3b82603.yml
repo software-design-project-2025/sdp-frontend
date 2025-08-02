@@ -29,7 +29,16 @@ jobs:
         run: npm install
 
       - name: Build Angular App
-        run: npm run build -- --configuration production  # Added production flag
+        run: ng build --configuration=production
+
+      - name: List build output (debugging)
+        run: |
+          echo "Contents of dist directory:"
+          ls -la dist/
+          echo "Contents of dist/sdp-angular-app directory:"
+          ls -la dist/sdp-angular-app/
+          echo "Contents of dist/sdp-angular-app/browser directory:"
+          ls -la dist/sdp-angular-app/browser/
 
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
@@ -37,9 +46,9 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AMBITIOUS_SAND_0F3B82603 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: "/" 
-          output_location: "dist/sdp-angular-app"
-          app_build_command: "npm run build -- --configuration production"  # Added this line
+          app_location: "/"
+          output_location: "dist/sdp-angular-app/browser"
+          skip_app_build: true
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
