@@ -29,7 +29,7 @@ jobs:
         run: npm install
 
       - name: Build Angular App
-        run: ng build --configuration=production
+        run: npx ng build --configuration=production
 
       - name: List build output (debugging)
         run: |
