@@ -1,1 +1,88 @@
-<p>home works!</p>
+<!-- home.component.html -->
+<!-- Side Navigation -->
+<aside class="side-nav">
+  <header class="logo-link">
+    <a routerLink="/home">
+      <img src="/Logo.jpg" alt="Campus Study Buddy Logo" class="logo-img" />
+    </a>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a routerLink="/home">Home</a></li>
+      <li><a routerLink="/sessions">Sessions</a></li>
+      <li><a routerLink="/chat">Chat</a></li>
+    </ul>
+  </nav>
+</aside>
+
+<main class="dashboard">
+  <!-- Welcome Section -->
+  <section id="welcome-section" class="card">
+    <header>
+      <h1>Welcome Back!</h1>
+      <p>Ready to continue with your learning journey?</p>
+    </header>
+  </section>
+
+  <!-- Learning Stats -->
+  <section id="learning-stats" class="card">
+    <header>
+      <h2>Your Learning Stats</h2>
+      <p>View your progress and achievements.</p>
+    </header>
+    <table class="stats-table">
+      <tbody>
+        <tr>
+          <td>
+            <strong>12</strong>
+            <small>Sessions Completed</small>
+          </td>
+          <td>
+            <strong>3</strong>
+            <small>Active Groups</small>
+          </td>
+          <td>
+            <strong>45h</strong>
+            <small>Study Time</small>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Upcoming Sessions -->
+  <section id="sessions-calendar" class="card">
+    <header>
+      <h2>Upcoming Sessions</h2>
+      <p>Check out the schedule for your next sessions.</p>
+    </header>
+    <full-calendar [options]="calendarOptions"></full-calendar>
+  </section>
+
+  <!-- New Study Groups -->
+  <section id="new-groups" class="card">
+    <header>
+      <h2>New Study Groups</h2>
+      <p>Join new groups to enhance your learning experience.</p>
+    </header>
+    <article class="group-item">
+      <header>
+        <h3>Advanced Mathematics</h3>
+        <p>Join fellow students tackling calculus and beyond</p>
+      </header>
+      <footer>
+        <button class="join-btn">Join Group</button>
+      </footer>
+    </article>
+    <article class="group-item">
+      <header>
+        <h3>Computer Science Fundamentals</h3>
+        <p>Perfect for beginners and intermediate learners</p>
+      </header>
+      <footer>
+        <button class="join-btn">Join Group</button>
+      </footer>
+    </article>
+  </section>
+</main>
