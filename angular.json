@@ -17,10 +17,13 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "outputPath": "dist/sdp-angular-app", 
+            "outputPath": "dist/sdp-angular-app",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
+            "stylePreprocessorOptions": { 
+              "includePaths": ["src/app"]
+            },
             "assets": [
               {
                 "glob": "**/*",
@@ -88,5 +91,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": "4e663c54-b836-4d76-b2df-12c07855f0d3"
   }
 }
