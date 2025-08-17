@@ -44,31 +44,22 @@ export class SignupComponent implements OnInit {
     this.cdr.detectChanges();
     console.log('New password visibility state:', this.passwordVisible);
   }
-
   async signInWithGoogle() {
     if (this.isLoading) return;
-
     this.isLoading = true;
     this.errorMessage = '';
     this.cdr.detectChanges();
-
     try {
       console.log('Starting Google sign in...');
       const result: any = await this.authService.signInWithGoogle();
       const error = result?.error;
-      const data = result?.data;
-      
+      const data = result?.data;  
       if (error) {
         throw error;
       }
-
       console.log('Google sign in successful:', data);
       this.successMessage = 'Redirecting to Google...';
       this.cdr.detectChanges();
-
-      // Note: After Google OAuth, user will be redirected back to your app
-      // The actual navigation will be handled by the OAuth callback
-      
     } catch (error: any) {
       console.error('Google sign in error:', error);
       this.errorMessage = error.message || 'Failed to sign in with Google';
@@ -86,7 +77,6 @@ export class SignupComponent implements OnInit {
     'Weak password': 'Password must be at least 8 characters'
   };
 
-  // Special case for RLS errors after successful signup
   if (String(error?.code) === '42501' && this.signupForm.valid) {
     return errorMap['42501'];
   }
@@ -121,7 +111,7 @@ async onSubmit() {
       this.router.navigate(['/login'], {
         state: { 
           message: this.successMessage,
-          email: email // Optional: pass email for display
+          email: email 
         }
       });
     }, 3000); // 3 second delay to show message

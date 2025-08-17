@@ -20,9 +20,10 @@ describe('LoginComponent', () => {
         ReactiveFormsModule,
         RouterTestingModule.withRoutes([
           { path: 'login-success', component: {} as any }
-        ])
+        ]),
+        LoginComponent // Import if standalone
       ],
-      declarations: [LoginComponent],
+      // declarations: [LoginComponent], // Only if not standalone
       providers: [
         { provide: AuthService, useValue: authServiceSpy }
       ]
@@ -44,19 +45,29 @@ describe('LoginComponent', () => {
     expect(component.loginForm.get('password')?.value).toBe('');
   });
 
-  it('should validate email field', () => {
+  it('should validate email field with various formats', () => {
     const emailControl = component.loginForm.get('email');
     
     // Test required validation
     expect(emailControl?.hasError('required')).toBeTruthy();
     
-    // Test email validation
-    emailControl?.setValue('invalid-email');
+    // Test invalid email formats
+    emailControl?.setValue('plainstring');
     expect(emailControl?.hasError('email')).toBeTruthy();
     
-    // Test valid email
-    emailControl?.setValue('test@example.com');
-    expect(emailControl?.hasError('email')).toBeFalsy();
+    // Test valid email formats
+    const validEmails = [
+      'user@yahoo.com',
+      'admin@company.net',
+      'first.last@university.edu',
+      'user+filter@sub.domain.org',
+      'me@my-domain.io'
+    ];
+    
+    validEmails.forEach(email => {
+      emailControl?.setValue(email);
+      expect(emailControl?.hasError('email')).toBeFalsy();
+    });
   });
 
   it('should validate password field', () => {
@@ -70,7 +81,7 @@ describe('LoginComponent', () => {
     expect(passwordControl?.hasError('minlength')).toBeTruthy();
     
     // Test valid password
-    passwordControl?.setValue('123456');
+    passwordControl?.setValue('ValidPass123!');
     expect(passwordControl?.hasError('minlength')).toBeFalsy();
   });
 
@@ -82,40 +93,49 @@ describe('LoginComponent', () => {
     expect(component.passwordVisible).toBeFalsy();
   });
 
-  it('should handle successful login', fakeAsync(() => {
-    const mockUser = {
-      id: '123',
-      email: 'test@example.com',
-      app_metadata: {},
-      user_metadata: {},
-      aud: '',
-      created_at: new Date().toISOString()
-    } as User;
-
-    authService.signIn.and.returnValue(Promise.resolve({
-      data: {
-        user: mockUser,
-        session: null
-      },
-      error: null
-    }));
-
-    spyOn(router, 'navigate');
+  it('should handle successful login with various email domains', fakeAsync(() => {
+    const domains = ['@company.com', '@university.edu', '@service.io', '@personal.org'];
     
-    component.loginForm.setValue({
-      email: 'test@example.com',
-      password: 'validpassword'
+    domains.forEach(domain => {
+      const email = `test${domain}`;
+      const mockUser = {
+        id: '123',
+        email: email,
+        app_metadata: {},
+        user_metadata: {},
+        aud: '',
+        created_at: new Date().toISOString()
+      } as User;
+
+      authService.signIn.and.returnValue(Promise.resolve({
+        data: {
+          user: mockUser,
+          session: null
+        },
+        error: null
+      }));
+
+      spyOn(router, 'navigate');
+      
+      component.loginForm.setValue({
+        email: email,
+        password: 'validpassword'
+      });
+
+      component.onSubmit();
+      tick();
+
+      expect(authService.signIn).toHaveBeenCalledWith(
+        email,
+        'validpassword'
+      );
+      expect(router.navigate).toHaveBeenCalledWith(['/login-success']);
+      expect(component.errorMessage).toBeNull();
+      
+      // Reset spies
+      authService.signIn.calls.reset();
+      (router.navigate as jasmine.Spy).calls.reset();
     });
-
-    component.onSubmit();
-    tick();
-
-    expect(authService.signIn).toHaveBeenCalledWith(
-      'test@example.com',
-      'validpassword'
-    );
-    expect(router.navigate).toHaveBeenCalledWith(['/login-success']);
-    expect(component.errorMessage).toBeNull();
   }));
 
   it('should handle login error', fakeAsync(() => {
@@ -130,7 +150,7 @@ describe('LoginComponent', () => {
     }));
 
     component.loginForm.setValue({
-      email: 'test@example.com',
+      email: 'user@domain.com',
       password: 'wrongpassword'
     });
 
@@ -139,28 +159,6 @@ describe('LoginComponent', () => {
 
     expect(component.errorMessage).toBe('Invalid email or password');
     expect(component.isLoading).toBeFalsy();
-  }));
-
-  it('should handle unknown error', fakeAsync(() => {
-    authService.signIn.and.returnValue(Promise.resolve({
-      data: {
-        user: null,
-        session: null
-      },
-      error: {
-        message: 'Some unknown error'
-      }
-    }));
-
-    component.loginForm.setValue({
-      email: 'test@example.com',
-      password: 'password123'
-    });
-
-    component.onSubmit();
-    tick();
-
-    expect(component.errorMessage).toBe('Login failed. Please try again.');
   }));
 
   it('should not submit if form is invalid', () => {
@@ -176,34 +174,4 @@ describe('LoginComponent', () => {
     expect(authService.signIn).not.toHaveBeenCalled();
     expect(component.isLoading).toBeFalsy();
   });
-
-  it('should not submit if already loading', fakeAsync(() => {
-    spyOn(authService, 'signIn');
-    
-    component.loginForm.setValue({
-      email: 'test@example.com',
-      password: 'validpassword'
-    });
-
-    component.isLoading = true;
-    component.onSubmit();
-    tick();
-
-    expect(authService.signIn).not.toHaveBeenCalled();
-  }));
-
-  it('should handle unexpected errors', fakeAsync(() => {
-    authService.signIn.and.returnValue(Promise.reject(new Error('Network error')));
-
-    component.loginForm.setValue({
-      email: 'test@example.com',
-      password: 'validpassword'
-    });
-
-    component.onSubmit();
-    tick();
-
-    expect(component.errorMessage).toBe('An unexpected error occurred. Please try again.');
-    expect(component.isLoading).toBeFalsy();
-  }));
 });

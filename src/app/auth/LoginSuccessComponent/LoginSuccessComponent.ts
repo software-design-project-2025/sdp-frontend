@@ -16,7 +16,7 @@ export class LoginSuccessComponent implements OnInit {
   userEmail = '';
   private maxRetries = 5;
   private retryDelay = 1000; // 1 second
-
+  user: any = null;
   constructor(
     private authService: AuthService,
     private router: Router,
@@ -54,7 +54,6 @@ export class LoginSuccessComponent implements OnInit {
     } catch (error) {
       console.error('Authentication check failed:', error);
       this.isLoading = false;
-      // Redirect to login after a short delay to show error state
       setTimeout(() => {
         this.router.navigate(['/login'], { 
           queryParams: { error: 'Authentication failed. Please try again.' }
@@ -113,6 +112,26 @@ export class LoginSuccessComponent implements OnInit {
   goToProfile() {
     if (this.isLoading) return;
     this.router.navigate(['/profile']);
+  }
+    async checkAuth() {
+  this.isLoading = true;
+  try {
+    const { data: { session }, error } = await this.authService.getSession();
+    
+    if (error) throw error;
+    if (!session) throw new Error('No session found');
+    
+    this.user = {
+      userName: session.user.user_metadata?.['full_name'] || '',
+      userEmail: session.user.email || ''
+    };
+      
+  } catch (error) {
+    console.error('Auth check failed:', error);
+    this.router.navigate(['/login']);
+  } finally {
+    this.isLoading = false;
+   }
   }
 
   async logout() {

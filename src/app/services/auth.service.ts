@@ -89,6 +89,17 @@ async signUp(email: string, password: string, name: string) {
     throw error;
   }
 }
+async getSession() {
+  try {
+    return await this.supabase.auth.getSession();
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.includes('Navigator LockManager')) {
+      console.warn('Lock API unavailable, falling back to direct auth');
+      return await this.supabase.auth.getSession();
+    }
+    throw error;
+  }
+}
 async getCurrentUser() {
   // Use getSession() instead of getUser() for better reliability
   const { data, error } = await this.supabase.auth.getSession();
@@ -107,8 +118,6 @@ async getCurrentUser() {
     }
     return error;
   }
-
-  // Removed duplicate getCurrentUser implementation; the async getCurrentUser() above (which uses getSession) is kept.
   isAuthenticated() {
     return this.supabase.auth.getSession();
   }

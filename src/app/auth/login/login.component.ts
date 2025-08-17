@@ -30,7 +30,6 @@ export class LoginComponent {
   this.errorMessage = null;
   
   try {
-    // Clear any existing session first
     await this.authService.signOut();
     
     const { error } = await this.authService.signInWithGoogle();
@@ -39,7 +38,6 @@ export class LoginComponent {
       throw error;
     }
     
-    // Set a timeout to ensure loading doesn't stay forever
     setTimeout(() => {
       this.isLoading = false;
     }, 10000); // 10 second timeout as fallback

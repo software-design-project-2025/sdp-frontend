@@ -9,6 +9,6 @@ import { RouterOutlet } from '@angular/router';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
-export class AppComponent {  // Must be exported as AppComponent
+export class AppComponent { 
   title = 'sdp-frontend';
 }
