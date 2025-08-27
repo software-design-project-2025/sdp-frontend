@@ -1,89 +1,112 @@
-import { Component } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { HttpClient } from '@angular/common/http'; 
+import { provideHttpClientToStandalone } from '../../utils/http-provider';
 
 @Component({
   selector: 'app-login',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  // REMOVE providers: [HttpClient] from here
   templateUrl: './login.component.html',
-  styleUrls: ['./login.component.scss'],
-  standalone: false
+  styleUrls: ['./login.component.scss']
 })
-export class LoginComponent {
-  loginForm: FormGroup;
-  passwordVisible = false;
+export class LoginComponent implements OnInit {
+  loginForm!: FormGroup;
   isLoading = false;
-  errorMessage: string | null = null;
+  passwordVisible = false;
+  errorMessage = '';
+  successMessage = ''; // Add this missing property
 
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
-    private router: Router
-  ) {
+    private router: Router,
+    private cdr: ChangeDetectorRef // Add this missing dependency
+  ) {}
+
+  ngOnInit() {
+    this.initializeForm();
+  }
+
+  private initializeForm() {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]]
+      password: ['', [Validators.required]]
     });
-  }
-  async signInWithGoogle() {
-  this.isLoading = true;
-  this.errorMessage = null;
-  
-  try {
-    await this.authService.signOut();
-    
-    const { error } = await this.authService.signInWithGoogle();
-    
-    if (error) {
-      throw error;
-    }
-    
-    setTimeout(() => {
-      this.isLoading = false;
-    }, 10000); // 10 second timeout as fallback
-  } catch (error: any) {
-    this.isLoading = false;
-    this.errorMessage = error.message || 'Google sign-in failed';
-    console.error('Google sign-in error:', error);
-  }
-}
-  async onSubmit() {
-    if (this.loginForm.invalid || this.isLoading) return;
-
-    this.isLoading = true;
-    this.errorMessage = null;
-
-    try {
-      const { email, password } = this.loginForm.value;
-      const result = await this.authService.signIn(email, password);
-
-      if (result.error) {
-        this.handleLoginError(result.error);
-      } else {
-        // Redirect to success page
-        this.router.navigate(['/login-success']);
-      }
-    } catch (error) {
-      this.errorMessage = 'An unexpected error occurred. Please try again.';
-    } finally {
-      this.isLoading = false;
-    }
   }
 
   togglePasswordVisibility() {
     this.passwordVisible = !this.passwordVisible;
+    this.cdr.detectChanges();
+  }
+
+  async signInWithGoogle() {
+    if (this.isLoading) return;
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.cdr.detectChanges(); // Now cdr exists
+    
+    try {
+      console.log('Starting Google sign in...');
+      const result = await this.authService.signInWithGoogle();
+      
+      if (result.error) {
+        throw result.error;
+      }
+      
+      console.log('Google sign in successful:', result.data);
+      this.successMessage = 'Redirecting to Google...'; // Now successMessage exists
+      this.cdr.detectChanges();
+      
+    } catch (error: any) {
+      console.error('Google sign in error:', error);
+      this.errorMessage = error.message || 'Failed to sign in with Google';
+      this.isLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  async onSubmit() {
+    if (this.loginForm.invalid || this.isLoading) return;
+
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.successMessage = ''; // Now successMessage exists
+    this.cdr.detectChanges(); // Now cdr exists
+
+    try {
+      const { email, password } = this.loginForm.value;
+      const result = await this.authService.signIn(email, password);
+      
+      if (result.error) {
+        this.handleLoginError(result.error);
+        return;
+      }
+
+      // Success - redirect to dashboard or home
+      console.log('✅ Login success, navigating...');
+      this.router.navigate(['/login-success']);
+    } catch (error: any) {
+      this.handleLoginError(error);
+    } finally {
+      this.isLoading = false;
+      this.cdr.detectChanges(); // Now cdr exists
+    }
   }
 
   private handleLoginError(error: any) {
     const errorMap: Record<string, string> = {
       'Invalid login credentials': 'Invalid email or password',
-      'Email not confirmed': 'Please check your email and confirm your account',
-      'Too many requests': 'Too many login attempts. Please try again later.'
+      'Email not confirmed': 'Please verify your email before logging in',
+      'Invalid email': 'Please enter a valid email address'
     };
-    
-    this.errorMessage = errorMap[error.message] || 'Login failed. Please try again.';
-  }
 
-  get email() { return this.loginForm.get('email'); }
-  get password() { return this.loginForm.get('password'); }
+    this.errorMessage = errorMap[error.message] || 'Login failed. Please try again.';
+    this.isLoading = false;
+    this.cdr.detectChanges(); // Now cdr exists
+  }
 }

@@ -1,124 +1,199 @@
+// src/app/services/auth.service.ts
 import { Injectable } from '@angular/core';
-import { createClient, SupabaseClient, AuthResponse } from '@supabase/supabase-js';
-import { Router } from '@angular/router';
-
-export interface AuthResult {
-  data: any;
-  error: any;
-}
+import { createClient, SupabaseClient, User, Session } from '@supabase/supabase-js';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private supabase: SupabaseClient;
-  public isLoading: boolean = false;
-  public errorMessage: string | null = null;
-  private authStateSub: any;
-  constructor(private router: Router) {
+  public supabase: SupabaseClient;
+  private apiUrl = 'http://localhost:3001/api'; // Your Express server
 
+  constructor() {
     this.supabase = createClient(
-      'https://cixdigfxjvranfleyamm.supabase.co', 
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpeGRpZ2Z4anZyYW5mbGV5YW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyMDkyNzAsImV4cCI6MjA3MDc4NTI3MH0.ZgbRo8kxPZzhJe0BEw56seYrUlf3UiylCkeRPzdGWEQ'
+      environment.supabaseUrl,
+      environment.supabaseKey
     );
-    
   }
-  
-  async signIn(email: string, password: string): Promise<AuthResult> {
+
+  // Sign up with Supabase + register in your backend
+  async signUp(email: string, password: string, displayName: string): Promise<any> {
     try {
-      const { data, error } = await this.supabase.auth.signInWithPassword({
-        email: email,
-        password: password
+      // 1. Sign up with Supabase Auth
+      const { data: authData, error: authError } = await this.supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: displayName
+          }
+        }
       });
 
-      if (error) {
-        return { data: null, error: { message: error.message } };
+      if (authError) throw authError;
+
+      // 2. Create user in your Express backend
+      if (authData.user) {
+        const response = await fetch(`${this.apiUrl}/users`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supabaseUserId: authData.user.id,
+            email: authData.user.email,
+            displayName: displayName
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create user in database');
+        }
+
+        return await response.json();
       }
 
-      return { data, error: null };
     } catch (error: any) {
-      return { data: null, error: { message: error.message } };
+      console.error('Signup error:', error);
+      throw error;
     }
   }
-  async signInWithGoogle(): Promise<{ error: any }> {
-  const { error } = await this.supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: window.location.origin + '/login-success'
-    }
-  });
-  return { error };
-}
 
-async signUp(email: string, password: string, name: string) {
-  try {
-    // 1. Create auth user first
-    const { data: { user }, error: authError } = await this.supabase.auth.signUp({
-      email,
-      password,
+  // Sign in with email/password
+  async signIn(email: string, password: string): Promise<any> {
+    return this.supabase.auth.signInWithPassword({ email, password });
+  }
+
+  // Google sign in
+  async signInWithGoogle(): Promise<any> {
+    return this.supabase.auth.signInWithOAuth({
+      provider: 'google',
       options: {
-        data: { name } // Store in auth.user_metadata
+        redirectTo: `${window.location.origin}/auth/callback`
       }
     });
+  }
 
-    if (authError) throw authError;
-    if (!user) throw new Error('User creation failed');
+  // Sign out
+  async signOut(): Promise<any> {
+    return this.supabase.auth.signOut();
+  }
 
-    // 2. Get fresh session (critical for RLS)
-    const { data: { session }, error: sessionError } = 
-      await this.supabase.auth.refreshSession();
-    
-    if (sessionError) throw sessionError;
+  // Get current user from Supabase - CORRECTED
+  async getCurrentUser(): Promise<{ data: { user: User | null }; error: any }> {
+    try {
+      const { data, error } = await this.supabase.auth.getUser();
+      return { data: { user: data.user }, error };
+    } catch (error: any) {
+      return { data: { user: null }, error };
+    }
+  }
 
-    // 3. Create profile record
-    const { error: profileError } = await this.supabase
-      .from('profiles')
-      .upsert({
-        id: user.id,
-        email,
-        name,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+  // Get current session - CORRECTED
+  async getSession(): Promise<{ data: { session: Session | null }; error: any }> {
+    try {
+      const { data, error } = await this.supabase.auth.getSession();
+      return { data: { session: data.session }, error };
+    } catch (error: any) {
+      return { data: { session: null }, error };
+    }
+  }
+
+  // 🔐 PROTECTED API CALLS
+
+  // Get user profile from your Express API
+  async getUserProfile(): Promise<any> {
+    try {
+      const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch(`${this.apiUrl}/profile`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
-    if (profileError) throw profileError;
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile');
+      }
 
-    return { user, session };
-  } catch (error) {
-    console.error('Signup error:', error);
-    throw error;
-  }
-}
-async getSession() {
-  try {
-    return await this.supabase.auth.getSession();
-  } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes('Navigator LockManager')) {
-      console.warn('Lock API unavailable, falling back to direct auth');
-      return await this.supabase.auth.getSession();
+      return await response.json();
+
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      throw error;
     }
-    throw error;
   }
-}
-async getCurrentUser() {
-  // Use getSession() instead of getUser() for better reliability
-  const { data, error } = await this.supabase.auth.getSession();
-  
-  return {
-    data: {
-      user: data?.session?.user || null
-    },
-    error
-  };
-}
-  async signOut() {
-    const { error } = await this.supabase.auth.signOut();
-    if (!error) {
-      this.router.navigate(['/login']);
+
+  // Update user profile
+  async updateProfile(updates: { displayName?: string; email?: string }): Promise<any> {
+    try {
+      const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch(`${this.apiUrl}/profile`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      return await response.json();
+
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
     }
-    return error;
   }
-  isAuthenticated() {
-    return this.supabase.auth.getSession();
+
+  // Get current user data from your API
+  async getCurrentUserData(): Promise<any> {
+    try {
+      const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch(`${this.apiUrl}/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+
+      return await response.json();
+
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to get JWT token
+  async getJwtToken(): Promise<string | null> {
+    const { data: { session } } = await this.supabase.auth.getSession();
+    return session?.access_token || null;
   }
 }

@@ -1,4 +1,5 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+// src/app/auth/signup/signup.component.ts
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -11,8 +12,8 @@ import { AuthService } from '../../services/auth.service';
   templateUrl: './signup.component.html',
   styleUrls: ['./signup.component.scss']
 })
-export class SignupComponent implements OnInit {
-  signupForm!: FormGroup;
+export class SignupComponent {
+  signupForm: FormGroup;
   isLoading = false;
   passwordVisible = false;
   errorMessage = '';
@@ -21,15 +22,8 @@ export class SignupComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
-    private router: Router,
-    private cdr: ChangeDetectorRef
-  ) {}
-
-  ngOnInit() {
-    this.initializeForm();
-  }
-
-  private initializeForm() {
+    private router: Router
+  ) {
     this.signupForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(2)]],
       email: ['', [Validators.required, Validators.email]],
@@ -37,97 +31,125 @@ export class SignupComponent implements OnInit {
       terms: [false, Validators.requiredTrue]
     });
   }
-
-  togglePasswordVisibility() {
-    console.log('Toggle password visibility clicked. Current state:', this.passwordVisible);
-    this.passwordVisible = !this.passwordVisible;
-    this.cdr.detectChanges();
-    console.log('New password visibility state:', this.passwordVisible);
+  // Add this method to your SignupComponent class
+async signInWithGoogle() {
+  if (this.isLoading) return;
+  this.isLoading = true;
+  this.errorMessage = '';
+  
+  try {
+    console.log('Starting Google sign in...');
+    const result = await this.authService.signInWithGoogle();
+    
+    if (result.error) {
+      throw result.error;
+    }
+    
+    console.log('Google sign in successful:', result.data);
+    this.successMessage = 'Redirecting to Google...';
+    
+  } catch (error: any) {
+    console.error('Google sign in error:', error);
+    this.errorMessage = error.message || 'Failed to sign in with Google';
+  } finally {
+    this.isLoading = false;
   }
-  async signInWithGoogle() {
-    if (this.isLoading) return;
+}
+
+  async onSubmit() {
+    if (this.signupForm.invalid || this.isLoading) return;
+
     this.isLoading = true;
     this.errorMessage = '';
-    this.cdr.detectChanges();
+    this.successMessage = '';
+
     try {
-      console.log('Starting Google sign in...');
-      const result: any = await this.authService.signInWithGoogle();
-      const error = result?.error;
-      const data = result?.data;  
-      if (error) {
-        throw error;
+      const { email, password, name } = this.signupForm.value;
+      
+      console.log('Starting signup process...');
+
+      // 1. Sign up with Supabase Auth
+      const { data: authData, error: authError } = await this.authService.supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: name
+          }
+        }
+      });
+
+      if (authError) {
+        console.error('Supabase auth error:', authError);
+        throw authError;
       }
-      console.log('Google sign in successful:', data);
-      this.successMessage = 'Redirecting to Google...';
-      this.cdr.detectChanges();
+
+      console.log('Supabase signup successful:', authData);
+
+      // 2. Create user in your Express backend
+      if (authData.user) {
+        console.log('Creating user in backend...');
+        const response = await fetch('http://localhost:3001/api/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supabaseUserId: authData.user.id,
+            email: authData.user.email,
+            displayName: name
+          })
+        });
+
+        const result = await response.json();
+        console.log('Backend response:', result);
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to create user in database');
+        }
+
+        this.successMessage = 'Account created successfully! Please check your email to verify.';
+        this.signupForm.reset();
+
+        // Redirect after delay
+        setTimeout(() => {
+          this.router.navigate(['/login'], {
+            state: { 
+              message: this.successMessage,
+              email: email 
+            }
+          });
+        }, 3000);
+      }
+
     } catch (error: any) {
-      console.error('Google sign in error:', error);
-      this.errorMessage = error.message || 'Failed to sign in with Google';
+      console.error('Signup failed:', error);
+      this.errorMessage = this.getErrorMessage(error);
+    } finally {
       this.isLoading = false;
-      this.cdr.detectChanges();
     }
   }
 
   private getErrorMessage(error: any): string {
-  const errorMap: Record<string, string> = {
-    '42501': 'Account created! Please check your email to verify before logging in.',
-    '23505': 'This email is already registered',
-    'User already registered': 'Email already in use',
-    'Invalid email': 'Please enter a valid email address',
-    'Weak password': 'Password must be at least 8 characters'
-  };
+    const errorMap: Record<string, string> = {
+      'Database error saving new user': 'Database error. Please try again.',
+      'For security purposes, you can only request this after': 'Please wait a minute before trying again.',
+      'new row violates row-level security policy': 'Server configuration error. Please contact support.',
+      'User already registered': 'This email is already registered.',
+      'Invalid email': 'Please enter a valid email address.',
+      'Weak password': 'Password must be at least 8 characters long.'
+    };
 
-  if (String(error?.code) === '42501' && this.signupForm.valid) {
-    return errorMap['42501'];
+    for (const [key, message] of Object.entries(errorMap)) {
+      if (error.message?.includes(key)) {
+        return message;
+      }
+    }
+
+    return error.message || 'Signup failed. Please try again.';
   }
 
-  const codeKey = String(error?.code);
-  const messageKey = String(error?.message);
-
-  return errorMap[codeKey] ||
-         errorMap[messageKey] ||
-         'Account created! Please check your email to verify.';
-}
-
-async onSubmit() {
-  if (this.signupForm.invalid || this.isLoading) return;
-
-  this.isLoading = true;
-  this.errorMessage = '';
-  this.successMessage = '';
-  this.cdr.detectChanges();
-
-  try {
-    const { email, password, name } = this.signupForm.value;
-    await this.authService.signUp(email, password, name);
-
-    // Success handling
-    this.successMessage = 'Account created! Please check your email to verify.';
-    this.signupForm.reset();
-    this.cdr.detectChanges();
-
-    // Redirect after delay
-    setTimeout(() => {
-      this.router.navigate(['/login'], {
-        state: { 
-          message: this.successMessage,
-          email: email 
-        }
-      });
-    }, 3000); // 3 second delay to show message
-
-  } catch (error: any) {
-    this.errorMessage = this.getErrorMessage(error);
-  } finally {
-    this.isLoading = false;
-    this.cdr.detectChanges();
-  }
-}
-
-  private markFormGroupTouched(formGroup: FormGroup) {
-    Object.keys(formGroup.controls).forEach(field => {
-      const control = formGroup.get(field);
-      control?.markAsTouched({ onlySelf: true });
-    });
+  togglePasswordVisibility() {
+    this.passwordVisible = !this.passwordVisible;
   }
 }

@@ -22,45 +22,25 @@ export class LoginSuccessComponent implements OnInit {
     private router: Router,
     private cdr: ChangeDetectorRef
   ) {}
-
   async ngOnInit() {
-    console.log('Initializing LoginSuccessComponent');
     this.isLoading = true;
-    
     try {
-      // Wait for potential OAuth callback processing
-      await this.delay(500);
+      const { data, error } = await this.authService.getCurrentUser();
+
+      if (error) throw error;
+      if (!data?.user) throw new Error('No user session');
+
+      this.userName = data.user.user_metadata?.['full_name'] || '';
+      this.userEmail = data.user.email || '';
       
-      const user = await this.getUserWithRetry();
-      
-      if (user) {
-        this.userName = user.user_metadata?.['name'] || 
-                      user.user_metadata?.['full_name'] || 
-                      user.email?.split('@')[0] || 
-                      'User';
-        this.userEmail = user.email || '';
-        console.log('User authenticated successfully:', { userName: this.userName, userEmail: this.userEmail });
-        
-        // Force change detection
-        setTimeout(() => {
-          this.isLoading = false;
-          this.cdr.detectChanges();
-          console.log('Loading set to false, isLoading:', this.isLoading);
-        }, 100);
-        
-      } else {
-        throw new Error('No valid user session found');
-      }
-    } catch (error) {
-      console.error('Authentication check failed:', error);
+    } catch (err) {
+      console.error('Auth check failed:', err);
+      this.router.navigate(['/login']);
+    } finally {
       this.isLoading = false;
-      setTimeout(() => {
-        this.router.navigate(['/login'], { 
-          queryParams: { error: 'Authentication failed. Please try again.' }
-        });
-      }, 2000);
     }
   }
+
 
   private async getUserWithRetry(): Promise<any> {
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
