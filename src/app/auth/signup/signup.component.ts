@@ -68,8 +68,8 @@ async signInWithGoogle() {
       
       console.log('Starting signup process...');
 
-      // 1. Sign up with Supabase Auth
-      const { data: authData, error: authError } = await this.authService.supabase.auth.signUp({
+      // 1. Sign up with Supabase Auth (cast AuthService to any to access the private supabase client)
+      const { data: authData, error: authError } = await (this.authService as any).supabase.auth.signUp({
         email,
         password,
         options: {

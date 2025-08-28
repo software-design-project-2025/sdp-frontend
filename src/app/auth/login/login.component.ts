@@ -1,16 +1,14 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+// src/app/auth/login/login.component.ts
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { HttpClient } from '@angular/common/http'; 
-import { provideHttpClientToStandalone } from '../../utils/http-provider';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
-  // REMOVE providers: [HttpClient] from here
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss']
 })
@@ -19,13 +17,12 @@ export class LoginComponent implements OnInit {
   isLoading = false;
   passwordVisible = false;
   errorMessage = '';
-  successMessage = ''; // Add this missing property
+  successMessage = '';
 
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
-    private router: Router,
-    private cdr: ChangeDetectorRef // Add this missing dependency
+    private router: Router
   ) {}
 
   ngOnInit() {
@@ -41,32 +38,30 @@ export class LoginComponent implements OnInit {
 
   togglePasswordVisibility() {
     this.passwordVisible = !this.passwordVisible;
-    this.cdr.detectChanges();
   }
 
+  // Google OAuth Sign In (FIXED)
   async signInWithGoogle() {
     if (this.isLoading) return;
+    
     this.isLoading = true;
     this.errorMessage = '';
-    this.cdr.detectChanges(); // Now cdr exists
-    
+    this.successMessage = 'Redirecting to Google...';
+
     try {
-      console.log('Starting Google sign in...');
       const result = await this.authService.signInWithGoogle();
       
       if (result.error) {
         throw result.error;
       }
-      
-      console.log('Google sign in successful:', result.data);
-      this.successMessage = 'Redirecting to Google...'; // Now successMessage exists
-      this.cdr.detectChanges();
-      
+
+      // The actual redirection is handled by Supabase OAuth flow
+      console.log('Google OAuth flow initiated successfully');
+
     } catch (error: any) {
       console.error('Google sign in error:', error);
-      this.errorMessage = error.message || 'Failed to sign in with Google';
+      this.errorMessage = this.getErrorMessage(error) || 'Failed to sign in with Google. Please try again.';
       this.isLoading = false;
-      this.cdr.detectChanges();
     }
   }
 
@@ -75,8 +70,7 @@ export class LoginComponent implements OnInit {
 
     this.isLoading = true;
     this.errorMessage = '';
-    this.successMessage = ''; // Now successMessage exists
-    this.cdr.detectChanges(); // Now cdr exists
+    this.successMessage = '';
 
     try {
       const { email, password } = this.loginForm.value;
@@ -87,14 +81,13 @@ export class LoginComponent implements OnInit {
         return;
       }
 
-      // Success - redirect to dashboard or home
-      console.log('✅ Login success, navigating...');
-      this.router.navigate(['/login-success']);
+      // Success - auth state listener will handle redirect
+      this.successMessage = 'Login successful! Redirecting...';
+
     } catch (error: any) {
       this.handleLoginError(error);
     } finally {
       this.isLoading = false;
-      this.cdr.detectChanges(); // Now cdr exists
     }
   }
 
@@ -106,7 +99,21 @@ export class LoginComponent implements OnInit {
     };
 
     this.errorMessage = errorMap[error.message] || 'Login failed. Please try again.';
-    this.isLoading = false;
-    this.cdr.detectChanges(); // Now cdr exists
+  }
+
+  private getErrorMessage(error: any): string {
+    const errorMap: Record<string, string> = {
+      'User already registered': 'This email is already registered',
+      'Invalid login credentials': 'Invalid email or password',
+      'Email not confirmed': 'Please verify your email first'
+    };
+
+    for (const [key, message] of Object.entries(errorMap)) {
+      if (error.message?.includes(key)) {
+        return message;
+      }
+    }
+
+    return error.message || 'An error occurred';
   }
 }
