@@ -10,7 +10,7 @@ import { LoginSuccessComponent } from './LoginSuccessComponent/LoginSuccessCompo
 @NgModule({
   declarations: [
    //SignupComponent,
-    LoginComponent,
+    //LoginComponent,
    // LoginSuccessComponent
   ],
   imports: [

@@ -1,124 +1,110 @@
-import { Injectable } from '@angular/core';
-import { createClient, SupabaseClient, AuthResponse } from '@supabase/supabase-js';
+// src/app/services/auth.service.ts
+import { Injectable, inject } from '@angular/core';
+import { createClient, SupabaseClient, User, Session, AuthResponse, AuthError, UserResponse } from '@supabase/supabase-js';
+import { environment } from '../../environments/environment';
 import { Router } from '@angular/router';
-
-export interface AuthResult {
-  data: any;
-  error: any;
-}
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
   private supabase: SupabaseClient;
-  public isLoading: boolean = false;
-  public errorMessage: string | null = null;
-  private authStateSub: any;
-  constructor(private router: Router) {
+  private router = inject(Router);
+  private apiUrl = 'http://localhost:3001/api';
 
+  constructor() {
     this.supabase = createClient(
-      'https://cixdigfxjvranfleyamm.supabase.co', 
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpeGRpZ2Z4anZyYW5mbGV5YW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyMDkyNzAsImV4cCI6MjA3MDc4NTI3MH0.ZgbRo8kxPZzhJe0BEw56seYrUlf3UiylCkeRPzdGWEQ'
+      environment.supabaseUrl,
+      environment.supabaseKey
     );
-    
+    this.setupAuthStateListener();
   }
-  
-  async signIn(email: string, password: string): Promise<AuthResult> {
+
+  get supabaseClient(): SupabaseClient {
+    return this.supabase;
+  }
+
+  async handleAuthCallback(): Promise<any> {
+    return await this.supabase.auth.getSession();
+  }
+
+  private setupAuthStateListener() {
+    this.supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event);
+      if (event === 'SIGNED_IN') {
+        this.router.navigate(['/login-success']);
+      } else if (event === 'SIGNED_OUT') {
+        this.router.navigate(['/login']);
+      }
+    });
+  }
+
+  async signInWithGoogle(): Promise<{ data: any; error: AuthError | null }> {
     try {
-      const { data, error } = await this.supabase.auth.signInWithPassword({
-        email: email,
-        password: password
+      const { data, error } = await this.supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent'
+          }
+        }
       });
 
-      if (error) {
-        return { data: null, error: { message: error.message } };
-      }
-
-      return { data, error: null };
+      return { data, error };
     } catch (error: any) {
-      return { data: null, error: { message: error.message } };
+      console.error('Google sign in error:', error);
+      return { data: null, error };
     }
   }
-  async signInWithGoogle(): Promise<{ error: any }> {
-  const { error } = await this.supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: window.location.origin + '/login-success'
-    }
-  });
-  return { error };
-}
 
-async signUp(email: string, password: string, name: string) {
-  try {
-    // 1. Create auth user first
-    const { data: { user }, error: authError } = await this.supabase.auth.signUp({
+  async signIn(email: string, password: string): Promise<AuthResponse> {
+    return await this.supabase.auth.signInWithPassword({ email, password });
+  }
+
+  async signUp(email: string, password: string, displayName: string): Promise<AuthResponse> {
+    return await this.supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { name } // Store in auth.user_metadata
+        data: { display_name: displayName },
+        emailRedirectTo: `${window.location.origin}/auth/callback`
       }
     });
+  }
 
-    if (authError) throw authError;
-    if (!user) throw new Error('User creation failed');
+  async signOut(): Promise<{ error: AuthError | null }> {
+    return await this.supabase.auth.signOut();
+  }
 
-    // 2. Get fresh session (critical for RLS)
-    const { data: { session }, error: sessionError } = 
-      await this.supabase.auth.refreshSession();
-    
-    if (sessionError) throw sessionError;
 
-    // 3. Create profile record
-    const { error: profileError } = await this.supabase
-      .from('profiles')
-      .upsert({
-        id: user.id,
-        email,
-        name,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+  async getCurrentUser(): Promise<UserResponse> {
+    return await this.supabase.auth.getUser();
+  }
+
+  async getSession(): Promise<any> {
+    return await this.supabase.auth.getSession();
+  }
+
+  
+  private async createBackendUser(userId: string, email: string, displayName: string) {
+    try {
+      const response = await fetch(`${this.apiUrl}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supabaseUserId: userId,
+          email: email,
+          displayName: displayName
+        })
       });
 
-    if (profileError) throw profileError;
-
-    return { user, session };
-  } catch (error) {
-    console.error('Signup error:', error);
-    throw error;
-  }
-}
-async getSession() {
-  try {
-    return await this.supabase.auth.getSession();
-  } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes('Navigator LockManager')) {
-      console.warn('Lock API unavailable, falling back to direct auth');
-      return await this.supabase.auth.getSession();
+      if (!response.ok) {
+        console.warn('Backend user creation failed');
+      }
+    } catch (error) {
+      console.warn('Backend user creation error:', error);
     }
-    throw error;
-  }
-}
-async getCurrentUser() {
-  // Use getSession() instead of getUser() for better reliability
-  const { data, error } = await this.supabase.auth.getSession();
-  
-  return {
-    data: {
-      user: data?.session?.user || null
-    },
-    error
-  };
-}
-  async signOut() {
-    const { error } = await this.supabase.auth.signOut();
-    if (!error) {
-      this.router.navigate(['/login']);
-    }
-    return error;
-  }
-  isAuthenticated() {
-    return this.supabase.auth.getSession();
   }
 }
