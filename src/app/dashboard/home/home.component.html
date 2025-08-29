@@ -1,35 +1,25 @@
-<!-- home.component.html -->
 <!-- Top Navigation -->
 <header class="top-nav">
     <a routerLink="/home">
-        <img src="assets/logo.png" alt="StudyLink Logo" class="logo-img" />
+    <img src="assets/logo.png" alt="StudyLink Logo" class="logo-img" />
     </a>
+    <nav class="top-nav-links">
+        <a routerLink="/dashboard/home" routerLinkActive="active">Dashboard</a>
+        <a routerLink="/sessions" routerLinkActive="active">Sessions</a>
+        <a routerLink="/chat" routerLinkActive="active">Chat</a>
+    </nav>
 </header>
-
-<nav class="top-nav-links">
-    <ul>
-        <li>
-            <a routerLink="/home" routerLinkActive="active">Dashboard</a>
-        </li>
-        <li>
-            <a routerLink="/sessions" routerLinkActive="active">Sessions</a>
-        </li>
-        <li>
-            <a routerLink="/chat" routerLinkActive="active">Chat</a>
-        </li>
-    </ul>
-</nav>
 
 <main class="dashboard">
     <!-- Welcome Section -->
     <section id="welcome-section" class="card">
         <header>
-        <h1>Welcome Back!</h1>
-        <p>Ready to continue with your learning journey?</p>
+            <h1>Welcome Back!</h1>
+            <p>Ready to continue with your learning journey?</p>
         </header>
     </section>
 
-    <!-- Dashboard Stat Cards -->
+    <!-- Dashboard Stats -->
     <section class="stats-row">
         <article class="stat-card hours">
             <header class="icon">⏱</header>
@@ -64,11 +54,10 @@
         </article>
     </section>
 
-    <!-- Upcoming Sessions -->
+    <!-- Upcoming Sessions Calendar -->
     <section id="sessions-calendar" class="card">
         <header>
             <h2>Upcoming Sessions</h2>
-            <p>Check out the schedule for your next sessions.</p>
         </header>
         <full-calendar [options]="calendarOptions"></full-calendar>
     </section>
@@ -76,25 +65,24 @@
     <!-- New Study Groups -->
     <section id="new-groups" class="card">
         <header>
-        <h2>New Study Groups</h2>
-        <p>Join new groups to enhance your learning experience.</p>
+            <h2>New Study Groups</h2>
         </header>
         <article class="group-item">
             <header>
-                <h3>Advanced Mathematics</h3>
-                <p>Join fellow students tackling calculus and beyond</p>
+            <h3>Advanced Mathematics</h3>
+            <p>Join fellow students tackling calculus and beyond</p>
             </header>
             <footer>
-                <button class="join-btn">Join Group</button>
+            <button class="join-btn">Join Group</button>
             </footer>
         </article>
         <article class="group-item">
             <header>
-                <h3>Computer Science Fundamentals</h3>
-                <p>Perfect for beginners and intermediate learners</p>
+            <h3>Computer Science Fundamentals</h3>
+            <p>Perfect for beginners and intermediate learners</p>
             </header>
             <footer>
-                <button class="join-btn">Join Group</button>
+            <button class="join-btn">Join Group</button>
             </footer>
         </article>
     </section>
