@@ -85,9 +85,27 @@ export class LoginSuccessComponent implements OnInit {
   }
 
   goToDashboard() {
-    if (this.isLoading) return;
-    this.router.navigate(['/dashboard']);
-  }
+  console.log('Navigating to dashboard, isLoading:', this.isLoading);
+  if (this.isLoading) return;
+  
+  // Check if we still have a valid session before navigating
+  this.authService.getCurrentUser().then(({data, error}) => {
+    if (error || !data?.user) {
+      console.error('Session expired or invalid:', error);
+      this.router.navigate(['/login']);
+      return;
+    }
+    
+    console.log('Session is valid, navigating to dashboard/home');
+    this.router.navigate(['/dashboard/home']).then(
+      (success) => console.log('Navigation successful:', success),
+      (error) => console.error('Navigation failed:', error)
+    );
+  }).catch(err => {
+    console.error('Error checking session:', err);
+    this.router.navigate(['/login']);
+  });
+}
 
   goToProfile() {
     if (this.isLoading) return;
