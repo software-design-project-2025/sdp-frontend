@@ -106,7 +106,7 @@ export class LoginSuccessComponent implements OnInit {
 
   goToDashboard() {
     if (this.isLoading) return;
-    this.router.navigate(['/dashboard']);
+    this.router.navigate(['/home']);
   }
 
   goToProfile() {
