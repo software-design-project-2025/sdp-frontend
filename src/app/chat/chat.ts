@@ -71,22 +71,6 @@ export class Chat implements OnInit {
   };
 
   // Sample data - in a real app, this would come from a service
-  getDataWithParams(id: number): void {
-    
-    this.chatService.getChatById(id).subscribe({
-      next: (response) => {
-        this.data = response;
-        this.loading = false;
-      },
-      error: (err) => {
-        this.error = 'Error loading data';
-        this.loading = false;
-        console.error('Error:', err);
-      }
-    });
-  }
-  
-  
   users: User[] = [
     { id: 2, name: 'Sarah Chen', initials: 'SC', online: true },
     { id: 3, name: 'Emma Davis', initials: 'ED', online: false }
@@ -110,21 +94,32 @@ export class Chat implements OnInit {
     });
   }
 
-
   ngOnInit(): void {
+    // Get chat ID from route parameters or service
+    const userid = 0; // You need to implement this
+    
+    // Call the service with proper error handling
+    this.chatService.getChatById(userid).subscribe({
+      next: (response: any) => {
+        this.data = response;
+        console.log('Chat loaded:', response);
+      },
+      error: (err) => {
+        console.error('Error loading chat:', err);
+        this.error = 'Failed to load chat';
+      }
+    });
+
     this.initializeConversations();
     this.filteredConversations = [...this.conversations];
     
-    // Set the first conversation as active by default
     if (this.conversations.length > 0) {
       this.setActiveConversation(this.conversations[0]);
     }
 
-    // Listen for search input changes
     this.searchForm.get('searchTerm')?.valueChanges.subscribe(term => {
       this.filterConversations(term);
     });
-    this.getDataWithParams(0);
   }
 
   initializeConversations(): void {

@@ -14,7 +14,6 @@ export interface Chat {
   providedIn: 'root'
 })
 export class ChatService {
-  //private apiUrl = 'https://localhost:8080/api/chat';
 
   constructor(private http: HttpClient) { }
 
@@ -25,8 +24,8 @@ export class ChatService {
     });
   }
 
-  getChatById(id: number): Observable<Chat> {
-    return this.http.get<Chat>(`${environment.apiBaseUrl}/chat/${id}`,
+  getChatById(userid: number): Observable<Chat> {
+    return this.http.get<Chat>(`${environment.apiBaseUrl}/chat/getChat?userid=${userid}`,
       {headers: this.getHeaders()}
     );
   }
