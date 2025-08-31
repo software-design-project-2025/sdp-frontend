@@ -1,7 +1,6 @@
 import {Component, ChangeDetectionStrategy, OnInit} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms'; // Import FormsModule
-import { ApiService } from '../services/api.service';
 
 // Interface for a study partner
 interface User {
@@ -47,9 +46,9 @@ export class FindPartners implements OnInit {
   userCourses: UserCourse[] = [];
   modules: Module[] = [];
   degrees: Degree[] = [];
-  data: any;
-
-  constructor(private apiService: ApiService) { }
+  // data: any;
+  //
+  // constructor(private apiService: ApiService) { }
 
   // Properties for filtering state
   searchTerm: string = '';
@@ -61,15 +60,15 @@ export class FindPartners implements OnInit {
   ngOnInit() {
     this.populateDummyData();
     this.applyFilters(); // Initial filter application
-    this.apiService.getData().subscribe(
-      (response) => {
-        this.data = response;
-        console.log('Data fetched:', this.data);
-      },
-      (error) => {
-        console.error('API Error:', error);
-      }
-    );
+    // this.apiService.getData().subscribe(
+    //   (response) => {
+    //     this.data = response;
+    //     console.log('Data fetched:', this.data);
+    //   },
+    //   (error) => {
+    //     console.error('API Error:', error);
+    //   }
+    // );
   }
 
   /**
