@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { UserService } from '../services/chat.service';
+import { ChatService } from '../services/chat.service';
 
 
 // Interface definitions
@@ -36,14 +36,28 @@ interface Conversation {
   messages: Message[];
 }
 
+interface chat {
+  chatid: number,
+  user1id: number,
+  user2id: number
+}
+
 @Component({
   selector: 'app-chat',
   templateUrl: './chat.html',
   styleUrls: ['./chat.scss']
 })
+
+
 export class Chat implements OnInit {
+  chats: any[] = [];
+  data: any;   
+  loading = false;
+  error: string = ''; 
+  
   searchForm: FormGroup;
   messageForm: FormGroup;
+  
   
   conversations: Conversation[] = [];
   filteredConversations: Conversation[] = [];
@@ -57,6 +71,22 @@ export class Chat implements OnInit {
   };
 
   // Sample data - in a real app, this would come from a service
+  getDataWithParams(id: number): void {
+    
+    this.chatService.getChatById(id).subscribe({
+      next: (response) => {
+        this.data = response;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.error = 'Error loading data';
+        this.loading = false;
+        console.error('Error:', err);
+      }
+    });
+  }
+  
+  
   users: User[] = [
     { id: 2, name: 'Sarah Chen', initials: 'SC', online: true },
     { id: 3, name: 'Emma Davis', initials: 'ED', online: false }
@@ -67,7 +97,10 @@ export class Chat implements OnInit {
     { id: 102, name: 'Physics Lab Group', initials: 'PLG', memberCount: 4 }
   ];
 
-  constructor(private fb: FormBuilder) {
+  constructor(
+    private fb: FormBuilder,
+    private chatService: ChatService
+  ) {
     this.searchForm = this.fb.group({
       searchTerm: ['']
     });
@@ -91,6 +124,7 @@ export class Chat implements OnInit {
     this.searchForm.get('searchTerm')?.valueChanges.subscribe(term => {
       this.filterConversations(term);
     });
+    this.getDataWithParams(0);
   }
 
   initializeConversations(): void {
