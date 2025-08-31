@@ -1,0 +1,72 @@
+<main class="study-partners-container">
+  <header class="page-header">
+    <h1>Find Study Partners</h1>
+    <p>Connect with fellow students who share your academic interests</p>
+  </header>
+
+  <section class="search-and-filters">
+    <div class="search-bar">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input
+        type="text"
+        placeholder="Search by name, course, or subject..."
+        [(ngModel)]="searchTerm"
+        (ngModelChange)="applyFilters()">
+    </div>
+    <div class="filters">
+      <select [(ngModel)]="selectedDegree" (ngModelChange)="applyFilters()">
+        <option value="All">All Degrees</option>
+        <option *ngFor="let degree of degrees" [value]="degree.degreeid">
+          {{ degree.degree_name }}
+        </option>
+      </select>
+      <button class="filter-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+        Filters
+      </button>
+    </div>
+  </section>
+
+  <section class="results-section">
+    <div class="results-header">
+      <h2>Found {{ filteredPartners.length }} potential study partners</h2>
+    </div>
+
+    <div class="partners-grid">
+      <article *ngFor="let partner of filteredPartners" class="partner-card">
+        <header class="card-header">
+          <div class="avatar" [style.backgroundColor]="getAvatarColor(partner.username)">
+            {{ getInitials(partner.username) }}
+          </div>
+          <div class="partner-info">
+            <h3>{{ partner.username }}</h3>
+            <p>{{ getDegreeName(partner.degreeid) }} • {{ getYearOfStudy(partner.yearofstudy) }}</p>
+          </div>
+        </header>
+        <p class="description">{{ partner.bio }}</p>
+        <div class="subjects">
+          <h4>Subjects:</h4>
+          <ul>
+            <li *ngFor="let course of getPartnerCourses(partner.userid)">
+              {{ course.course_name }}
+            </li>
+          </ul>
+        </div>
+        <footer class="card-footer">
+<!--          <button class="connect-btn">Connect</button>-->
+          <button class="message-btn">Message</button>
+        </footer>
+      </article>
+    </div>
+  </section>
+
+  <footer class="page-footer">
+    <h3>Looking for something specific?</h3>
+    <nav>
+      <a href="#">Find Math Study Group</a>
+      <a href="#">Physics Lab Partners</a>
+      <a href="#">CS Project Partners</a>
+      <a href="#">Language Exchange</a>
+    </nav>
+  </footer>
+</main>
