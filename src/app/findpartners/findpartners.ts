@@ -1,6 +1,7 @@
 import {Component, ChangeDetectionStrategy, OnInit} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms'; // Import FormsModule
+import { FormsModule } from '@angular/forms';
+import {ApiService} from '../services/findpartner.service'; // Import FormsModule
 
 // Interface for a study partner
 interface User {
@@ -10,7 +11,7 @@ interface User {
   role: string;
   is_active: boolean;
   bio: string;
-  degreeid: string;
+  degreeid: number;
   yearofstudy: number;
 }
 
@@ -22,14 +23,14 @@ interface UserCourse {
 interface Module{
   courseCode: string;
   course_name: string;
-  faculty_id: number;
+  facultyid: number;
 }
 
 interface Degree {
-  degreeid: string;
+  degreeid: number;
   degree_name: string;
   degree_type: string;
-  faculty: string;
+  facultyid: string;
 }
 
 @Component({
@@ -46,9 +47,9 @@ export class FindPartners implements OnInit {
   userCourses: UserCourse[] = [];
   modules: Module[] = [];
   degrees: Degree[] = [];
-  // data: any;
-  //
-  // constructor(private apiService: ApiService) { }
+  data: any;
+
+  constructor(private apiService: ApiService) { }
 
   // Properties for filtering state
   searchTerm: string = '';
@@ -58,17 +59,9 @@ export class FindPartners implements OnInit {
   filteredPartners: User[] = [];
 
   ngOnInit() {
-    this.populateDummyData();
+    //this.populateDummyData();
+    this.populateData();
     this.applyFilters(); // Initial filter application
-    // this.apiService.getData().subscribe(
-    //   (response) => {
-    //     this.data = response;
-    //     console.log('Data fetched:', this.data);
-    //   },
-    //   (error) => {
-    //     console.error('API Error:', error);
-    //   }
-    // );
   }
 
   /**
@@ -95,49 +88,54 @@ export class FindPartners implements OnInit {
 
     // 2. Filter by the selected degree
     if (this.selectedDegree !== 'All') {
-      tempPartners = tempPartners.filter(partner => partner.degreeid === this.selectedDegree);
+      // FIX: Convert selectedDegree from string to number for correct comparison
+      tempPartners = tempPartners.filter(partner => partner.degreeid === Number(this.selectedDegree));
     }
 
     this.filteredPartners = tempPartners;
   }
 
-  populateDummyData() {
-    this.degrees = [
-      { degreeid: 'CS', degree_name: 'Computer Science', degree_type: 'BSc', faculty: 'Science' },
-      { degreeid: 'ENG', degree_name: 'Electrical Engineering', degree_type: 'BEng', faculty: 'Engineering' },
-      { degreeid: 'BCOM', degree_name: 'Commerce', degree_type: 'BCom', faculty: 'Commerce, Law and Management' },
-      { degreeid: 'ART', degree_name: 'Fine Arts', degree_type: 'BA', faculty: 'Humanities' }
-    ];
+  populateData() {
+    this.apiService.getDegree().subscribe(
+      (response) => {
+        this.degrees = response;
+        console.log('Data fetched:', this.degrees);
+      },
+      (error) => {
+        console.error('API Error:', error);
+      }
+    );
 
-    this.modules = [
-      { courseCode: 'COS101', course_name: 'Intro to Programming', faculty_id: 1 },
-      { courseCode: 'COS212', course_name: 'Data Structures', faculty_id: 1 },
-      { courseCode: 'ELC101', course_name: 'Basic Circuits', faculty_id: 2 },
-      { courseCode: 'ACC101', course_name: 'Accounting 1A', faculty_id: 3 },
-      { courseCode: 'FIN201', course_name: 'Finance 2', faculty_id: 3 },
-      { courseCode: 'ART100', course_name: 'History of Art', faculty_id: 4 }
-    ];
+    this.apiService.getModule().subscribe(
+      (response) => {
+        this.modules = response;
+        console.log('Data fetched:', this.modules);
+      },
+      (error) => {
+        console.error('API Error:', error);
+      }
+    );
 
     this.partners = [
-      { userid: 1, username: 'Alice', email: 'alice@example.com', role: 'student', is_active: true, bio: 'Loves algorithms and problem-solving.', degreeid: 'CS', yearofstudy: 2 },
-      { userid: 2, username: 'Bob', email: 'bob@example.com', role: 'student', is_active: true, bio: 'Keen on web development and design.', degreeid: 'CS', yearofstudy: 3 },
-      { userid: 3, username: 'Charlie', email: 'charlie@example.com', role: 'student', is_active: false, bio: 'Hardware enthusiast, building my own PC.', degreeid: 'ENG', yearofstudy: 1 },
-      { userid: 4, username: 'Diana', email: 'diana@example.com', role: 'student', is_active: true, bio: 'Future accountant, loves spreadsheets.', degreeid: 'BCOM', yearofstudy: 2 },
-      { userid: 5, username: 'Eve', email: 'eve@example.com', role: 'student', is_active: false, bio: 'Exploring the intersection of art and tech.', degreeid: 'ART', yearofstudy: 4 }
+      { userid: 0, username: 'Alice', email: 'alice@example.com', role: 'student', is_active: true, bio: 'Loves algorithms and problem-solving.', degreeid: 9, yearofstudy: 2 },
+      { userid: 2, username: 'Bob', email: 'bob@example.com', role: 'student', is_active: true, bio: 'Keen on web development and design.', degreeid: 9, yearofstudy: 3 },
+      { userid: 3, username: 'Charlie', email: 'charlie@example.com', role: 'student', is_active: false, bio: 'Hardware enthusiast, building my own PC.', degreeid: 9, yearofstudy: 1 },
+      { userid: 4, username: 'Diana', email: 'diana@example.com', role: 'student', is_active: true, bio: 'Future accountant, loves spreadsheets.', degreeid: 9, yearofstudy: 2 },
+      { userid: 5, username: 'Eve', email: 'eve@example.com', role: 'student', is_active: false, bio: 'Exploring the intersection of art and tech.', degreeid: 9, yearofstudy: 4 }
     ];
 
-    this.userCourses = [
-      { userid: 1, courseCode: 'COS101' },
-      { userid: 1, courseCode: 'COS212' },
-      { userid: 2, courseCode: 'COS212' },
-      { userid: 3, courseCode: 'ELC101' },
-      { userid: 4, courseCode: 'ACC101' },
-      { userid: 4, courseCode: 'FIN201' },
-      { userid: 5, courseCode: 'ART100' }
-    ];
+    this.apiService.getUserCourse().subscribe(
+      (response) => {
+        this.userCourses = response;
+        console.log('Data fetched:', this.userCourses);
+      },
+      (error) => {
+        console.error('API Error:', error);
+      }
+    );
   }
 
-  getDegreeName(degreeId: string): string {
+  getDegreeName(degreeId: number): string {
     const degree = this.degrees.find(d => d.degreeid === degreeId);
     return degree ? degree.degree_name : 'Unknown Degree';
   }
