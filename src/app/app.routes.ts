@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { LoginComponent } from './auth/login/login.component';
 import { SignupComponent } from './auth/signup/signup.component';
 import { LoginSuccessComponent } from './auth/LoginSuccessComponent/LoginSuccessComponent';
-import { HomeComponent} from './dashboard/home/home';
+import { HomeComponent} from './dashboard/home/home.component';
 import { Chat } from './chat/chat';
 import { FindPartners } from './findpartners/findpartners';
 
