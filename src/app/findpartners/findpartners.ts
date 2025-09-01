@@ -1,7 +1,8 @@
 import {Component, ChangeDetectionStrategy, OnInit} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {ApiService} from '../services/findpartner.service'; // Import FormsModule
+import {ApiService} from '../services/findpartner.service';
+import {BehaviorSubject, forkJoin} from 'rxjs'; // Import FormsModule
 
 // Interface for a study partner
 interface User {
@@ -48,6 +49,8 @@ export class FindPartners implements OnInit {
   modules: Module[] = [];
   degrees: Degree[] = [];
   data: any;
+  isLoading$ = new BehaviorSubject<boolean>(true);
+  isLoading = this.isLoading$.asObservable();
 
   constructor(private apiService: ApiService) { }
 
@@ -61,7 +64,6 @@ export class FindPartners implements OnInit {
   ngOnInit() {
     //this.populateDummyData();
     this.populateData();
-    this.applyFilters(); // Initial filter application
   }
 
   /**
@@ -70,6 +72,7 @@ export class FindPartners implements OnInit {
   applyFilters() {
     // Start with only active partners
     let tempPartners = this.partners.filter(p => p.is_active);
+    console.log("jijijijiji");
 
     // 1. Filter by the search term (case-insensitive)
     if (this.searchTerm && this.searchTerm.trim() !== '') {
@@ -93,50 +96,85 @@ export class FindPartners implements OnInit {
     }
 
     this.filteredPartners = tempPartners;
+    this.isLoading$.next(false);
   }
 
-  populateData() {
-    this.apiService.getDegree().subscribe(
-      (response) => {
-        this.degrees = response;
-        console.log('Data fetched:', this.degrees);
+   async populateData() {
+    const apiCalls = forkJoin({
+      degrees: this.apiService.getDegree(),
+      modules: this.apiService.getModule(),
+      userCourses: this.apiService.getUserCourse()
+    });
+
+    apiCalls.subscribe(
+      (results) => {
+        // All API calls completed successfully
+        this.degrees = results.degrees;
+        this.modules = results.modules;
+        this.userCourses = results.userCourses;
+
+        this.partners = [
+          { userid: 0, username: 'Alice', email: 'alice@example.com', role: 'student', is_active: true, bio: 'Loves algorithms and problem-solving.', degreeid: 9, yearofstudy: 2 },
+          { userid: 2, username: 'Bob', email: 'bob@example.com', role: 'student', is_active: true, bio: 'Keen on web development and design.', degreeid: 9, yearofstudy: 3 },
+          { userid: 3, username: 'Charlie', email: 'charlie@example.com', role: 'student', is_active: false, bio: 'Hardware enthusiast, building my own PC.', degreeid: 9, yearofstudy: 1 },
+          { userid: 4, username: 'Diana', email: 'diana@example.com', role: 'student', is_active: true, bio: 'Future accountant, loves spreadsheets.', degreeid: 9, yearofstudy: 2 },
+          { userid: 5, username: 'Eve', email: 'eve@example.com', role: 'student', is_active: false, bio: 'Exploring the intersection of art and tech.', degreeid: 9, yearofstudy: 4 }
+        ];
+
+        console.log('All data fetched successfully');
+        console.log( this.degrees);
+        this.applyFilters();
       },
       (error) => {
-        console.error('API Error:', error);
+        console.error('One or more API calls failed:', error);
       }
     );
 
-    this.apiService.getModule().subscribe(
-      (response) => {
-        this.modules = response;
-        console.log('Data fetched:', this.modules);
-      },
-      (error) => {
-        console.error('API Error:', error);
-      }
-    );
-
-    this.partners = [
-      { userid: 0, username: 'Alice', email: 'alice@example.com', role: 'student', is_active: true, bio: 'Loves algorithms and problem-solving.', degreeid: 9, yearofstudy: 2 },
-      { userid: 2, username: 'Bob', email: 'bob@example.com', role: 'student', is_active: true, bio: 'Keen on web development and design.', degreeid: 9, yearofstudy: 3 },
-      { userid: 3, username: 'Charlie', email: 'charlie@example.com', role: 'student', is_active: false, bio: 'Hardware enthusiast, building my own PC.', degreeid: 9, yearofstudy: 1 },
-      { userid: 4, username: 'Diana', email: 'diana@example.com', role: 'student', is_active: true, bio: 'Future accountant, loves spreadsheets.', degreeid: 9, yearofstudy: 2 },
-      { userid: 5, username: 'Eve', email: 'eve@example.com', role: 'student', is_active: false, bio: 'Exploring the intersection of art and tech.', degreeid: 9, yearofstudy: 4 }
-    ];
-
-    this.apiService.getUserCourse().subscribe(
-      (response) => {
-        this.userCourses = response;
-        console.log('Data fetched:', this.userCourses);
-      },
-      (error) => {
-        console.error('API Error:', error);
-      }
-    );
+    // this.apiService.getDegree().subscribe(
+    //   (response) => {
+    //     this.degrees = response;
+    //     console.log('Data fetched:', this.degrees);
+    //   },
+    //   (error) => {
+    //     console.error('API Error:', error);
+    //   }
+    // );
+    //
+    // this.apiService.getModule().subscribe(
+    //   (response) => {
+    //     this.modules = response;
+    //     console.log('Data fetched:', this.modules);
+    //   },
+    //   (error) => {
+    //     console.error('API Error:', error);
+    //   }
+    // );
+    //
+    // this.partners = [
+    //   { userid: 0, username: 'Alice', email: 'alice@example.com', role: 'student', is_active: true, bio: 'Loves algorithms and problem-solving.', degreeid: 9, yearofstudy: 2 },
+    //   { userid: 2, username: 'Bob', email: 'bob@example.com', role: 'student', is_active: true, bio: 'Keen on web development and design.', degreeid: 9, yearofstudy: 3 },
+    //   { userid: 3, username: 'Charlie', email: 'charlie@example.com', role: 'student', is_active: false, bio: 'Hardware enthusiast, building my own PC.', degreeid: 9, yearofstudy: 1 },
+    //   { userid: 4, username: 'Diana', email: 'diana@example.com', role: 'student', is_active: true, bio: 'Future accountant, loves spreadsheets.', degreeid: 9, yearofstudy: 2 },
+    //   { userid: 5, username: 'Eve', email: 'eve@example.com', role: 'student', is_active: false, bio: 'Exploring the intersection of art and tech.', degreeid: 9, yearofstudy: 4 }
+    // ];
+    //
+    // this.apiService.getUserCourse().subscribe(
+    //   (response) => {
+    //     this.userCourses = response;
+    //
+    //     console.log('Data load:', this.userCourses);
+    //     this.isLoading$.next(false);
+    //     console.log('Data load:', this.isLoading);
+    //   },
+    //   (error) => {
+    //     console.error('API Error:', error);
+    //   }
+    // );
   }
 
   getDegreeName(degreeId: number): string {
     const degree = this.degrees.find(d => d.degreeid === degreeId);
+    console.log("hiooo", degree);
     return degree ? degree.degree_name : 'Unknown Degree';
   }
 

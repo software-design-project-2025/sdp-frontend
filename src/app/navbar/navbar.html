@@ -1,0 +1,33 @@
+<nav class="navbar">
+  <a href="#" class="navbar__logo">
+    <img ngSrc="/assets/logo.png" alt="StudyBuddy Logo" height="1024" width="1024">
+    <span>StudyBuddy</span>
+  </a>
+
+  <ul class="navbar__links">
+    @for (link of navLinks; track link.name) {
+      <li>
+        <a
+          [routerLink]="link.path"
+          class="navbar__link"
+          [class.active]="isActive(link.path)"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: link.path === '/dashboard' }"
+        >
+          <div class="navbar__link-icon" [innerHTML]="link.icon"></div>
+          <span class="navbar__link-text">{{ link.name }}</span>
+        </a>
+      </li>
+    }
+  </ul>
+
+  <div class="navbar__user">
+    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0MzYxZWUiIGZpbGwtb3BhY2l0eT0iMC4yIi8+CjxwYXRoIGQ9Ik0yNi41IDI2LjVWMjVDMjYuNSAyMi41MTQ3IDI0LjQ4NTMgMjAuNSAyMiAyMC41SDE4QzE1LjUxNDcgMjAuNSAxMy41IDIyLjUxNDcgMTMuNSAyNVYyNi41IiBzdHJva2U9IiM0MzYxZWUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CjxjaXJjbGUgY3g9IjIwIiBjeT0iMTUiIHI9IjMuNSIgc3Ryb2tlPSIjNDM2MWVlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4=" alt="User avatar" class="navbar__user-avatar">
+  </div>
+
+  <button class="navbar__toggle" aria-label="Toggle navigation">
+    <span class="navbar__toggle-line"></span>
+    <span class="navbar__toggle-line"></span>
+    <span class="navbar__toggle-line"></span>
+  </button>
+</nav>
