@@ -39,6 +39,7 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
+    "@angular-builders/custom-webpack": "^20.0.0",
     "@angular-devkit/build-angular": "^20.1.4",
     "@angular/build": "^20.1.4",
     "@angular/cli": "^20.1.4",
@@ -46,9 +47,12 @@
     "@angular/core": "^20.1.4",
     "@angular/platform-browser": "^20.1.4",
     "@angular/platform-browser-dynamic": "^20.1.4",
+    "@ngx-env/builder": "^20.1.1",
     "@types/express": "^5.0.1",
     "@types/jasmine": "~5.1.0",
     "@types/node": "^20.17.19",
+    "dotenv": "^17.2.1",
+    "dotenv-webpack": "^8.1.1",
     "jasmine-core": "~5.8.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",

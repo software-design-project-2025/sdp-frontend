@@ -32,7 +32,7 @@ export class LoginSuccessComponent implements OnInit {
 
       this.userName = data.user.user_metadata?.['full_name'] || '';
       this.userEmail = data.user.email || '';
-      
+
     } catch (err) {
       console.error('Auth check failed:', err);
       this.router.navigate(['/login']);
@@ -46,9 +46,9 @@ export class LoginSuccessComponent implements OnInit {
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         console.log(`Attempt ${attempt} to get user session`);
-        
+
         const { data, error } = await this.authService.getCurrentUser();
-        
+
         if (error) {
           console.warn(`Attempt ${attempt} failed:`, error);
           if (attempt === this.maxRetries) {
@@ -67,7 +67,7 @@ export class LoginSuccessComponent implements OnInit {
         if (attempt < this.maxRetries) {
           await this.delay(this.retryDelay * attempt);
         }
-        
+
       } catch (error) {
         console.error(`Error on attempt ${attempt}:`, error);
         if (attempt === this.maxRetries) {
@@ -76,7 +76,7 @@ export class LoginSuccessComponent implements OnInit {
         await this.delay(this.retryDelay * attempt);
       }
     }
-    
+
     throw new Error('Failed to get user session after all retry attempts');
   }
 
@@ -85,9 +85,10 @@ export class LoginSuccessComponent implements OnInit {
   }
 
   goToDashboard() {
+
   console.log('Navigating to dashboard, isLoading:', this.isLoading);
   if (this.isLoading) return;
-  
+
   // Check if we still have a valid session before navigating
   this.authService.getCurrentUser().then(({data, error}) => {
     if (error || !data?.user) {
@@ -95,7 +96,7 @@ export class LoginSuccessComponent implements OnInit {
       this.router.navigate(['/login']);
       return;
     }
-    
+
     console.log('Session is valid, navigating to dashboard/home');
     this.router.navigate(['/dashboard/home']).then(
       (success) => console.log('Navigation successful:', success),
@@ -107,6 +108,7 @@ export class LoginSuccessComponent implements OnInit {
   });
 }
 
+
   goToProfile() {
     if (this.isLoading) return;
     this.router.navigate(['/profile']);
@@ -115,15 +117,15 @@ export class LoginSuccessComponent implements OnInit {
   this.isLoading = true;
   try {
     const { data: { session }, error } = await this.authService.getSession();
-    
+
     if (error) throw error;
     if (!session) throw new Error('No session found');
-    
+
     this.user = {
       userName: session.user.user_metadata?.['full_name'] || '',
       userEmail: session.user.email || ''
     };
-      
+
   } catch (error) {
     console.error('Auth check failed:', error);
     this.router.navigate(['/login']);
@@ -134,7 +136,7 @@ export class LoginSuccessComponent implements OnInit {
 
   async logout() {
     if (this.isLoading) return;
-    
+
     this.isLoading = true;
     try {
       console.log('Logging out...');

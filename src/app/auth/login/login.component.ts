@@ -39,8 +39,6 @@ export class LoginComponent implements OnInit {
   togglePasswordVisibility() {
     this.passwordVisible = !this.passwordVisible;
   }
-
-  // Google OAuth Sign In (FIXED)
   async signInWithGoogle() {
     if (this.isLoading) return;
     
@@ -54,8 +52,6 @@ export class LoginComponent implements OnInit {
       if (result.error) {
         throw result.error;
       }
-
-      // The actual redirection is handled by Supabase OAuth flow
       console.log('Google OAuth flow initiated successfully');
 
     } catch (error: any) {
@@ -80,8 +76,6 @@ export class LoginComponent implements OnInit {
         this.handleLoginError(result.error);
         return;
       }
-
-      // Success - auth state listener will handle redirect
       this.successMessage = 'Login successful! Redirecting...';
 
     } catch (error: any) {

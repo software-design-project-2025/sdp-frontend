@@ -31,7 +31,6 @@ export class SignupComponent {
       terms: [false, Validators.requiredTrue]
     });
   }
-  // Add this method to your SignupComponent class
 async signInWithGoogle() {
   if (this.isLoading) return;
   this.isLoading = true;
@@ -67,8 +66,6 @@ async signInWithGoogle() {
     const { email, password, name } = this.signupForm.value;
     
     console.log('Starting signup process...');
-
-    // 1. Sign up with Supabase Auth
     const { data: authData, error: authError } = await (this.authService as any).supabase.auth.signUp({
       email,
       password,
@@ -86,8 +83,6 @@ async signInWithGoogle() {
     }
 
     console.log('Supabase signup successful:', authData);
-
-    // 2. Create user in your Express backend WITHOUT token (since user isn't verified yet)
     if (authData.user) {
       console.log('Creating user in backend...');
 
@@ -112,8 +107,6 @@ async signInWithGoogle() {
 
       this.successMessage = 'Account created successfully! Please check your email to verify your account. You can login after verification.';
       this.signupForm.reset();
-
-      // Redirect to login with message
       setTimeout(() => {
         this.router.navigate(['/login'], {
           state: { 
