@@ -19,7 +19,7 @@ export class Navbar implements OnInit, OnDestroy {
   navLinks = [
     {
       name: 'Dashboard',
-      path: '/dashboard',
+      path: '/home',
       icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 21V7M16 21V7"></path>
@@ -46,20 +46,20 @@ export class Navbar implements OnInit, OnDestroy {
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13.747M7.478 10.02L16.522 10.02M19.5 6v14.25a2.25 2.25 0 01-2.25 2.25H6.75a2.25 2.25 0 01-2.25-2.25V6a2.25 2.25 0 012.25-2.25h1.372c.516 0 1.009.206 1.372.569l1.372 1.372c.363.363.856.569 1.372.569h6.781c.414 0 .75.336.75.75z"></path>
              </svg>`
     },
-    {
-      name: 'Progress',
-      path: '/progress',
-      icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-             </svg>`
-    },
-    {
-      name: 'Quiz',
-      path: '/quiz',
-      icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-             </svg>`
-    },
+    // {
+    //   name: 'Progress',
+    //   path: '/progress',
+    //   icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    //            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+    //          </svg>`
+    // },
+    // {
+    //   name: 'Quiz',
+    //   path: '/quiz',
+    //   icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    //            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    //          </svg>`
+    // },
     {
       name: 'Profile',
       path: '/profile',
