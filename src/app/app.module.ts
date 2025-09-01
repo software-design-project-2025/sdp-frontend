@@ -1,13 +1,16 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { AuthRoutingModule } from './app-routing.module';  // Make sure this path is correct
+import { AppRoutingModule } from './app-routing.module'; // Updated import name
+import { AppComponent } from './app.component'; // Add this import
 
 @NgModule({
-  declarations: [],  // Can be empty if using standalone components
+  declarations: [],
   imports: [
     BrowserModule,
-    AuthRoutingModule  // Must be a properly exported NgModule
+    AppRoutingModule, // Updated name
+    AppComponent // Add standalone AppComponent to imports
   ],
-  providers: []
+  providers: [],
+  bootstrap: [] // Empty since using standalone components
 })
 export class AppModule { }

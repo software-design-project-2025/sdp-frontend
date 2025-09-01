@@ -6,15 +6,19 @@ import { SignupComponent } from './auth/signup/signup.component';
 import { LoginSuccessComponent } from './auth/LoginSuccessComponent/LoginSuccessComponent';
 import { HomeComponent } from './dashboard/home/home';
 import { AuthGuard } from './guards/auth.guard';
+import { SessionsComponent } from './sessions/sessions.component';
 
 const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'signup', component: SignupComponent },
-  { path: 'login-success', component: LoginSuccessComponent }
+  { path: 'login-success', component: LoginSuccessComponent },
+  { path: 'sessions', component: SessionsComponent },
+  { path: '', redirectTo: '/login', pathMatch: 'full' }, // Add default route
+  { path: '**', redirectTo: '/login' } // Add wildcard route
 ];
 
 @NgModule({
-  imports: [RouterModule.forChild(routes)],
+  imports: [RouterModule.forRoot(routes)],
   exports: [RouterModule]
 })
-export class AuthRoutingModule { }
+export class AppRoutingModule { } // Changed from AuthRoutingModule
