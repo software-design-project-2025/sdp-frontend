@@ -4,6 +4,10 @@ import { AuthCallbackComponent } from './auth/auth-callback/auth-callback.compon
 import { SignupComponent } from './auth/signup/signup.component';
 import { LoginSuccessComponent } from './auth/LoginSuccessComponent/LoginSuccessComponent';
 import { HomeComponent } from './dashboard/home/home.component';
+import { Chat } from './chat/chat';
+import { FindPartners } from './findpartners/findpartners';
+
+
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' }, // Default route
   { path: 'login', component: LoginComponent },
@@ -11,5 +15,8 @@ export const routes: Routes = [
   { path: 'auth/callback', component: AuthCallbackComponent },
   { path: 'login-success', component: LoginSuccessComponent },
   { path: 'dashboard/home', component: HomeComponent },
+  { path: 'chat', component: Chat},
+  { path: 'findpartners', component: FindPartners},
   { path: '**', redirectTo: 'login' } // Fallback route
+
 ];

@@ -85,6 +85,7 @@ export class LoginSuccessComponent implements OnInit {
   }
 
   goToDashboard() {
+
   console.log('Navigating to dashboard, isLoading:', this.isLoading);
   if (this.isLoading) return;
   
@@ -106,6 +107,7 @@ export class LoginSuccessComponent implements OnInit {
     this.router.navigate(['/login']);
   });
 }
+
 
   goToProfile() {
     if (this.isLoading) return;
