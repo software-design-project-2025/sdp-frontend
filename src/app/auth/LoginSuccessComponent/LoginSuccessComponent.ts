@@ -34,7 +34,6 @@ export class LoginSuccessComponent implements OnInit {
       const user = await this.getUserWithRetry();
 
       if (user) {
-        this.user = user;
         this.userName = user.user_metadata?.['name'] ||
                       user.user_metadata?.['full_name'] ||
                       user.email?.split('@')[0] ||
@@ -107,20 +106,14 @@ export class LoginSuccessComponent implements OnInit {
 
   goToDashboard() {
     if (this.isLoading) return;
-    console.log('About to navigate to sessions');
-    console.log('Current user:', this.user);
-    console.log('isLoading:', this.isLoading);
-    this.router.navigate(['/home']).then(
-      (success) => console.log('Navigation success:', success),
-      (error) => console.log('Navigation error:', error)
-    );
+    this.router.navigate(['/home']);
   }
 
   goToProfile() {
     if (this.isLoading) return;
     this.router.navigate(['/profile']);
   }
-  async checkAuth() {
+    async checkAuth() {
   this.isLoading = true;
   try {
     const { data: { session }, error } = await this.authService.getSession();
