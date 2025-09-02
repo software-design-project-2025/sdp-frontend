@@ -16,6 +16,12 @@ export class ApiService {
     });
   }
 
+  getUser(): Observable<any> {
+    return this.http.get('http://localhost:8080/api/auth/user',
+        {headers: this.getHeaders()}
+    );
+  }
+
   getDegree(): Observable<any> {
     return this.http.get('http://localhost:8080/api/degree/all',
       {headers: this.getHeaders()}

@@ -1,23 +1,25 @@
 import {Component, ChangeDetectionStrategy, OnInit} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {ApiService} from '../services/findpartner.service';
+import { ApiService} from '../services/findpartner.service';
+import { AuthService } from '../services';
+import { UserService } from '../services/supabase.service';
 import {BehaviorSubject, forkJoin} from 'rxjs'; // Import FormsModule
 
 // Interface for a study partner
 interface User {
-  userid: number;
-  username: string;
-  email: string;
+  userid: string;
+  username: string | "unknown";
+  email: string | "unknowne";
   role: string;
-  is_active: boolean;
+  status: string;
   bio: string;
   degreeid: number;
   yearofstudy: number;
 }
 
 interface UserCourse {
-  userid: number;
+  userid: string;
   courseCode: string;
 }
 
@@ -51,8 +53,16 @@ export class FindPartners implements OnInit {
   data: any;
   isLoading$ = new BehaviorSubject<boolean>(true);
   isLoading = this.isLoading$.asObservable();
+  user: any;
+  currentUser = [];
+  userName = '';
+  userId: string | undefined = '';
+  tester: any;
 
-  constructor(private apiService: ApiService) { }
+  constructor(private apiService: ApiService,
+              private authService: AuthService,
+              private userService: UserService
+  ) { }
 
   // Properties for filtering state
   searchTerm: string = '';
@@ -63,6 +73,22 @@ export class FindPartners implements OnInit {
 
   ngOnInit() {
     //this.populateDummyData();
+    // const currentUserId = 0;
+    // this.authService.currentUser$.subscribe(user => {
+    //   this.currentUser = user;
+    // });
+
+    // Trigger initial load
+    this.authService.getCurrentUser()
+      .then(result => {this.user = result;
+        this.userId = result.data.user?.id; //works
+        console.log('lklk', result);
+      }); //Then add this to your ngOnInit() function in your component
+
+    this.userService.getUserById('7afa86ff-8c02-4f3d-9bdd-f50ed80193e2')
+      .then(result => {this.tester = result;
+        console.log('tested', result.name);
+      });
     this.populateData();
   }
 
@@ -71,8 +97,7 @@ export class FindPartners implements OnInit {
    */
   applyFilters() {
     // Start with only active partners
-    let tempPartners = this.partners.filter(p => p.is_active);
-    console.log("jijijijiji");
+    let tempPartners = this.partners.filter(p => p.status);
 
     // 1. Filter by the search term (case-insensitive)
     if (this.searchTerm && this.searchTerm.trim() !== '') {
@@ -103,7 +128,8 @@ export class FindPartners implements OnInit {
     const apiCalls = forkJoin({
       degrees: this.apiService.getDegree(),
       modules: this.apiService.getModule(),
-      userCourses: this.apiService.getUserCourse()
+      userCourses: this.apiService.getUserCourse(),
+      partners: this.apiService.getUser()
     });
 
     apiCalls.subscribe(
@@ -112,14 +138,17 @@ export class FindPartners implements OnInit {
         this.degrees = results.degrees;
         this.modules = results.modules;
         this.userCourses = results.userCourses;
+        this.partners = results.partners; //this does not contain username (i.e. result.name) and email
 
-        this.partners = [
-          { userid: 0, username: 'Alice', email: 'alice@example.com', role: 'student', is_active: true, bio: 'Loves algorithms and problem-solving.', degreeid: 9, yearofstudy: 2 },
-          { userid: 2, username: 'Bob', email: 'bob@example.com', role: 'student', is_active: true, bio: 'Keen on web development and design.', degreeid: 9, yearofstudy: 3 },
-          { userid: 3, username: 'Charlie', email: 'charlie@example.com', role: 'student', is_active: false, bio: 'Hardware enthusiast, building my own PC.', degreeid: 9, yearofstudy: 1 },
-          { userid: 4, username: 'Diana', email: 'diana@example.com', role: 'student', is_active: true, bio: 'Future accountant, loves spreadsheets.', degreeid: 9, yearofstudy: 2 },
-          { userid: 5, username: 'Eve', email: 'eve@example.com', role: 'student', is_active: false, bio: 'Exploring the intersection of art and tech.', degreeid: 9, yearofstudy: 4 }
-        ];
+        //this.partners = results.partners;
+
+        // this.partners = [
+        //   { userid: "user123", username: 'Alice', email: 'alice@example.com', role: 'student', status: "active", bio: 'Loves algorithms and problem-solving.', degreeid: 9, yearofstudy: 2 },
+        //   { userid: "user124", username: 'Bob', email: 'bob@example.com', role: 'student', status: "active", bio: 'Keen on web development and design.', degreeid: 9, yearofstudy: 3 },
+        //   { userid: "user125", username: 'Charlie', email: 'charlie@example.com', role: 'student', status: "active", bio: 'Hardware enthusiast, building my own PC.', degreeid: 9, yearofstudy: 1 },
+        //   { userid: "user126", username: 'Diana', email: 'diana@example.com', role: 'student', status: "active", bio: 'Future accountant, loves spreadsheets.', degreeid: 9, yearofstudy: 2 },
+        //   { userid: "user127", username: 'Eve', email: 'eve@example.com', role: 'student', status: "active", bio: 'Exploring the intersection of art and tech.', degreeid: 9, yearofstudy: 4 }
+        // ];
 
         console.log('All data fetched successfully');
         console.log( this.degrees);
@@ -170,7 +199,7 @@ export class FindPartners implements OnInit {
     //     console.error('API Error:', error);
     //   }
     // );
-  }
+  } //Add this function to auth.service.ts
 
   getDegreeName(degreeId: number): string {
     const degree = this.degrees.find(d => d.degreeid === degreeId);
@@ -178,7 +207,7 @@ export class FindPartners implements OnInit {
     return degree ? degree.degree_name : 'Unknown Degree';
   }
 
-  getPartnerCourses(partnerId: number): Module[] {
+  getPartnerCourses(partnerId: string): Module[] {
     const partnerCourseCodes = this.userCourses
       .filter(uc => uc.userid === partnerId)
       .map(uc => uc.courseCode);
