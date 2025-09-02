@@ -41,7 +41,7 @@ export class Navbar implements OnInit, OnDestroy {
     },
     {
       name: 'Study Sessions',
-      path: '/study-sessions',
+      path: '/sessions',
       icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13.747M7.478 10.02L16.522 10.02M19.5 6v14.25a2.25 2.25 0 01-2.25 2.25H6.75a2.25 2.25 0 01-2.25-2.25V6a2.25 2.25 0 012.25-2.25h1.372c.516 0 1.009.206 1.372.569l1.372 1.372c.363.363.856.569 1.372.569h6.781c.414 0 .75.336.75.75z"></path>
              </svg>`

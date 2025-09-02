@@ -53,7 +53,7 @@ export class SignupComponent implements OnInit {
       console.log('Starting Google sign in...');
       const result: any = await this.authService.signInWithGoogle();
       const error = result?.error;
-      const data = result?.data;  
+      const data = result?.data;
       if (error) {
         throw error;
       }
@@ -109,9 +109,9 @@ async onSubmit() {
     // Redirect after delay
     setTimeout(() => {
       this.router.navigate(['/login'], {
-        state: { 
+        state: {
           message: this.successMessage,
-          email: email 
+          email: email
         }
       });
     }, 3000); // 3 second delay to show message

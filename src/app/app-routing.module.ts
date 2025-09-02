@@ -7,11 +7,19 @@ import { LoginSuccessComponent } from './auth/LoginSuccessComponent/LoginSuccess
 // import { HomeComponent } from './dashboard/home/home.component';
 // import { AuthGuard } from './guards/auth.guard';
 import { Chat } from './chat/chat';
+import { HomeComponent } from './dashboard/home/home.component';
+import { AuthGuard } from './guards/auth.guard';
+import { SessionsComponent } from './sessions/sessions.component';
 
 const routes: Routes = [
   { path: 'login', component: LoginComponent },
+  {path: 'home', component: HomeComponent},
   { path: 'signup', component: SignupComponent },
   { path: 'login-success', component: LoginSuccessComponent },
+  { path: 'sessions', component: SessionsComponent },
+  { path: '', redirectTo: '/login', pathMatch: 'full' }, // Add default route
+  { path: '**', redirectTo: '/login' }, // Add wildcard route
+  //{ path: 'login-success', component: LoginSuccessComponent },
   { path: 'chat', component: Chat}
 ];
 
