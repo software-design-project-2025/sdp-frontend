@@ -24,7 +24,8 @@ export class AppComponent {
       filter((event): event is NavigationEnd => event instanceof NavigationEnd)
     ).subscribe((event: NavigationEnd) => {
       // Check if the current URL is the login page
-      this.showNavbar = !(event.url === '/login' || event.urlAfterRedirects === '/login');
+      this.showNavbar = !(event.url === '/login' || event.urlAfterRedirects === '/login' ||
+                          event.url === '/login-success' || event.urlAfterRedirects === '/login-success');
     });
   }
 }
