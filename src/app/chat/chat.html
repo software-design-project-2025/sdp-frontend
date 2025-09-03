@@ -17,7 +17,7 @@
       </form>
     </section>
 
-    <nav *ngIf="!(loading)" class="conversations-nav" aria-label="Conversations">
+    <nav *ngIf="!(loading | async)" class="conversations-nav" aria-label="Conversations">
       <ul class="conversations-list">
         <li 
           *ngFor="let conversation of filteredConversations; trackBy: trackByConversationId" 
@@ -34,22 +34,21 @@
             
             <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(conversation)">
               <abbr 
-                *ngIf="conversation.participant.profile_picture === 'placeholder'"
                 class="avatar-initials" 
                 [title]="conversation.participant.name"
                 [attr.aria-label]="conversation.participant.name + ' avatar'">
-                {{ conversation.participant.name.charAt(0).toUpperCase() }}
+                {{ conversation.participant.name ? conversation.participant.name.charAt(0).toUpperCase() : 'U' }}
               </abbr>
             </figure>
             
             <section class="conversation-content">
               <header class="conversation-header">
-                <h2>{{ conversation.participant.name }}</h2>
+                <h2>{{ conversation.participant.name || 'Unknown User' }}</h2>
                 <time [attr.datetime]="conversation.timestamp.toISOString()">
                   {{ formatTime(conversation.timestamp) }}
                 </time>
               </header>
-              <p class="last-message">{{ conversation.lastMessage }}</p>
+              <p class="last-message">{{ conversation.lastMessage || 'Start a conversation' }}</p>
             </section>
             
             <output 
@@ -61,24 +60,30 @@
           </article>
         </li>
       </ul>
+      
+      <p *ngIf="filteredConversations.length === 0" class="no-conversations">
+        No conversations found
+      </p>
     </nav>
+    
+    <p *ngIf="loading | async" class="loading-conversations">
+      Loading conversations...
+    </p>
   </aside>
 
   <section class="chat-main" *ngIf="activeConversation; else noConversation">
     <header class="chat-header">
       <section class="contact-info">
-      <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
-        <abbr 
-          *ngIf="activeConversation.participant.profile_picture === 'placeholder'"
-          class="avatar-initials" 
-          [title]="activeConversation.participant.name"
-          [attr.aria-label]="activeConversation.participant.name + ' avatar'">
-          {{ activeConversation.participant.name.charAt(0).toUpperCase() }}
-        </abbr>
-      </figure>
+        <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
+          <abbr 
+            class="avatar-initials" 
+            [title]="activeConversation.participant.name"
+            [attr.aria-label]="activeConversation.participant.name + ' avatar'">
+            {{ activeConversation.participant.name ? activeConversation.participant.name.charAt(0).toUpperCase() : 'U' }}
+          </abbr>
+        </figure>
         <section class="contact-details">
-          <h2>{{ activeConversation.participant.name }}</h2>
-          <!--<p class="status">{{ getParticipantStatus() }}</p>-->
+          <h2>{{ activeConversation.participant.name || 'Unknown User' }}</h2>
         </section>
       </section>
       
@@ -129,6 +134,10 @@
           </footer>
         </blockquote>
       </article>
+      
+      <p *ngIf="activeConversation.messages.length === 0" class="no-messages">
+        No messages yet. Start the conversation!
+      </p>
     </section>
 
     <footer class="message-input-section">
@@ -143,7 +152,8 @@
           type="text" 
           placeholder="Type a message..." 
           class="message-input"
-          formControlName="message">
+          formControlName="message"
+          aria-required="true">
         <button 
           type="submit" 
           class="send-button" 

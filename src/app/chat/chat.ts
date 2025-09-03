@@ -95,17 +95,26 @@ export class Chat implements OnInit {
       // Run these sequentially
       const userid = await this.getCurrentUserId();
 
-      const otherUserIds = await this.getOtherUsersIds(userid);
-      const chatters = [];
-
-      for (const id of otherUserIds){
-        const name =  await this.getOtherUserName(id); 
-        chatters.push(name);
+      const convos = await this.createConvos(userid);  
+      for (const convo of convos){
+        const name = await this.getOtherUserName(convo);
+        if (name === undefined){
+          continue;
+        }else{
+          convo.participant.name = name;
+        }
+        
       }
-      //check for undefined chatters
-      const definedChatters: string[] = chatters.filter((item): item is string => item !== undefined);
-      await this.loadChat(definedChatters);
+      this.conversations = convos;
+      this.filteredConversations = [...this.conversations];
 
+      if (this.conversations.length > 0) {
+        this.setActiveConversation(this.conversations[0]);
+      }
+      this.loading$.next(false);
+      this.cdr.detectChanges();
+
+      console.log(convos);
 
     // Run these in parallel
       await Promise.all([
@@ -139,17 +148,18 @@ export class Chat implements OnInit {
     return '';
   }
 
-  private async getOtherUsersIds(userid: string): Promise<string[]> {
+  private async createConvos(userid: string): Promise<Conversation[]> {
     try{
       const result = await firstValueFrom(this.chatService.getChatById(userid));
-      console.log(result)
+
       if (!result) {
         this.error = 'No chat found';
         console.log("could not get chat");
         return [];
       }
 
-      const otherUserIds: string[] = [];
+     
+      const convos: Conversation[] = [];
      
       for (const chat of result){
         let user1Id = chat.user1.userid;
@@ -165,10 +175,27 @@ export class Chat implements OnInit {
         }
 
         const otherUserId = isUser1Current ? chat.user2.userid : chat.user1.userid;
-        otherUserIds.push(otherUserId);
+
+        convos.push({
+          id: chat.chatid,
+          participant: {
+            userid: otherUserId,
+            name: '',
+            role: '',
+            degreeid: 0,
+            yearofstudy: 0,
+            bio: '',
+            status: '',
+            profile_picture: 'placeholder'
+          },
+          lastMessage: '',
+          unreadCount: 0,
+          timestamp: new Date(),
+          messages: []
+        })
       }
 
-      return otherUserIds;
+      return convos;
       
     }
     catch{
@@ -178,214 +205,21 @@ export class Chat implements OnInit {
     
   }
 
-  private async getOtherUserName(id: string): Promise<string | undefined> {
+  private async getOtherUserName(convo: Conversation): Promise<string | undefined> {
     
     try{
       //Check validity of UUID
-      const result = await this.authService.getUserById(id);
+      const result = await this.authService.getUserById(convo.participant.userid);
       if(result){
         return result.data?.name;
-      }
-      return '';
-      
+      } 
+      return ''
     }
     catch{
-      this.error = 'Error retrieving chat data';
-      return '';      
+      this.error = 'Error retrieving chat data';   
+      return ''
     }
   }
-
-  private async loadChat(chatters: string[]): Promise<void> {
-
-    /*const apiConversation: Conversation = {
-      id: chat.chatid,
-      participant: {
-        id: otherUser.userid,
-        name: otherUser.username,
-        bio: otherUser.bio || '',
-        profile_picture: otherUser.profile_picture || 'placeholder'
-      },
-      lastMessage: 'Start a conversation',
-      timestamp: new Date(),
-      unreadCount: 0,
-      messages: []
-    };*/
-
-  }
-
-  private loadChats(userid: string): void {
-    
-    this.error = '';
-
-    this.chatService.getChatById(userid).subscribe({
-      next: async (response: any) => {
-        this.data = response;
-
-        if (!response) {
-          this.error = 'Invalid chat data received';
-          console.log('Invalid chat data received');
-          return;
-        }
-
-        const chats: Conversation[] = [];
-        
-
-        for (const chat of response) {
-          const user1Id = chat.user1?.userid;
-          const user2Id = chat.user2?.userid;
-          const currentId = userid;
-
-          const isUser1Current = user1Id === currentId;
-          const isUser2Current = user2Id === currentId;
-
-          if (!isUser1Current && !isUser2Current) {
-            this.error = 'You are not part of this conversation';
-            return;
-          }
-
-          const currentUserFromApi = isUser1Current ? chat.user1 : chat.user2;
-          const otherUser = isUser1Current ? chat.user2 : chat.user1;
-
-          this.currentUser.userid = currentUserFromApi.userid;
-          this.currentUser.name = currentUserFromApi.username;
-          this.currentUser.bio = currentUserFromApi.bio || this.currentUser.bio;
-          this.currentUser.profile_picture = currentUserFromApi.profile_picture || this.currentUser.profile_picture;
-          try {
-              console.log('Querying profiles table for userid:', otherUser.userid);
-              // Call your userService and log the result
-              const userDetails = await this.userService.getUserById(otherUser.userid);
-              console.log('User details from service:', userDetails);
-          } catch (error) {
-              console.error('Error fetching user details:', error);
-          }
-          
-        }
-
-        /*try {
-          const userResults = await Promise.all(userPromises);
-          userResults.forEach((result, index) => {
-            console.log(`User ${index}:`, result);
-            // Process each result here
-          });
-        } catch (error) {
-          console.error('Error fetching users:', error);
-        }*/
-
-          /*
-          const apiConversation: Conversation = {
-            id: chat.chatid,
-            participant: {
-              id: otherUser.userid,
-              name: otherUser.username,
-              bio: otherUser.bio || '',
-              profile_picture: otherUser.profile_picture || 'placeholder'
-            },
-            lastMessage: 'Start a conversation',
-            timestamp: new Date(),
-            unreadCount: 0,
-            messages: []
-          };
-
-          chats.push(apiConversation);*/
-        
-        /*
-        this.conversations = chats;
-        this.filteredConversations = [...this.conversations];
-
-        if (this.conversations.length > 0) {
-          this.setActiveConversation(this.conversations[0]);
-        }
-
-        this.loading$.next(false);
-        this.cdr.detectChanges();*/
-      },
-      error: (err) => {
-        //this.loading = false;
-        this.error = `Failed to load chat: ${err.message || 'Unknown error'}`;
-      }
-    });
-  }
-
-
-  /*initializeSampleConversations(): Conversation[] {
-    return [
-      {
-        id: 1,
-        participant: this.users[0], // Sarah Wang
-        lastMessage: 'Should we meet at the library tomorrow?',
-        timestamp: new Date(new Date().setHours(14, 30, 0)),
-        unreadCount: 2,
-        messages: [
-          {
-            id: 1,
-            content: 'Hey! Are you free to study calculus tomorrow?',
-            timestamp: new Date(new Date().setHours(14, 15, 0)),
-            senderId: 2,
-            type: 'received'
-          },
-          {
-            id: 2,
-            content: 'Yes! I need help with integration techniques.',
-            timestamp: new Date(new Date().setHours(14, 20, 0)),
-            senderId: 1,
-            type: 'sent'
-          },
-          {
-            id: 3,
-            content: 'Perfect! I just finished that chapter. Should we meet at the library?',
-            timestamp: new Date(new Date().setHours(14, 25, 0)),
-            senderId: 2,
-            type: 'received'
-          },
-          {
-            id: 4,
-            content: 'That sounds great! Floor 3 study rooms?',
-            timestamp: new Date(new Date().setHours(14, 28, 0)),
-            senderId: 1,
-            type: 'sent'
-          },
-          {
-            id: 5,
-            content: 'Should we meet at the library tomorrow?',
-            timestamp: new Date(new Date().setHours(14, 30, 0)),
-            senderId: 2,
-            type: 'received'
-          }
-        ]
-      },
-      {
-        id: 2,
-        participant: this.users[1], // Emma Davis
-        lastMessage: 'Thanks for the physics help!',
-        timestamp: new Date(new Date().setHours(11, 20, 0)),
-        unreadCount: 0,
-        messages: [
-          {
-            id: 20,
-            content: 'Could you help me with the momentum problems?',
-            timestamp: new Date(new Date().setHours(11, 15, 0)),
-            senderId: 3,
-            type: 'received'
-          },
-          {
-            id: 21,
-            content: 'Sure! Let me explain the concept step by step.',
-            timestamp: new Date(new Date().setHours(11, 18, 0)),
-            senderId: 1,
-            type: 'sent'
-          },
-          {
-            id: 22,
-            content: 'Thanks for the physics help!',
-            timestamp: new Date(new Date().setHours(11, 20, 0)),
-            senderId: 3,
-            type: 'received'
-          }
-        ]
-      }
-    ];
-  }*/
-
   // TrackBy functions for performance optimization
   trackByConversationId(index: number, conversation: Conversation): number {
     // Use a combination of index and id to ensure uniqueness
