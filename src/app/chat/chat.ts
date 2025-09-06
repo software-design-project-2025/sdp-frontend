@@ -1,6 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ChatService } from '../services/chat.service';
+import { ChatMessage, ChatService, Chat as c } from '../services/chat.service';
 import { AuthService } from '../services/auth.service';
 import { CommonModule } from '@angular/common';
 import { BehaviorSubject,firstValueFrom } from 'rxjs';
@@ -20,10 +20,11 @@ export interface User {
 
 interface Message {
   id: number;
-  content: string;
+  chatid: number;
   timestamp: Date;
-  senderId: String;
-  type: 'sent' | 'received';
+  sender: User;
+  content: string;
+  type: 'sent' | 'received';  
 }
 
 interface Conversation {
@@ -48,7 +49,7 @@ interface Conversation {
 export class Chat implements OnInit {
   chats: any[] = [];
   data: any;   
-  //otherUser: User;
+
   
   loading$ = new BehaviorSubject<boolean>(true);
   loading = this.loading$.asObservable();
@@ -92,19 +93,25 @@ export class Chat implements OnInit {
   async ngOnInit(): Promise<void> {
 
     try {
-      // Run these sequentially
+      // These run sequentially
       const userid = await this.getCurrentUserId();
 
-      const convos = await this.createConvos(userid);  
+      const convos = await this.formatConvos(userid);  
+      
+
       for (const convo of convos){
+
         const name = await this.getOtherUserName(convo);
         if (name === undefined){
-          continue;
+          continue; //ADD PROPER ERROR HANDLING
         }else{
           convo.participant.name = name;
         }
         
+        const messages = await this.retrieveMessages(convo.id, userid); 
+        convo.messages = messages;
       }
+
       this.conversations = convos;
       this.filteredConversations = [...this.conversations];
 
@@ -114,9 +121,7 @@ export class Chat implements OnInit {
       this.loading$.next(false);
       this.cdr.detectChanges();
 
-      console.log(convos);
-
-    // Run these in parallel
+      // These run in parallel
       await Promise.all([
         
       ]);
@@ -126,7 +131,7 @@ export class Chat implements OnInit {
       });
     }
     catch{
-      this.error = 'Error retrieving chat data';
+      this.error = 'Page failed';
     }
   }
 
@@ -143,12 +148,12 @@ export class Chat implements OnInit {
       return '';   
     }
     catch{
-      this.error = 'Error retrieving chat data';
+      this.error = 'Error retrieving current userId';
     }
     return '';
   }
 
-  private async createConvos(userid: string): Promise<Conversation[]> {
+  private async formatConvos(userid: string): Promise<Conversation[]> {
     try{
       const result = await firstValueFrom(this.chatService.getChatById(userid));
 
@@ -199,7 +204,7 @@ export class Chat implements OnInit {
       
     }
     catch{
-      this.error = 'Error retrieving chat data';
+      this.error = 'Error formatting chat data';
       return [];
     }
     
@@ -216,8 +221,46 @@ export class Chat implements OnInit {
       return ''
     }
     catch{
-      this.error = 'Error retrieving chat data';   
+      this.error = 'Error retrieving other username';   
       return ''
+    }
+  }
+
+  private async retrieveMessages(chatid: number, userid: String): Promise<Message[]> {
+
+    try{
+      const result = await firstValueFrom(this.chatService.getMessagesByChatId(chatid));
+      
+      if (result){
+        const messages: Message[] = [];
+        
+        for (const message of result){
+
+          // Parse as UTC (assuming the stored time is in GMT+2)
+          const utcDate = new Date(message.sentDateTime + "Z");
+          
+          // Adjust by adding 2 hours to convert from UTC to GMT+2
+          const sastDate = new Date(utcDate.getTime() + (2 * 60 * 60 * 1000));
+
+          messages.push({
+            id: message.messageid,
+            chatid: message.chat.chatid,
+            timestamp: utcDate,
+            sender: message.sender,
+            content: message.message,
+            type: (message.sender.userid === userid) ? 'sent' : 'received'
+
+          })
+        }
+        
+        return messages;
+ 
+      }
+      return [];
+    }
+    catch{
+      this.error = 'Error retrieving messages';   
+      return [];
     }
   }
   // TrackBy functions for performance optimization
@@ -267,30 +310,59 @@ export class Chat implements OnInit {
     
     this.activeConversation = conversation;
     
-    // In a real app, you might want to load more messages here
   }
 
-  sendMessage(): void {
-    if (this.messageForm.valid && this.activeConversation) {
-      const messageContent = this.messageForm.get('message')?.value;
+  private async createMessage(chatid: number, participant: User, messageContent: string): Promise<void>{
+    try{
+      const chat: c = {
+        chatid: chatid,
+        user1: this.currentUser,
+        user2: participant
+      }
+
+      const time = new Date();
       
+      const newMessage: ChatMessage = {
+        messageid: 3, //Handled in backend
+        chat: chat,
+        sender: this.currentUser,
+        sentDateTime: time,
+        message: messageContent
+      }
+
+      const result = await firstValueFrom(this.chatService.createMessage(newMessage));
+      //console.log(result);
+      if(!result){
+        this.error = "Failed to send message";
+        console.log("Failed to send!!!");
+      }
+    }
+    catch{
+      this.error = "Failed to send message";
+    }
+  }
+
+  async sendMessage(): Promise<void> {
+    
+    if (this.messageForm.valid && this.activeConversation) {
+      const messageContent = this.messageForm.get('message')?.value; 
       const newMessage: Message = {
-        id: Date.now(), // Using timestamp as ID for simplicity
+        id: 0, // Auto increment set in Spring
+        chatid: this.activeConversation.id,
         content: messageContent,
         timestamp: new Date(),
-        senderId: this.currentUser.userid,
+        sender: this.currentUser,
         type: 'sent'
       };
-      
-      // Add message to active conversation
-      this.activeConversation.messages.push(newMessage);
+      this.messageForm.reset(); // Clear the input field
+
+      this.activeConversation.messages.push(newMessage); // Add message to active conversation
+
+      await this.createMessage(this.activeConversation.id, this.activeConversation.participant, messageContent);
       
       // Update last message and timestamp
       this.activeConversation.lastMessage = messageContent;
       this.activeConversation.timestamp = new Date();
-      
-      // Clear the input field
-      this.messageForm.reset();
     
     }
   }

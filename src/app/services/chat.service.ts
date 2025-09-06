@@ -11,6 +11,14 @@ export interface Chat {
   
 }
 
+export interface ChatMessage {
+  messageid: number;
+  chat: Chat;
+  sender: User;
+  sentDateTime: Date;
+  message: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -29,6 +37,26 @@ export class ChatService {
   getChatById(userid: String): Observable<Chat[]> {
     return this.http.get<Chat[]>(`${environment.apiBaseUrl}/api/chat/getChat?userid=${userid}`,
       {headers: this.getHeaders()}
+    );
+  }
+
+  getMessagesByChatId(chatid: number): Observable<ChatMessage[]> {
+    return this.http.get<ChatMessage[]>(`${environment.apiBaseUrl}/api/chatMessage/getMessage?chatid=${chatid}`,
+      {headers: this.getHeaders()}
+    );
+  }
+
+  createMessage(messageData: ChatMessage): Observable<ChatMessage> {
+    
+    return this.http.post<ChatMessage>(
+      `${environment.apiBaseUrl}/api/chatMessage/sendMessage`,
+      {  // <-- This is the body (2nd parameter)
+        chat: messageData.chat,
+        sender: messageData.sender,
+        sentDateTime: messageData.sentDateTime,
+        message: messageData.message        
+      }, 
+      { headers: this.getHeaders() } 
     );
   }
 }
