@@ -36,8 +36,8 @@ interface Conversation {
   messages: Message[];
 }
 
-@Component({
-  selector: 'app-chat',
+@Component({ //Component function called as decorator, passing the metadata below, along with a reference to the Chat class constructor
+  selector: 'app-chat', //use this component by placing the tag <app-chat></app-chat> in any other component's HTML template.
   standalone: true,
   imports: [
     CommonModule,       
@@ -78,7 +78,6 @@ export class Chat implements OnInit {
     private fb: FormBuilder,
     private chatService: ChatService,
     private authService: AuthService,
-    private userService: UserService,
     private cdr: ChangeDetectorRef
   ) {
     this.searchForm = this.fb.group({
@@ -96,8 +95,7 @@ export class Chat implements OnInit {
       // These run sequentially
       const userid = await this.getCurrentUserId();
 
-      const convos = await this.formatConvos(userid);  
-      
+      const convos = await this.formatConvos(userid);       
 
       for (const convo of convos){
 
@@ -110,7 +108,12 @@ export class Chat implements OnInit {
         
         const messages = await this.retrieveMessages(convo.id, userid); 
         convo.messages = messages;
+        if (messages.length > 0){
+          convo.timestamp = messages[messages.length-1].timestamp;
+        }
       }
+      //Sort messages by date
+      convos.sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime());
 
       this.conversations = convos;
       this.filteredConversations = [...this.conversations];
@@ -198,7 +201,7 @@ export class Chat implements OnInit {
           timestamp: new Date(),
           messages: []
         })
-      }
+      }      
 
       return convos;
       
