@@ -10,7 +10,6 @@ import { Chat } from './chat/chat';
 import { HomeComponent } from './dashboard/home/home.component';
 import { AuthGuard } from './guards/auth.guard';
 import { SessionsComponent } from './sessions/sessions.component';
-
 const routes: Routes = [
   { path: 'login', component: LoginComponent },
   {path: 'home', component: HomeComponent},

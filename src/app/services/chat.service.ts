@@ -25,7 +25,7 @@ export class ChatService {
   }
 
   getChatById(userid: number): Observable<Chat> {
-    return this.http.get<Chat>(`${environment.apiBaseUrl}/chat/getChat?userid=${userid}`,
+    return this.http.get<Chat>(`${environment.apiBaseUrl}/api/chat/getChat?userid=${userid}`,
       {headers: this.getHeaders()}
     );
   }
