@@ -1,0 +1,289 @@
+/* Base styles */
+body {
+  font-family: "Inter", "Segoe UI", sans-serif;
+  background-color: #f7f9fc;
+  color: #222;
+  margin: 0;
+  padding: 0;
+}
+
+/* Header */
+.sessions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.2rem 2rem;
+  background: #fff;
+  border-bottom: 1px solid #e0e6ef;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+
+  h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+    color: #2c3e50;
+  }
+
+  .create-btn {
+    background: linear-gradient(135deg, #4cafef, #2a8ded);
+    color: #fff;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+
+    &:hover {
+      background: linear-gradient(135deg, #2a8ded, #1f6bc1);
+      box-shadow: 0 3px 8px rgba(42, 141, 237, 0.3);
+    }
+  }
+}
+
+/* Sections */
+.sessions-container {
+  padding: 2rem;
+
+  .section-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    color: #34495e;
+  }
+}
+
+/* Session Card */
+.session-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .session-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+
+    .session-title-section {
+      .session-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem 0;
+        color: #2c3e50;
+      }
+
+      .session-badges {
+        display: flex;
+        gap: 0.4rem;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+
+        .badge {
+          padding: 0.3rem 0.7rem;
+          font-size: 0.8rem;
+          border-radius: 12px;
+          font-weight: 500;
+
+          &.confirmed { background: #e8f9ee; color: #27ae60; }
+          &.open { background: #eaf3ff; color: #2a8ded; }
+          &.in-person { background: #fff6e5; color: #e67e22; }
+          &.online { background: #f5eaff; color: #8e44ad; }
+        }
+      }
+    }
+
+    .session-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+
+      .action-btn {
+        padding: 0.5rem 0.8rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease-in-out;
+
+        &.directions-btn { background: #fff6e5; color: #e67e22; &:hover { background: #ffe0b2; } }
+        &.join-online-btn { background: #f5eaff; color: #8e44ad; &:hover { background: #e1d4f3; } }
+        &.view-details-btn { background: #eaf3ff; color: #2a8ded; &:hover { background: #cfe2fb; } }
+        &.summary-btn { background: #dfeaf6; color: #2a8ded; &:hover { background: #c9dcf3; } }
+        &.reschedule-btn { background: #f8e9da; color: #e67e22; &:hover { background: #f5ddc5; } }
+      }
+    }
+  }
+
+  .session-details {
+    margin-bottom: 1rem;
+
+    .session-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      list-style: none;
+      padding: 0;
+      margin: 0 0 0.8rem 0;
+
+      .info-item {
+        font-size: 0.9rem;
+        color: #555;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+    }
+
+    .session-meta {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+      color: #666;
+
+      .participants-info { font-weight: 500; }
+    }
+  }
+
+  .session-topics {
+    margin-top: 0.6rem;
+
+    ul {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0;
+      list-style: none;
+
+      .topic-tag {
+        background: #eef3f8;
+        border-radius: 20px;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.85rem;
+        color: #2c3e50;
+        font-weight: 500;
+
+        button {
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          color: #e74c3c;
+          font-size: 0.8rem;
+          margin-left: 0.3rem;
+        }
+      }
+    }
+  }
+}
+
+/* Past events style */
+.sessions-container.past-events .session-card {
+  background: #f5f6f8;
+  box-shadow: none;
+  opacity: 0.9;
+  border: 1px solid #e0e6ef;
+
+  &:hover { transform: none; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+}
+
+/* Modal styles */
+.modal-backdrop {
+  position: fixed;
+  top:0; left:0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 1000;
+  overflow-y: auto; /* 👈 allow scrolling whole page if needed */
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 400px;
+  max-width: 90%;
+  max-height: 90vh;   /* 👈 limit height to viewport */
+  overflow-y: auto;   /* 👈 scroll inside modal if too tall */
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  h2 { margin: 0 0 1rem 0; color: #2c3e50; }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.9rem;
+    color: #34495e;
+
+    input, select {
+      margin-top: 0.3rem;
+      padding: 0.5rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 0.9rem;
+    }
+  }
+
+  .topics-input {
+    display: flex; gap: 0.5rem;
+
+    input { flex: 1; }
+
+    button {
+      background: #4cafef;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.4rem 0.8rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+
+      &:hover { background: #2a8ded; }
+    }
+  }
+
+  .topics-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+
+    .topic-tag {
+      background: #eef3f8;
+      border-radius: 20px;
+      padding: 0.3rem 0.7rem;
+      display: flex; align-items: center; gap: 0.3rem;
+      font-size: 0.85rem; color: #2c3e50;
+
+      button { border:none; background:transparent; cursor:pointer; color:#e74c3c; font-size:0.8rem; }
+    }
+  }
+
+  .modal-actions {
+    display:flex; justify-content:flex-end; gap:1rem; margin-top:1rem;
+
+    .confirm-btn {
+      background: #27ae60; color:#fff; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-weight:600;
+      &:hover { background: #219150; }
+    }
+
+    .cancel-btn {
+      background: #e74c3c; color:#fff; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-weight:600;
+      &:hover { background: #c0392b; }
+    }
+  }
+}

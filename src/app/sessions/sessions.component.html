@@ -1,0 +1,173 @@
+<!-- Sessions Page Header -->
+<header class="sessions-header">
+  <h1>Study Sessions</h1>
+  <button class="create-btn" (click)="createSession()">➕ Create Session</button>
+</header>
+
+<!-- Upcoming Sessions Section -->
+<section class="sessions-container">
+  <h2 class="section-title">Upcoming Sessions</h2>
+
+  <!-- Session Cards -->
+  <article class="session-card" *ngFor="let session of sessions">
+    <header class="session-header">
+      <div class="session-title-section">
+        <h3 class="session-title">{{ session.title }}</h3>
+        <ul class="session-badges">
+          <li class="badge"
+              [class.confirmed]="session.status === 'confirmed'"
+              [class.open]="session.status === 'open'">
+            {{ session.status === 'confirmed' ? '✅ Confirmed' : '🟢 Open' }}
+          </li>
+          <li class="badge type-badge"
+              [class.in-person]="session.type === 'in-person'"
+              [class.online]="session.type === 'online'">
+            {{ session.type === 'in-person' ? '🏫 In-Person' : '🌐 Online' }}
+          </li>
+        </ul>
+      </div>
+
+      <nav class="session-actions">
+        <button *ngIf="session.type === 'in-person'"
+                class="action-btn directions-btn"
+                (click)="getDirections(session)">
+          📍 Get Directions
+        </button>
+
+        <button *ngIf="session.type === 'online'"
+                class="action-btn join-online-btn"
+                (click)="joinOnline(session)">
+          🎥 Join Online
+        </button>
+
+        <button class="action-btn view-details-btn" (click)="viewDetails(session)">
+          🔎 View Details
+        </button>
+      </nav>
+    </header>
+
+    <section class="session-details">
+      <ul class="session-info">
+        <li class="info-item">📅 {{ session.date }}</li>
+        <li class="info-item">⏰ {{ session.time }}</li>
+        <li class="info-item">📍 {{ session.type === 'in-person' ? session.location : session.url }}</li>
+      </ul>
+
+      <footer class="session-meta">
+        <p class="participants-info">👥 {{ session.participantCount }}/{{ session.maxParticipants }} participants</p>
+        <p class="organizer-info">🧑‍🏫 Organized by {{ session.organizer }}</p>
+      </footer>
+    </section>
+
+    <section class="session-topics" *ngIf="session.topics.length > 0">
+      <ul>
+        <li class="topic-tag" *ngFor="let topic of session.topics">#{{ topic }}</li>
+      </ul>
+    </section>
+  </article>
+</section>
+
+<!-- Past Sessions Section -->
+<section class="sessions-container past-events">
+  <h2 class="section-title">Past Sessions</h2>
+
+  <article class="session-card" *ngFor="let past of pastSessions">
+    <header class="session-header">
+      <div class="session-title-section">
+        <h3 class="session-title">{{ past.title }}</h3>
+      </div>
+      <nav class="session-actions">
+        <button class="action-btn summary-btn" (click)="viewSummary(past)">📄 View Summary</button>
+        <button class="action-btn reschedule-btn" (click)="scheduleAgain(past)">🔄 Reschedule</button>
+      </nav>
+    </header>
+
+    <section class="session-details">
+      <ul class="session-info">
+        <li class="info-item">📅 {{ past.date }}</li>
+        <li class="info-item">⏰ {{ past.time }}</li>
+        <li class="info-item">👥 {{ past.participantCount }} attendees</li>
+        <li class="info-item">⭐ {{ past.rating }}/5</li>
+      </ul>
+    </section>
+  </article>
+</section>
+
+<!-- Create Session Modal -->
+<div class="modal-backdrop" *ngIf="showModal">
+  <div class="modal">
+    <h2>Create New Session</h2>
+
+    <label>
+      Session Name:
+      <input type="text" [(ngModel)]="newSession.title" placeholder="Enter session name" />
+    </label>
+
+    <label>
+      Date:
+      <input type="date" [(ngModel)]="newSession.date" />
+    </label>
+
+    <label>
+      Start Time:
+      <input type="time" [(ngModel)]="newSession.time" />
+    </label>
+
+<!--    <label>-->
+<!--      End Time:-->
+<!--      <input type="time" [(ngModel)]="newSession.endTime" />-->
+<!--    </label>-->
+
+    <label>
+      Status:
+      <select [(ngModel)]="newSession.status">
+        <option value="open">Open</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </label>
+
+    <label>
+      Session Type:
+      <select [(ngModel)]="newSession.type">
+        <option value="online">Online</option>
+        <option value="in-person">In-Person</option>
+      </select>
+    </label>
+
+    <label *ngIf="newSession.type === 'in-person'">
+      Venue:
+      <input type="text" [(ngModel)]="newSession.location" placeholder="Enter venue" />
+    </label>
+
+    <label *ngIf="newSession.type === 'online'">
+      Virtual Platform / URL:
+      <input type="text" [(ngModel)]="newSession.url" placeholder="Enter URL" />
+    </label>
+
+    <label>
+      Max Participants:
+      <input type="number" min="1" [(ngModel)]="newSession.maxParticipants" />
+    </label>
+
+    <label>
+      Topics:
+      <div class="topics-input">
+        <input type="text" [(ngModel)]="topicInput" placeholder="Add topic" (keyup.enter)="addTopic()" />
+        <button type="button" (click)="addTopic()">➕ Add</button>
+      </div>
+    </label>
+
+    <div class="topics-list" *ngIf="newSession.topics.length > 0">
+      <span class="topic-tag" *ngFor="let topic of newSession.topics; let i = index">
+        #{{ topic }}
+        <button type="button" (click)="removeTopic(i)">❌</button>
+      </span>
+    </div>
+
+    <div class="modal-actions">
+      <button class="confirm-btn" (click)="confirmSession()">Confirm</button>
+      <button class="cancel-btn" (click)="cancelSession()">Cancel</button>
+    </div>
+  </div>
+</div>

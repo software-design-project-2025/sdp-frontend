@@ -26,28 +26,28 @@ export class LoginSuccessComponent implements OnInit {
   async ngOnInit() {
     console.log('Initializing LoginSuccessComponent');
     this.isLoading = true;
-    
+
     try {
       // Wait for potential OAuth callback processing
       await this.delay(500);
-      
+
       const user = await this.getUserWithRetry();
-      
+
       if (user) {
-        this.userName = user.user_metadata?.['name'] || 
-                      user.user_metadata?.['full_name'] || 
-                      user.email?.split('@')[0] || 
+        this.userName = user.user_metadata?.['name'] ||
+                      user.user_metadata?.['full_name'] ||
+                      user.email?.split('@')[0] ||
                       'User';
         this.userEmail = user.email || '';
         console.log('User authenticated successfully:', { userName: this.userName, userEmail: this.userEmail });
-        
+
         // Force change detection
         setTimeout(() => {
           this.isLoading = false;
           this.cdr.detectChanges();
           console.log('Loading set to false, isLoading:', this.isLoading);
         }, 100);
-        
+
       } else {
         throw new Error('No valid user session found');
       }
@@ -55,7 +55,7 @@ export class LoginSuccessComponent implements OnInit {
       console.error('Authentication check failed:', error);
       this.isLoading = false;
       setTimeout(() => {
-        this.router.navigate(['/login'], { 
+        this.router.navigate(['/login'], {
           queryParams: { error: 'Authentication failed. Please try again.' }
         });
       }, 2000);
@@ -66,9 +66,9 @@ export class LoginSuccessComponent implements OnInit {
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         console.log(`Attempt ${attempt} to get user session`);
-        
+
         const { data, error } = await this.authService.getCurrentUser();
-        
+
         if (error) {
           console.warn(`Attempt ${attempt} failed:`, error);
           if (attempt === this.maxRetries) {
@@ -87,7 +87,7 @@ export class LoginSuccessComponent implements OnInit {
         if (attempt < this.maxRetries) {
           await this.delay(this.retryDelay * attempt);
         }
-        
+
       } catch (error) {
         console.error(`Error on attempt ${attempt}:`, error);
         if (attempt === this.maxRetries) {
@@ -96,7 +96,7 @@ export class LoginSuccessComponent implements OnInit {
         await this.delay(this.retryDelay * attempt);
       }
     }
-    
+
     throw new Error('Failed to get user session after all retry attempts');
   }
 
@@ -106,7 +106,7 @@ export class LoginSuccessComponent implements OnInit {
 
   goToDashboard() {
     if (this.isLoading) return;
-    this.router.navigate(['/dashboard']);
+    this.router.navigate(['/home']);
   }
 
   goToProfile() {
@@ -117,15 +117,15 @@ export class LoginSuccessComponent implements OnInit {
   this.isLoading = true;
   try {
     const { data: { session }, error } = await this.authService.getSession();
-    
+
     if (error) throw error;
     if (!session) throw new Error('No session found');
-    
+
     this.user = {
       userName: session.user.user_metadata?.['full_name'] || '',
       userEmail: session.user.email || ''
     };
-      
+
   } catch (error) {
     console.error('Auth check failed:', error);
     this.router.navigate(['/login']);
@@ -136,7 +136,7 @@ export class LoginSuccessComponent implements OnInit {
 
   async logout() {
     if (this.isLoading) return;
-    
+
     this.isLoading = true;
     try {
       console.log('Logging out...');
