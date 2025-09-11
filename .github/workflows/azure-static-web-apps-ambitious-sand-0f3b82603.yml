@@ -30,9 +30,9 @@ jobs:
 
       - name: Replace environment variables
         run: |
-          sed -i 's/__AUTH_URL__/${{ secrets.SUPABASE_URL }}/g' src/environments/environment.prod.ts
-          sed -i 's/__AUTH_KEY__/${{ secrets.SUPABASE_KEY }}/g' src/environments/environment.prod.ts
-          sed -i 's/__API_KEY__/${{ secrets.API_KEY_ADMIN }}/g' src/environments/environment.prod.ts
+          sed -i 's|__AUTH_URL__|${{ secrets.SUPABASE_URL }}|g' src/environments/environment.prod.ts
+          sed -i 's|__AUTH_KEY__|${{ secrets.SUPABASE_KEY }}|g' src/environments/environment.prod.ts
+          sed -i 's|__API_KEY__|${{ secrets.API_KEY_ADMIN }}|g' src/environments/environment.prod.ts
       - name: Build Angular App
         run: npx ng build --configuration=production
 
