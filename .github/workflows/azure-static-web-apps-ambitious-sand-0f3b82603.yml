@@ -26,8 +26,13 @@ jobs:
           node-version: '20.x'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
+      - name: Replace environment variables
+        run: |
+          sed -i 's/__AUTH_URL__/${{ secrets.SUPABASE_URL }}/g' src/environments/environment.prod.ts
+          sed -i 's/__AUTH_KEY__/${{ secrets.SUPABASE_KEY }}/g' src/environments/environment.prod.ts
+          sed -i 's/__API_KEY__/${{ secrets.API_KEY_ADMIN }}/g' src/environments/environment.prod.ts
       - name: Build Angular App
         run: npx ng build --configuration=production
 
@@ -60,3 +65,4 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AMBITIOUS_SAND_0F3B82603 }}
           action: "close"
+          app_location: "/"
