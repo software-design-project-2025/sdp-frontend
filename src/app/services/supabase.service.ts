@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import {Injectable} from '@angular/core';
 import {UUID} from 'node:crypto';
-// import { environment } from '../environments/environment'; // adjust path
+import { environment } from '../../environments/environment.prod'; // adjust path
 
 export const supabase = createClient(
-  'https://cixdigfxjvranfleyamm.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpeGRpZ2Z4anZyYW5mbGV5YW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyMDkyNzAsImV4cCI6MjA3MDc4NTI3MH0.ZgbRo8kxPZzhJe0BEw56seYrUlf3UiylCkeRPzdGWEQ'
+  environment.supabaseUrl,
+  environment.supabaseKey
 );
 
 @Injectable({
