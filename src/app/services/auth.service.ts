@@ -1,10 +1,20 @@
 import { Injectable } from '@angular/core';
 import { createClient, SupabaseClient, AuthResponse } from '@supabase/supabase-js';
 import { Router } from '@angular/router';
+import { environment } from '../../environments/environment.prod';
+import { BehaviorSubject } from 'rxjs';
 
 export interface AuthResult {
   data: any;
   error: any;
+}
+
+export interface profiles {
+  name?: string;
+  email?: string;
+  created_at?: Date | string;
+  updated_at?: Date | string;
+  id: string;
 }
 
 @Injectable({
@@ -15,11 +25,14 @@ export class AuthService {
   public isLoading: boolean = false;
   public errorMessage: string | null = null;
   private authStateSub: any;
+  private currentUserSubject = new BehaviorSubject<any>(null);
+  public currentUser$ = this.currentUserSubject.asObservable();
+
   constructor(private router: Router) {
 
     this.supabase = createClient(
-      'https://cixdigfxjvranfleyamm.supabase.co', 
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpeGRpZ2Z4anZyYW5mbGV5YW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyMDkyNzAsImV4cCI6MjA3MDc4NTI3MH0.ZgbRo8kxPZzhJe0BEw56seYrUlf3UiylCkeRPzdGWEQ'
+      environment.supabaseUrl, 
+      environment.supabaseKey
     );
     
   }
@@ -89,6 +102,7 @@ async signUp(email: string, password: string, name: string) {
     throw error;
   }
 }
+
 async getSession() {
   try {
     return await this.supabase.auth.getSession();
@@ -100,17 +114,33 @@ async getSession() {
     throw error;
   }
 }
-async getCurrentUser() {
-  // Use getSession() instead of getUser() for better reliability
-  const { data, error } = await this.supabase.auth.getSession();
-  
-  return {
-    data: {
-      user: data?.session?.user || null
-    },
-    error
-  };
-}
+  async getCurrentUser() {
+    const { data, error } = await this.supabase.auth.getSession();
+    const user = data?.session?.user || null;
+    this.currentUserSubject.next(user);
+    return { data: { user }, error };
+  }
+
+  async getUserById(userId: string): Promise<{ data: profiles | null; error: any }> {
+    try {
+      //console.log('🔍 Querying profiles for ID:', userId);
+      
+      const { data, error } = await this.supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      //console.log(data);
+
+      return { data, error: null };
+      
+    } catch (error) {
+      console.error('Error in getUserById:', error);
+      return { data: null, error };
+    }
+  }
+
   async signOut() {
     const { error } = await this.supabase.auth.signOut();
     if (!error) {

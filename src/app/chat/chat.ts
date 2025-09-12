@@ -1,89 +1,84 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ChatService } from '../services/chat.service';
-
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ChatMessage, ChatService, Chat as c } from '../services/chat.service';
+import { AuthService } from '../services/auth.service';
+import { CommonModule } from '@angular/common';
+import { BehaviorSubject,firstValueFrom } from 'rxjs';
+import { UserService } from '../services/supabase.service';
 
 // Interface definitions
-interface User {
-  id: number;
-  name: string;
-  initials: string;
-  online: boolean;
-}
-
-interface Group {
-  id: number;
-  name: string;
-  initials: string;
-  memberCount: number;
+export interface User {
+  userid: string;
+  name: string,
+  role: String;
+  degreeid: number;
+  yearofstudy: number;
+  bio: string;
+  status: String;
+  profile_picture: string;
 }
 
 interface Message {
   id: number;
-  content: string;
+  chatid: number;
   timestamp: Date;
-  senderId: number;
-  type: 'sent' | 'received';
+  sender: User;
+  content: string;
+  type: 'sent' | 'received';  
 }
 
 interface Conversation {
   id: number;
-  type: 'direct' | 'group';
-  participant: User | Group;
+  participant: User;
   lastMessage: string;
   timestamp: Date;
   unreadCount: number;
   messages: Message[];
 }
 
-interface chat {
-  chatid: number,
-  user1id: number,
-  user2id: number
-}
-
-@Component({
-  selector: 'app-chat',
+@Component({ //Component function called as decorator, passing the metadata below, along with a reference to the Chat class constructor
+  selector: 'app-chat', //use this component by placing the tag <app-chat></app-chat> in any other component's HTML template.
+  standalone: true,
+  imports: [
+    CommonModule,       
+    ReactiveFormsModule  
+  ],
   templateUrl: './chat.html',
   styleUrls: ['./chat.scss']
 })
-
-
 export class Chat implements OnInit {
   chats: any[] = [];
   data: any;   
-  loading = false;
+
+  
+  loading$ = new BehaviorSubject<boolean>(true);
+  loading = this.loading$.asObservable();
   error: string = ''; 
   
   searchForm: FormGroup;
   messageForm: FormGroup;
-  
   
   conversations: Conversation[] = [];
   filteredConversations: Conversation[] = [];
   activeConversation: Conversation | null = null;
   
   currentUser: User = {
-    id: 1,
-    name: 'You',
-    initials: 'YY',
-    online: true
+    userid: '',
+    name: '',
+    role: '',
+    degreeid: 0,
+    yearofstudy: 0,
+    bio: '',
+    status: '',
+    profile_picture: "placeholder"
   };
 
-  // Sample data - in a real app, this would come from a service
-  users: User[] = [
-    { id: 2, name: 'Sarah Chen', initials: 'SC', online: true },
-    { id: 3, name: 'Emma Davis', initials: 'ED', online: false }
-  ];
-
-  groups: Group[] = [
-    { id: 101, name: 'Calculus Study Group', initials: 'CSG', memberCount: 6 },
-    { id: 102, name: 'Physics Lab Group', initials: 'PLG', memberCount: 4 }
-  ];
 
   constructor(
     private fb: FormBuilder,
-    private chatService: ChatService
+    private chatService: ChatService,
+    private authService: AuthService,
+    private cdr: ChangeDetectorRef
   ) {
     this.searchForm = this.fb.group({
       searchTerm: ['']
@@ -94,110 +89,210 @@ export class Chat implements OnInit {
     });
   }
 
-  ngOnInit(): void {
-    // Get chat ID from route parameters or service
-    const userid = 0; // You need to implement this
-    
-    // Call the service with proper error handling
-    this.chatService.getChatById(userid).subscribe({
-      next: (response: any) => {
-        this.data = response;
-        console.log('Chat loaded:', response);
-      },
-      error: (err) => {
-        console.error('Error loading chat:', err);
-        this.error = 'Failed to load chat';
+  async ngOnInit(): Promise<void> {
+
+    try {
+      // These run sequentially
+      const userid = await this.getCurrentUserId();
+
+      const convos = await this.formatConvos(userid);       
+
+      for (const convo of convos){
+
+        const name = await this.getOtherUserName(convo);
+        if (name === undefined){
+          continue; //ADD PROPER ERROR HANDLING
+        }else{
+          convo.participant.name = name;
+        }
+        
+        const messages = await this.retrieveMessages(convo.id, userid); 
+        convo.messages = messages;
+        if (messages.length > 0){
+          convo.timestamp = messages[messages.length-1].timestamp;
+        }
       }
-    });
+      //Sort messages by date
+      convos.sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-    this.initializeConversations();
-    this.filteredConversations = [...this.conversations];
-    
-    if (this.conversations.length > 0) {
-      this.setActiveConversation(this.conversations[0]);
+      this.conversations = convos;
+      this.filteredConversations = [...this.conversations];
+
+      if (this.conversations.length > 0) {
+        this.setActiveConversation(this.conversations[0]);
+      }
+      this.loading$.next(false);
+      this.cdr.detectChanges();
+
+      // These run in parallel
+      await Promise.all([
+        
+      ]);
+
+      this.searchForm.get('searchTerm')?.valueChanges.subscribe(term => {
+        this.filterConversations(term);
+      });
     }
-
-    this.searchForm.get('searchTerm')?.valueChanges.subscribe(term => {
-      this.filterConversations(term);
-    });
+    catch{
+      this.error = 'Page failed';
+    }
   }
 
-  initializeConversations(): void {
-    // Sample conversations with messages
-    this.conversations = [
-      {
-        id: 1,
-        type: 'direct',
-        participant: this.users[0], // Sarah Chen
-        lastMessage: 'Should we meet at the librar...',
-        timestamp: new Date(new Date().setHours(14, 30, 0)),
-        unreadCount: 2,
-        messages: [
-          {
-            id: 1,
-            content: 'Hey! Are you free to study calculus tomorrow?',
-            timestamp: new Date(new Date().setHours(14, 15, 0)),
-            senderId: 2,
-            type: 'received'
-          },
-          {
-            id: 2,
-            content: 'Yes! I need help with integration techniques.',
-            timestamp: new Date(new Date().setHours(14, 20, 0)),
-            senderId: 1,
-            type: 'sent'
-          },
-          {
-            id: 3,
-            content: 'Perfect! I just finished that chapter. Should we meet at the library?',
-            timestamp: new Date(new Date().setHours(14, 25, 0)),
-            senderId: 2,
-            type: 'received'
-          },
-          {
-            id: 4,
-            content: 'That sounds great! Floor 3 study rooms?',
-            timestamp: new Date(new Date().setHours(14, 28, 0)),
-            senderId: 1,
-            type: 'sent'
-          },
-          {
-            id: 5,
-            content: 'Should we meet at the library tomorrow?',
-            timestamp: new Date(new Date().setHours(14, 30, 0)),
-            senderId: 2,
-            type: 'received'
-          }
-        ]
-      },
-      {
-        id: 2,
-        type: 'group',
-        participant: this.groups[0], // Calculus Study Group
-        lastMessage: 'Mike: I uploaded the notes fr...',
-        timestamp: new Date(new Date().setHours(13, 45, 0)),
-        unreadCount: 5,
-        messages: [] // Would be populated in a real app
-      },
-      {
-        id: 3,
-        type: 'direct',
-        participant: this.users[1], // Emma Davis
-        lastMessage: 'Thanks for the physics help!',
-        timestamp: new Date(new Date().setHours(11, 20, 0)),
-        unreadCount: 0,
-        messages: [] // Would be populated in a real app
-      },
-      {
-        id: 4,
-        type: 'group',
-        participant: this.groups[1], // Physics Lab Group
-        lastMessage: 'Everyone ready for tomorrow?',
-        timestamp: new Date(Date.now() - 86400000), // Yesterday
-        unreadCount: 1,
-        messages: [] // Would be populated in a real app
+  private async getCurrentUserId(): Promise<string> {
+
+    try{ 
+      const result = await this.authService.getCurrentUser();
+      const user = result.data?.user;      
+      if (user) {
+        this.currentUser.userid = user.id || '';
+        this.currentUser.name = user.user_metadata?.['name'] || '';
+        return user.id || '';
       }
-    ];
+      return '';   
+    }
+    catch{
+      this.error = 'Error retrieving current userId';
+    }
+    return '';
+  }
+
+  private async formatConvos(userid: string): Promise<Conversation[]> {
+    try{
+      const result = await firstValueFrom(this.chatService.getChatById(userid));
+
+      if (!result) {
+        this.error = 'No chat found';
+        console.log("could not get chat");
+        return [];
+      }
+
+     
+      const convos: Conversation[] = [];
+     
+      for (const chat of result){
+        let user1Id = chat.user1.userid;
+        let user2Id = chat.user2.userid;
+        const currentId = userid;
+
+        const isUser1Current = user1Id === currentId;
+        const isUser2Current = user2Id === currentId;
+
+        if (!isUser1Current && !isUser2Current) {
+          this.error = 'You are not part of this conversation';
+          continue;
+        }
+
+        const otherUserId = isUser1Current ? chat.user2.userid : chat.user1.userid;
+
+        convos.push({
+          id: chat.chatid,
+          participant: {
+            userid: otherUserId,
+            name: '',
+            role: '',
+            degreeid: 0,
+            yearofstudy: 0,
+            bio: '',
+            status: '',
+            profile_picture: 'placeholder'
+          },
+          lastMessage: '',
+          unreadCount: 0,
+          timestamp: new Date(),
+          messages: []
+        })
+      }      
+
+      return convos;
+      
+    }
+    catch{
+      this.error = 'Error formatting chat data';
+      return [];
+    }
+    
+  }
+
+  private async getOtherUserName(convo: Conversation): Promise<string | undefined> {
+    
+    try{
+      //Check validity of UUID
+      const result = await this.authService.getUserById(convo.participant.userid);
+      if(result){
+        return result.data?.name;
+      } 
+      return ''
+    }
+    catch{
+      this.error = 'Error retrieving other username';   
+      return ''
+    }
+  }
+
+  private async retrieveMessages(chatid: number, userid: String): Promise<Message[]> {
+
+    try{
+      const result = await firstValueFrom(this.chatService.getMessagesByChatId(chatid));
+      
+      if (result){
+        const messages: Message[] = [];
+        
+        for (const message of result){
+
+          // Parse as UTC (assuming the stored time is in GMT+2)
+          const utcDate = new Date(message.sentDateTime + "Z");
+          
+          // Adjust by adding 2 hours to convert from UTC to GMT+2
+          const sastDate = new Date(utcDate.getTime() + (2 * 60 * 60 * 1000));
+
+          messages.push({
+            id: message.messageid,
+            chatid: message.chat.chatid,
+            timestamp: utcDate,
+            sender: message.sender,
+            content: message.message,
+            type: (message.sender.userid === userid) ? 'sent' : 'received'
+
+          })
+        }
+        
+        return messages;
+ 
+      }
+      return [];
+    }
+    catch{
+      this.error = 'Error retrieving messages';   
+      return [];
+    }
+  }
+  // TrackBy functions for performance optimization
+  trackByConversationId(index: number, conversation: Conversation): number {
+    // Use a combination of index and id to ensure uniqueness
+    return index; // OR return conversation.id + index;
+  }
+
+  trackByMessageId(index: number, message: Message): number {
+    return message.id;
+  }
+
+  // Accessibility helper methods
+  getConversationAriaLabel(conversation: Conversation): string {
+    const unreadText = conversation.unreadCount > 0 
+      ? `, ${conversation.unreadCount} unread messages` 
+      : '';
+    
+    return `${conversation.participant.name} direct message, last message: ${conversation.lastMessage}${unreadText}`;
+  }
+
+  getAvatarAriaLabel(conversation: Conversation): string {
+    return `${conversation.participant.name} avatar`;
+  }
+
+  getMessageAriaLabel(message: Message): string {
+    const timeText = this.formatTime(message.timestamp);
+    const typeText = message.type === 'sent' ? 'You sent' : 'Received';
+    return `${typeText} at ${timeText}: ${message.content}`;
   }
 
   filterConversations(searchTerm: string): void {
@@ -208,13 +303,7 @@ export class Chat implements OnInit {
 
     const term = searchTerm.toLowerCase();
     this.filteredConversations = this.conversations.filter(conversation => {
-      if (conversation.type === 'direct') {
-        const user = conversation.participant as User;
-        return user.name.toLowerCase().includes(term);
-      } else {
-        const group = conversation.participant as Group;
-        return group.name.toLowerCase().includes(term);
-      }
+      return conversation.participant.name.toLowerCase().includes(term);
     });
   }
 
@@ -224,67 +313,61 @@ export class Chat implements OnInit {
     
     this.activeConversation = conversation;
     
-    // In a real app, you might want to load more messages here
   }
 
-  sendMessage(): void {
-    if (this.messageForm.valid && this.activeConversation) {
-      const messageContent = this.messageForm.get('message')?.value;
+  private async createMessage(chatid: number, participant: User, messageContent: string): Promise<void>{
+    try{
+      const chat: c = {
+        chatid: chatid,
+        user1: this.currentUser,
+        user2: participant
+      }
+
+      const time = new Date();
       
+      const newMessage: ChatMessage = {
+        messageid: 3, //Handled in backend
+        chat: chat,
+        sender: this.currentUser,
+        sentDateTime: time,
+        message: messageContent
+      }
+
+      const result = await firstValueFrom(this.chatService.createMessage(newMessage));
+      //console.log(result);
+      if(!result){
+        this.error = "Failed to send message";
+        console.log("Failed to send!!!");
+      }
+    }
+    catch{
+      this.error = "Failed to send message";
+    }
+  }
+
+  async sendMessage(): Promise<void> {
+    
+    if (this.messageForm.valid && this.activeConversation) {
+      const messageContent = this.messageForm.get('message')?.value; 
       const newMessage: Message = {
-        id: Date.now(), // Using timestamp as ID for simplicity
+        id: 0, // Auto increment set in Spring
+        chatid: this.activeConversation.id,
         content: messageContent,
         timestamp: new Date(),
-        senderId: this.currentUser.id,
+        sender: this.currentUser,
         type: 'sent'
       };
-      
-      // Add message to active conversation
-      this.activeConversation.messages.push(newMessage);
+      this.messageForm.reset(); // Clear the input field
+
+      this.activeConversation.messages.push(newMessage); // Add message to active conversation
+
+      await this.createMessage(this.activeConversation.id, this.activeConversation.participant, messageContent);
       
       // Update last message and timestamp
       this.activeConversation.lastMessage = messageContent;
       this.activeConversation.timestamp = new Date();
-      
-      // Clear the input field
-      this.messageForm.reset();
-      
-      // In a real app, you would send the message to a server here
-      // and handle the response asynchronously
-      
-      // Simulate a reply after a short delay
-      setTimeout(() => {
-        this.simulateReply();
-      }, 1000 + Math.random() * 2000);
+    
     }
-  }
-
-  simulateReply(): void {
-    if (!this.activeConversation) return;
-    
-    let replyContent = '';
-    if (this.activeConversation.type === 'direct') {
-      const user = this.activeConversation.participant as User;
-      replyContent = `Thanks for your message! (This is an automated reply from ${user.name})`;
-    } else {
-      const group = this.activeConversation.participant as Group;
-      const randomMember = Math.floor(Math.random() * group.memberCount) + 1;
-      replyContent = `User${randomMember}: Got it! (This is an automated reply from ${group.name})`;
-    }
-    
-    const replyMessage: Message = {
-      id: Date.now(),
-      content: replyContent,
-      timestamp: new Date(),
-      senderId: this.activeConversation.type === 'direct' 
-        ? (this.activeConversation.participant as User).id 
-        : 0, // 0 could represent a group message from someone
-      type: 'received'
-    };
-    
-    this.activeConversation.messages.push(replyMessage);
-    this.activeConversation.lastMessage = replyContent;
-    this.activeConversation.timestamp = new Date();
   }
 
   formatTime(date: Date): string {
