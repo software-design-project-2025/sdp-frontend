@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { createClient, SupabaseClient, AuthResponse } from '@supabase/supabase-js';
 import { Router } from '@angular/router';
-import { environment } from '../../environments/environment';
+import { environment } from '../../environments/environment.prod';
 import { BehaviorSubject } from 'rxjs';
 
 export interface AuthResult {
