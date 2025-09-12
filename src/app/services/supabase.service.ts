@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import {Injectable} from '@angular/core';
 import {UUID} from 'node:crypto';
-import { environment } from '../../environments/environment.prod'; // adjust path
+import { environment } from '../../environments/environment'; // adjust path
 
 export const supabase = createClient(
   environment.supabaseUrl,
