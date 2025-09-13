@@ -15,10 +15,6 @@ const routes: Routes = [
   {path: 'home', component: HomeComponent},
   { path: 'signup', component: SignupComponent },
   { path: 'login-success', component: LoginSuccessComponent },
-  { path: 'sessions', component: SessionsComponent },
-  { path: '', redirectTo: '/login', pathMatch: 'full' }, // Add default route
-  { path: '**', redirectTo: '/login' }, // Add wildcard route
-  //{ path: 'login-success', component: LoginSuccessComponent },
   { path: 'chat', component: Chat}
 ];
 
