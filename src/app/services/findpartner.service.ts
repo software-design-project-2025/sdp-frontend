@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import {HttpClient, HttpHeaders} from '@angular/common/http';
 import { Observable } from 'rxjs';
-import {environment} from '../../environments/environment';
+//import {environment} from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root' // Makes the service a singleton
@@ -11,13 +11,13 @@ export class ApiService {
 
   private getHeaders(): HttpHeaders {
     return new HttpHeaders({
-      'Authorization': `Bearer ${environment.API_KEY_ADMIN}`, //needs fixing
+      'Authorization': `Bearer `, //needs fixing
       'Content-Type': 'application/json'
     });
   }
 
   getUser(): Observable<any> {
-    return this.http.get('http://localhost:8080/api/auth/user',
+    return this.http.get('http://localhost:8080/api/users/all',
         {headers: this.getHeaders()}
     );
   }

@@ -7,6 +7,7 @@ import {SessionsComponent} from './sessions/sessions.component';
 import { HomeComponent} from './dashboard/home/home.component';
 import { Chat } from './chat/chat';
 import { FindPartners } from './findpartners/findpartners';
+import { Profile } from './profile/profile'
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' }, // Default route
@@ -15,6 +16,7 @@ export const routes: Routes = [
   { path: 'login-success', component: LoginSuccessComponent },
   { path: 'chat', component: Chat},
   { path: 'findpartners', component: FindPartners},
+  { path: 'profile', component: Profile},
   { path: 'home', component: HomeComponent },
   { path: 'sessions', component: SessionsComponent },
   { path: '**', redirectTo: 'login' } // Fallback route
