@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile Template</title>
+</head>
+<body>
+<!-- This is the Angular template content that should go in profile.html -->
+<div class="profile-card">
+  <!-- Profile Header Section -->
+  <div class="profile-header">
+    <div class="profile-identity">
+      <div class="profile-avatar">{{ user().initials }}</div>
+      <div class="profile-info">
+        <h1 class="user-name">{{ user().name }}</h1>
+        <p>{{ userDegreeName() }} • Year {{ user().yearOfStudy }}</p>
+
+        @if (!isEditing()) {
+          <div class="meta-info">
+            <div class="location-info">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              <span>{{ user().university }}</span>
+            </div>
+          </div>
+        } @else {
+          <!-- Edit Fields -->
+          <div class="edit-fields-inline">
+            <div style="flex: 2;">
+              <label>Degree</label>
+              <select class="edit-input"
+                      [(ngModel)]="editedDegreeId"
+                      [ngModelOptions]="{updateOn: 'change'}">
+                @for (degree of availableDegrees(); track degree.degreeid) {
+                  <option [value]="degree.degreeid">
+                    {{ degree.degree_name }} ({{ degree.degree_type }})
+                  </option>
+                }
+              </select>
+            </div>
+            <div style="flex: 1;">
+              <label>Year of Study</label>
+              <input type="number"
+                     class="edit-input"
+                     [(ngModel)]="editedYearOfStudy"
+                     min="1" max="6">
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+      @if (!isEditing()) {
+        <button class="edit-profile-button" (click)="startEditing()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit Profile
+        </button>
+      } @else {
+        <button class="save-button" (click)="saveChanges()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Save Changes
+        </button>
+        <button class="cancel-button" (click)="cancelEdit()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          Cancel
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Bio Section -->
+  <div class="profile-bio-section">
+    <h2>About</h2>
+    @if (!isEditing()) {
+      <p class="profile-bio">{{ user().bio }}</p>
+    } @else {
+      <textarea class="bio-textarea"
+                [(ngModel)]="editedBio"
+                placeholder="Tell us about yourself..."></textarea>
+    }
+  </div>
+
+  <!-- Main Content Grid -->
+  <div class="content-grid">
+    <!-- Study Subjects Section -->
+    <div class="study-subjects-section">
+      <h2>Study Subjects</h2>
+
+      @if (!isEditing()) {
+        <div class="subjects-container">
+          @for (module of userModules(); track module.courseCode) {
+            <div class="subject-tag">
+              {{ module.courseCode }}: {{ module.courseName }}
+            </div>
+          }
+          @empty {
+            <p style="color: #6b7280; font-style: italic;">No subjects selected yet.</p>
+          }
+        </div>
+      } @else {
+        <!-- Module Search and Selection in Edit Mode -->
+        <div class="module-search-container">
+          <input type="text"
+                 class="module-search-input"
+                 placeholder="Search for modules..."
+                 [(ngModel)]="moduleSearchTerm">
+        </div>
+
+        <div class="module-selection-grid">
+          @for (module of filteredModules(); track module.courseCode) {
+            <label class="module-checkbox-label">
+              <input type="checkbox"
+                     [checked]="isModuleSelected(module.courseCode)"
+                     (change)="onModuleSelectionChange($event, module.courseCode)">
+              <span>{{ module.courseCode }}: {{ module.courseName }}</span>
+            </label>
+          }
+          @empty {
+            <p style="color: #6b7280; font-style: italic;">No modules found matching your search.</p>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Statistics Section -->
+    <div class="stats-section">
+      <div class="stats-grid">
+        @for (stat of user().stats; track stat.label) {
+          <div class="stat-card">
+            <div class="stat-icon" [innerHTML]="stat.svgIcon"></div>
+            <div class="stat-value">{{ stat.value }}</div>
+            <div class="stat-label">{{ stat.label }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
