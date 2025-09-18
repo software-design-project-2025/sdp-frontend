@@ -1,4 +1,3 @@
-// home.component.ts
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
@@ -7,6 +6,7 @@ import { CalendarOptions } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { AuthService } from '../../services/auth.service';
+import { SessionService, Session } from '../../services/session.service';
 
 @Component({
   selector: 'app-home',
@@ -18,8 +18,8 @@ import { AuthService } from '../../services/auth.service';
 export class HomeComponent implements OnInit {
   isLoading = true;
   userName = '';
-  userEmail = '';
-  
+  userId = '';   // 🔑 primary identifier in DB
+
   calendarOptions: CalendarOptions = {
     plugins: [dayGridPlugin, interactionPlugin],
     initialView: 'dayGridMonth',
@@ -29,22 +29,12 @@ export class HomeComponent implements OnInit {
       right: 'dayGridMonth'
     },
     height: 'auto',
-    events: [
-      {
-        title: 'Math Study Group',
-        date: '2025-08-15',
-        color: '#003366'
-      },
-      {
-        title: 'Physics Session',
-        date: '2025-08-18',
-        color: '#0055aa'
-      }
-    ]
+    events: []  // will be filled dynamically
   };
 
   constructor(
     private authService: AuthService,
+    private sessionService: SessionService,
     private router: Router
   ) {}
 
@@ -56,27 +46,51 @@ export class HomeComponent implements OnInit {
   async checkAuthentication() {
     try {
       const { data: { session }, error } = await this.authService.getSession();
-      
+
       if (error || !session) {
         console.error('HomeComponent: Authentication failed:', error);
         this.router.navigate(['/login']);
         return;
       }
 
-      // Set user information
-      this.userName = session.user.user_metadata?.['name'] ||
-                    session.user.user_metadata?.['full_name'] ||
-                    session.user.email?.split('@')[0] ||
-                    'User';
-      this.userEmail = session.user.email || '';
-      
-      console.log('HomeComponent: User authenticated:', this.userName);
+      // ✅ set userid from session
+      this.userId = session.user.id;
+
+      // ✅ displayable name (fallback to userid if none in metadata)
+      this.userName = session.user.user_metadata?.['name']
+        || session.user.user_metadata?.['full_name']
+        || this.userId;
+
+      console.log('HomeComponent: User authenticated:', this.userName, 'ID:', this.userId);
+
+      // ✅ fetch upcoming sessions
+      this.loadUpcomingSessions(this.userId);
+
       this.isLoading = false;
-      
+
     } catch (error) {
       console.error('HomeComponent: Error checking authentication:', error);
       this.router.navigate(['/login']);
     }
+  }
+
+  loadUpcomingSessions(userId: string) {
+    this.sessionService.getUpcomingSessions(userId).subscribe({
+      next: (sessions: Session[]) => {
+        console.log('Fetched upcoming sessions:', sessions);
+
+        // Map backend sessions to FullCalendar events
+        this.calendarOptions.events = sessions.map(s => ({
+          title: s.title,
+          start: s.startTime,
+          end: s.endTime,
+          color: '#003366'
+        }));
+      },
+      error: (err) => {
+        console.error('Error fetching sessions:', err);
+      }
+    });
   }
 
   async logout() {
