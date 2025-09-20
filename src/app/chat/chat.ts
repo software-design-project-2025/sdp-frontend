@@ -22,7 +22,7 @@ interface Message {
   id: number;
   chatid: number;
   timestamp: Date;
-  sender: User;
+  senderid: string;
   content: string;
   type: 'sent' | 'received';  
 }
@@ -94,6 +94,7 @@ export class Chat implements OnInit {
     try {
       // These run sequentially
       const userid = await this.getCurrentUserId();
+      this.currentUser.userid = userid;
 
       const convos = await this.formatConvos(userid);       
 
@@ -234,24 +235,21 @@ export class Chat implements OnInit {
     try{
       const result = await firstValueFrom(this.chatService.getMessagesByChatId(chatid));
       
-      if (result){
+      if (result.length > 0){
         const messages: Message[] = [];
         
         for (const message of result){
-
-          // Parse as UTC (assuming the stored time is in GMT+2)
-          const utcDate = new Date(message.sentDateTime + "Z");
           
-          // Adjust by adding 2 hours to convert from UTC to GMT+2
-          const sastDate = new Date(utcDate.getTime() + (2 * 60 * 60 * 1000));
-
+          // Parse as UTC (assuming the stored time is in GMT+2)
+          const utcDate = new Date(message.sent_datetime + "Z");
+          
           messages.push({
             id: message.messageid,
-            chatid: message.chat.chatid,
+            chatid: message.chatid,
             timestamp: utcDate,
-            sender: message.sender,
+            senderid: message.senderid,
             content: message.message,
-            type: (message.sender.userid === userid) ? 'sent' : 'received'
+            type: (message.senderid === userid) ? 'sent' : 'received'
 
           })
         }
@@ -315,24 +313,16 @@ export class Chat implements OnInit {
     
   }
 
-  private async createMessage(chatid: number, participant: User, messageContent: string): Promise<void>{
+  private async createMessage(chatid: number, messageContent: string): Promise<void>{
     try{
-      const chat: c = {
-        chatid: chatid,
-        user1: this.currentUser,
-        user2: participant
-      }
-
-      const time = new Date();
-      
       const newMessage: ChatMessage = {
-        messageid: 3, //Handled in backend
-        chat: chat,
-        sender: this.currentUser,
-        sentDateTime: time,
+        messageid: 0,
+        chatid: chatid,
+        senderid: this.currentUser.userid,
+        sent_datetime: new Date(),
         message: messageContent
       }
-
+      
       const result = await firstValueFrom(this.chatService.createMessage(newMessage));
       //console.log(result);
       if(!result){
@@ -354,14 +344,14 @@ export class Chat implements OnInit {
         chatid: this.activeConversation.id,
         content: messageContent,
         timestamp: new Date(),
-        sender: this.currentUser,
+        senderid: this.currentUser.userid,
         type: 'sent'
       };
       this.messageForm.reset(); // Clear the input field
 
       this.activeConversation.messages.push(newMessage); // Add message to active conversation
 
-      await this.createMessage(this.activeConversation.id, this.activeConversation.participant, messageContent);
+      await this.createMessage(this.activeConversation.id, messageContent);
       
       // Update last message and timestamp
       this.activeConversation.lastMessage = messageContent;
