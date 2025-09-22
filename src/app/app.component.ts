@@ -5,6 +5,7 @@ import { Router, NavigationEnd, RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { filter } from 'rxjs/operators';
 import {Navbar} from './navbar/navbar';
+import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-root',

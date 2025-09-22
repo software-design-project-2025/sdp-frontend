@@ -60,7 +60,7 @@ export class LoginComponent {
       if (result.error) {
         this.handleLoginError(result.error);
       } else {
-        // Redirect to success page
+
         this.router.navigate(['/login-success']);
       }
     } catch (error) {
