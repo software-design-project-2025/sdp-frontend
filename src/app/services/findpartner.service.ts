@@ -9,34 +9,42 @@ import { Observable } from 'rxjs';
 export class ApiService {
   constructor(private http: HttpClient) { }
 
+  private url = "https://campus-study-budy-fwhpaahfach9g8bw.canadacentral-01.azurewebsites.net";
+
   private getHeaders(): HttpHeaders {
     return new HttpHeaders({
-      'Authorization': `Bearer `, //needs fixing
+      'Authorization': `Bearer`, //needs fixing
       'Content-Type': 'application/json'
     });
   }
 
   getUser(): Observable<any> {
-    return this.http.get('http://localhost:8080/api/users/all',
+    return this.http.get(`${this.url}/api/users/all`,
         {headers: this.getHeaders()}
     );
   }
 
   getDegree(): Observable<any> {
-    return this.http.get('http://localhost:8080/api/degree/all',
+    return this.http.get(`${this.url}/api/degree/all`,
       {headers: this.getHeaders()}
     );
   }
 
   getModule(): Observable<any> {
-    return this.http.get('http://localhost:8080/api/module/all',
+    return this.http.get(`${this.url}/api/module/all`,
       {headers: this.getHeaders()}
     );
   }
 
-  getUserCourse(): Observable<any> {
-    return this.http.get('http://localhost:8080/api/usercourse/all',
-      {headers: this.getHeaders()}
+  getUserCourseById(userid: string): Observable<any> {
+    return this.http.get(`${this.url}/api/courses/${userid}`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  getAllUserCourses(): Observable<any> {
+    return this.http.get(`${this.url}/api/courses/all`,
+      { headers: this.getHeaders() }
     );
   }
 

@@ -4,18 +4,29 @@ import { FormsModule } from '@angular/forms';
 import { ApiService} from '../services/findpartner.service';
 import { AuthService } from '../services';
 import { UserService } from '../services/supabase.service';
-import {BehaviorSubject, forkJoin} from 'rxjs'; // Import FormsModule
+import {BehaviorSubject, forkJoin, of} from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 // Interface for a study partner
 interface User {
   userid: string;
   username: string | "unknown";
-  email: string | "unknowne";
+  email: string | "unknown";
   role: string;
   status: string;
   bio: string;
   degreeid: number;
   yearofstudy: number;
+}
+
+// ✅ UPDATED: Interface now expects a 'name' property directly.
+interface SupabaseUser {
+  id: string;
+  email: string;
+  name: string;
+  user_metadata: {
+    [key: string]: any; // Keep metadata flexible
+  };
 }
 
 interface UserCourse {
@@ -25,7 +36,7 @@ interface UserCourse {
 
 interface Module{
   courseCode: string;
-  course_name: string;
+  courseName: string;
   facultyid: number;
 }
 
@@ -45,7 +56,6 @@ interface Degree {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FindPartners implements OnInit {
-  // Dummy data
   partners: User[] = [];
   userCourses: UserCourse[] = [];
   modules: Module[] = [];
@@ -54,15 +64,8 @@ export class FindPartners implements OnInit {
   isLoading$ = new BehaviorSubject<boolean>(true);
   isLoading = this.isLoading$.asObservable();
   user: any;
-  currentUser = [];
-  userName = '';
   userId: string | undefined = '';
   tester: any;
-
-  constructor(private apiService: ApiService,
-              private authService: AuthService,
-              private userService: UserService
-  ) { }
 
   // Properties for filtering state
   searchTerm: string = '';
@@ -71,33 +74,94 @@ export class FindPartners implements OnInit {
   // The final list of partners to display
   filteredPartners: User[] = [];
 
-  ngOnInit() {
-    //this.populateDummyData();
-    // const currentUserId = 0;
-    // this.authService.currentUser$.subscribe(user => {
-    //   this.currentUser = user;
-    // });
+  constructor(private apiService: ApiService,
+              private authService: AuthService,
+              private userService: UserService
+  ) { }
 
-    // Trigger initial load
+  ngOnInit() {
+    this.isLoading$.next(true);
+
     this.authService.getCurrentUser()
-      .then(result => {this.user = result;
-        this.userId = result.data.user?.id; //works
-        console.log('lklk', result);
-      }); //Then add this to your ngOnInit() function in your component
+      .then(result => {
+        this.user = result;
+        this.userId = result.data.user?.id;
+
+        if (this.userId) {
+          this.populateData(this.userId);
+        } else {
+          console.error("Could not determine current user. Data cannot be loaded.");
+          this.isLoading$.next(false);
+        }
+      })
+      .catch(err => {
+        console.error("Error getting current user:", err);
+        this.isLoading$.next(false);
+      });
 
     this.userService.getUserById('7afa86ff-8c02-4f3d-9bdd-f50ed80193e2')
-      .then(result => {this.tester = result;
-        console.log('tested', result.name);
+      .then(result => {
+        this.tester = result;
+        console.log('Tester user loaded:', result.name);
       });
-    this.populateData();
   }
+
+  /**
+   * Fetches all data from APIs and then applies initial filters.
+   * @param currentUserId The ID of the currently logged-in user.
+   */
+  populateData(currentUserId: string) {
+    const apiCalls = forkJoin({
+      degrees: this.apiService.getDegree().pipe(catchError(() => of([]))),
+      modules: this.apiService.getModule().pipe(catchError(() => of([]))),
+      // ✅ UPDATED: Fetch all user courses, not just for the logged-in user.
+      allUserCourses: this.apiService.getAllUserCourses().pipe(catchError(() => of([]))),
+      partners: this.apiService.getUser().pipe(catchError(() => of([]))),
+      // Assumes getAllUsers() returns an Observable of Supabase users
+      supabaseUsers: this.userService.getAllUsers()
+    });
+
+    apiCalls.subscribe((results) => {
+        this.degrees = results.degrees;
+        this.modules = results.modules;
+        // ✅ UPDATED: Directly assign the results. No transformation needed.
+        this.userCourses = results.allUserCourses;
+
+        // Create a Map for quick lookups of Supabase user data.
+        const supabaseUserMap = new Map<string, { username: string; email: string }>();
+        results.supabaseUsers.forEach((user: SupabaseUser) => {
+          const username = user.name || 'Unknown User';
+          const email = user.email || 'No email';
+          supabaseUserMap.set(user.id, { username, email });
+        });
+
+        // MERGE the data from Postgres (partners) and Supabase (names/emails).
+        this.partners = results.partners.map((partner: User) => {
+          const supabaseInfo = supabaseUserMap.get(partner.userid);
+          return {
+            ...partner,
+            username: supabaseInfo?.username || 'Unknown User',
+            email: supabaseInfo?.email || 'No email'
+          };
+        });
+
+        console.log('All data fetched and merged successfully');
+        this.applyFilters();
+      },
+      (error) => {
+        console.error('One or more API calls failed:', error);
+        this.isLoading$.next(false);
+      }
+    );
+  }
+
 
   /**
    * Main filtering logic that updates the displayed partners.
    */
   applyFilters() {
     // Start with only active partners
-    let tempPartners = this.partners.filter(p => p.status);
+    let tempPartners = this.partners.filter(p => p.status === 'active');
 
     // 1. Filter by the search term (case-insensitive)
     if (this.searchTerm && this.searchTerm.trim() !== '') {
@@ -109,14 +173,13 @@ export class FindPartners implements OnInit {
         this.getDegreeName(partner.degreeid).toLowerCase().includes(lowercasedTerm) ||
         // Check against any of their course names
         this.getPartnerCourses(partner.userid).some(course =>
-          course.course_name.toLowerCase().includes(lowercasedTerm)
+          course.courseName.toLowerCase().includes(lowercasedTerm)
         )
       );
     }
 
     // 2. Filter by the selected degree
     if (this.selectedDegree !== 'All') {
-      // FIX: Convert selectedDegree from string to number for correct comparison
       tempPartners = tempPartners.filter(partner => partner.degreeid === Number(this.selectedDegree));
     }
 
@@ -124,86 +187,8 @@ export class FindPartners implements OnInit {
     this.isLoading$.next(false);
   }
 
-   async populateData() {
-    const apiCalls = forkJoin({
-      degrees: this.apiService.getDegree(),
-      modules: this.apiService.getModule(),
-      userCourses: this.apiService.getUserCourse(),
-      partners: this.apiService.getUser()
-    });
-
-    apiCalls.subscribe(
-      (results) => {
-        // All API calls completed successfully
-        this.degrees = results.degrees;
-        this.modules = results.modules;
-        this.userCourses = results.userCourses;
-        this.partners = results.partners; //this does not contain username (i.e. result.name) and email
-
-        //this.partners = results.partners;
-
-        // this.partners = [
-        //   { userid: "user123", username: 'Alice', email: 'alice@example.com', role: 'student', status: "active", bio: 'Loves algorithms and problem-solving.', degreeid: 9, yearofstudy: 2 },
-        //   { userid: "user124", username: 'Bob', email: 'bob@example.com', role: 'student', status: "active", bio: 'Keen on web development and design.', degreeid: 9, yearofstudy: 3 },
-        //   { userid: "user125", username: 'Charlie', email: 'charlie@example.com', role: 'student', status: "active", bio: 'Hardware enthusiast, building my own PC.', degreeid: 9, yearofstudy: 1 },
-        //   { userid: "user126", username: 'Diana', email: 'diana@example.com', role: 'student', status: "active", bio: 'Future accountant, loves spreadsheets.', degreeid: 9, yearofstudy: 2 },
-        //   { userid: "user127", username: 'Eve', email: 'eve@example.com', role: 'student', status: "active", bio: 'Exploring the intersection of art and tech.', degreeid: 9, yearofstudy: 4 }
-        // ];
-
-        console.log('All data fetched successfully');
-        console.log( this.degrees);
-        this.applyFilters();
-      },
-      (error) => {
-        console.error('One or more API calls failed:', error);
-      }
-    );
-
-    // this.apiService.getDegree().subscribe(
-    //   (response) => {
-    //     this.degrees = response;
-    //     console.log('Data fetched:', this.degrees);
-    //   },
-    //   (error) => {
-    //     console.error('API Error:', error);
-    //   }
-    // );
-    //
-    // this.apiService.getModule().subscribe(
-    //   (response) => {
-    //     this.modules = response;
-    //     console.log('Data fetched:', this.modules);
-    //   },
-    //   (error) => {
-    //     console.error('API Error:', error);
-    //   }
-    // );
-    //
-    // this.partners = [
-    //   { userid: 0, username: 'Alice', email: 'alice@example.com', role: 'student', is_active: true, bio: 'Loves algorithms and problem-solving.', degreeid: 9, yearofstudy: 2 },
-    //   { userid: 2, username: 'Bob', email: 'bob@example.com', role: 'student', is_active: true, bio: 'Keen on web development and design.', degreeid: 9, yearofstudy: 3 },
-    //   { userid: 3, username: 'Charlie', email: 'charlie@example.com', role: 'student', is_active: false, bio: 'Hardware enthusiast, building my own PC.', degreeid: 9, yearofstudy: 1 },
-    //   { userid: 4, username: 'Diana', email: 'diana@example.com', role: 'student', is_active: true, bio: 'Future accountant, loves spreadsheets.', degreeid: 9, yearofstudy: 2 },
-    //   { userid: 5, username: 'Eve', email: 'eve@example.com', role: 'student', is_active: false, bio: 'Exploring the intersection of art and tech.', degreeid: 9, yearofstudy: 4 }
-    // ];
-    //
-    // this.apiService.getUserCourse().subscribe(
-    //   (response) => {
-    //     this.userCourses = response;
-    //
-    //     console.log('Data load:', this.userCourses);
-    //     this.isLoading$.next(false);
-    //     console.log('Data load:', this.isLoading);
-    //   },
-    //   (error) => {
-    //     console.error('API Error:', error);
-    //   }
-    // );
-  } //Add this function to auth.service.ts
-
   getDegreeName(degreeId: number): string {
     const degree = this.degrees.find(d => d.degreeid === degreeId);
-    console.log("hiooo", degree);
     return degree ? degree.degree_name : 'Unknown Degree';
   }
 
@@ -236,3 +221,5 @@ export class FindPartners implements OnInit {
     }
   }
 }
+
+
