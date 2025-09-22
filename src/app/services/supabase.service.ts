@@ -23,5 +23,13 @@ export class UserService {
     if (error) throw error;
     return data;
   }
+
+  async getAllUsers() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*');
+    if (error) throw error;
+    return data;
+  }
 }
 

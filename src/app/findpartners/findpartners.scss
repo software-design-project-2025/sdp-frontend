@@ -1,3 +1,44 @@
+/* These styles create a loading overlay with a centered spinner.
+  The spinner uses CSS animations for a smooth effect.
+*/
+
+.loading-overlay {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: fixed; /* Cover the whole viewport */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.85); /* Semi-transparent white background */
+  z-index: 9999; /* Ensure it's on top of everything */
+  backdrop-filter: blur(4px); /* A nice frosted glass effect */
+}
+
+.spinner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 8px solid #e0e0e0; /* Light grey track */
+  border-top-color: #007BFF; /* Blue spinner color to match theme */
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  margin-top: 1rem;
+  font-size: 1.1rem;
+  color: #343a40;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
 :host {
   --primary-color: #007BFF;
   --secondary-color: #6c757d;
@@ -285,6 +326,24 @@
   background-color: #f1f1f1;
 }
 
+.no-results {
+  text-align: center;
+  padding: 3rem;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.no-results h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.no-results p {
+  color: var(--light-text-color);
+}
+
+
 @media (max-width: 768px) {
   .search-and-filters, .results-header {
     flex-direction: column;
@@ -294,3 +353,4 @@
     grid-template-columns: 1fr;
   }
 }
+
