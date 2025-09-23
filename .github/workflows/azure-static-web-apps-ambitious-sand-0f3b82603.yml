@@ -36,6 +36,9 @@ jobs:
       - name: Build Angular App
         run: npx ng build --configuration=production
 
+      - name: Copy routing config to output folder
+        run: cp staticwebapp.config.json dist/sdp-angular-app/browser/
+
       - name: List build output (debugging)
         run: |
           echo "Contents of dist directory:"
