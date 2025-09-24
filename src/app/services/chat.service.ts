@@ -13,10 +13,10 @@ export interface Chat {
 
 export interface ChatMessage {
   messageid: number;
-  chat: Chat;
-  sender: User;
-  sentDateTime: Date;
+  chatid: number;
   message: string;
+  senderid: string;
+  sent_datetime: Date;
 }
 
 @Injectable({
@@ -51,9 +51,10 @@ export class ChatService {
     return this.http.post<ChatMessage>(
       `${environment.apiBaseUrl}/api/chatMessage/sendMessage`,
       {  // <-- This is the body (2nd parameter)
-        chat: messageData.chat,
-        sender: messageData.sender,
-        sentDateTime: messageData.sentDateTime,
+        //messageid: messageData.messageid,
+        chatid: messageData.chatid,
+        senderid: messageData.senderid,
+        sent_datetime: messageData.sent_datetime,
         message: messageData.message        
       }, 
       { headers: this.getHeaders() } 

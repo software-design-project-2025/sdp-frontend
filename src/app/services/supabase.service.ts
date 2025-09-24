@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import {Injectable} from '@angular/core';
 import {UUID} from 'node:crypto';
-import { environment } from '../../environments/environment.prod'; // adjust path
+import { environment } from '../../environments/environment.prod'
+
 
 export const supabase = createClient(
-  environment.supabaseUrl,
+  environment.apiBaseUrl,
   environment.supabaseKey
 );
 
@@ -22,4 +23,13 @@ export class UserService {
     if (error) throw error;
     return data;
   }
+
+  async getAllUsers() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*');
+    if (error) throw error;
+    return data;
+  }
 }
+

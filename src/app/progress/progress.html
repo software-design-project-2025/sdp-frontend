@@ -1,0 +1,110 @@
+<div class="progress-container">
+  <!-- Header: Title and Log Progress Button -->
+  <header class="progress-header">
+    <h1>Progress Tracker</h1>
+    <button class="log-progress-btn" (click)="logProgress()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <span>Log Progress</span>
+    </button>
+  </header>
+
+  <!-- Stat Cards Section -->
+  <section class="stat-cards-grid">
+    @for (card of statCards(); track card.label) {
+      <div class="stat-card" [class]="card.colorClass">
+        <div class="card-content">
+          <p class="card-label">{{ card.label }}</p>
+          <h2 class="card-value">{{ card.value }}</h2>
+          @if (card.percentageChange) {
+            <p class="card-change">{{ card.percentageChange }}</p>
+          } @else {
+            <p class="card-change record">New record!</p>
+          }
+        </div>
+        <div class="card-icon" [innerHTML]="card.icon "></div>
+      </div>
+    }
+  </section>
+
+  <!-- Main Content Section with Tabs -->
+  <main class="main-content">
+    <!-- Tab Navigation -->
+    <nav class="tabs">
+      <button [class.active]="activeTab() === 'overview'" (click)="selectTab('overview')">Overview</button>
+      <button [class.active]="activeTab() === 'subjects'" (click)="selectTab('subjects')">Subjects</button>
+      <button [class.active]="activeTab() === 'topics'" (click)="selectTab('topics')">Topics</button>
+      <button class="disabled-tab">Achievements</button>
+    </nav>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+      <!-- Overview Tab -->
+      @if (activeTab() === 'overview') {
+        <div class="overview-grid">
+          <div class="chart-container">
+            <h3>Weekly Study Hours</h3>
+            <!-- Placeholder for chart -->
+            <div class="chart-placeholder">Bar chart coming soon...</div>
+          </div>
+          <div class="chart-container">
+            <h3>Topic Completion</h3>
+            <!-- Placeholder for chart -->
+            <div class="chart-placeholder">Pie chart coming soon...</div>
+          </div>
+          <div class="subject-progress-container">
+            <h3>Subject Progress</h3>
+            @for (subject of subjectProgress(); track subject.courseCode) {
+              <div class="progress-item">
+                <div class="progress-info">
+                  <span>{{ subject.courseName }}</span>
+                  <span>{{ subject.topicsCompleted }}/{{ subject.totalTopics }} topics</span>
+                </div>
+                <div class="progress-bar-container">
+                  <div class="progress-bar" [style.width.%]="(subject.topicsCompleted / subject.totalTopics) * 100"></div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Subjects Tab -->
+      @if (activeTab() === 'subjects') {
+        <div class="chart-container full-width">
+          <h3>Subject Performance</h3>
+          <!-- Placeholder for chart -->
+          <div class="chart-placeholder tall">Performance chart coming soon...</div>
+        </div>
+      }
+
+      <!-- Topics Tab -->
+      @if (activeTab() === 'topics') {
+        <div class="topics-container">
+          <h3>Recent Topics</h3>
+          <table class="topics-table">
+            <thead>
+            <tr>
+              <th>Topic</th>
+              <th>Subject</th>
+              <th>Status</th>
+              <th>Completed</th>
+            </tr>
+            </thead>
+            <tbody>
+              @for (topic of topics(); track topic.topicID) {
+                <tr>
+                  <td>{{ topic.title }}</td>
+                  <td>{{ getSubjectName(topic.courseCode) }}</td>
+                  <td>
+                    <span class="status-badge" [class]="topic.status">{{ topic.status.replace('-', ' ') }}</span>
+                  </td>
+                  <td>{{ topic.endDate || 'In progress' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </main>
+</div>

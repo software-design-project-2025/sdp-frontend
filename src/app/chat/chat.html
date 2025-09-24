@@ -48,7 +48,7 @@
                   {{ formatTime(conversation.timestamp) }}
                 </time>
               </header>
-              <p class="last-message">{{ conversation.messages[conversation.messages.length-1].content || 'Start a conversation' }}</p>
+              <p class="last-message">{{ conversation.messages[conversation.messages.length-1]?.content || 'Start a conversation' }}</p>
             </section>
             
             <output 
