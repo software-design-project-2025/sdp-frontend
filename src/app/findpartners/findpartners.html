@@ -23,7 +23,8 @@
     <div class="filters">
       <select [(ngModel)]="selectedDegree" (ngModelChange)="applyFilters()">
         <option value="All">All Degrees</option>
-        <option *ngFor="let degree of degrees" [value]="degree.degreeid">
+        <!-- Use the new 'availableDegreesForFilter' array here -->
+        <option *ngFor="let degree of availableDegreesForFilter" [value]="degree.degreeid">
           {{ degree.degree_name }}
         </option>
       </select>
