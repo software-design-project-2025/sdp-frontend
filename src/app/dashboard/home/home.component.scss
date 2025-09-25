@@ -6,8 +6,6 @@ box-sizing: border-box;
 }
 
 :root {
---discord-purple: #6d28d9;
---discord-purple-dark: #5b21b6;
 --discord-purple-light: #ede9fe;
 --text-dark: #111827;
 --text-muted: #6b7280;
@@ -17,7 +15,7 @@ box-sizing: border-box;
 body, html {
 height: 100%;
 font-family: 'Inter', 'Roboto', sans-serif;
-background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+background: white;
 color: var(--text-dark);
 line-height: 1.5;
 overflow-x: hidden;
@@ -30,7 +28,7 @@ top: 0;
 left: 0;
 right: 0;
 background: white;
-border-bottom: 2px solid #804cb4;
+border-bottom: 2px solid oklch(86.536% 0.00218 14.712);
 padding: 0.8rem 2rem;
 display: flex;
 align-items: center;
@@ -53,21 +51,21 @@ font-size: 1rem;
 padding: 0.6rem 1.2rem;
 border-radius: 10px;
 text-decoration: none ;
-background: linear-gradient(135deg, #667eea, #764ba2);
-color: white;
+background: white;
+color: black;
 box-shadow: 0 2px 5px rgba(0,0,0,0.08);
 transition: background 0.3s, color 0.3s, transform 0.2s;
 }
 
 .top-nav-links a:hover {
-background:linear-gradient(135deg, rgb(102, 126, 234), rgb(118, 75, 162));
-color: #fff;
+background:oklch(86.536% 0.00218 14.712);
+color: black;
 text-decoration: none ;
 transform: translateY(-2px);
 }
 
 .top-nav-links a.active {
-background: linear-gradient(135deg, rgb(102, 126, 234), rgb(118, 75, 162));
+background: black;
 color: #fff;
 font-weight: 600;
 box-shadow: 0 2px 6px rgba(0,0,0,0.15);
@@ -75,22 +73,37 @@ box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 
 /* ========== Dashboard Layout ========== */
 .dashboard {
-margin-top: 70px;
+margin-top: 90px;
 padding: 2rem;
 background: var(--bg-light);
 min-height: calc(100vh - 70px);
 display: flex;
 flex-direction: column;
 gap: 2rem;
+text-align: center;
 height: 100%;
 overflow-y: auto;
 width:100%;
+max-width: 1050px;
+margin: 0 auto;
+
 }
 
+
 /* ========== Card Styling ========== */
-.card {
-background: #cfd2d7;
+.dashcard {
+background: white;
 border-radius: 12px;
+padding: 1.5rem;
+box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
+display: flex;
+flex-direction: column;
+}
+
+.card {
+background: white;
+border-radius: 12px;
+border: 2px solid oklch(95.143% 0.0032 15.354);
 padding: 1.5rem;
 box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
 display: flex;
@@ -101,7 +114,7 @@ flex-direction: column;
 .card header h2 {
 font-weight: 600;
 margin-bottom: 0.4rem;
-color: #6a3a9a;
+color: black;
 }
 
 .card header p {
@@ -114,18 +127,21 @@ color: var(--text-muted);
 display: flex;
 flex-wrap: wrap;
 gap: 1rem;
+justify-content: center;
 }
 
 /* Fully modified stat-card styling */
 .stat-card {
-background: #b26ff5;
+background: white;
+border: 2px solid oklch(95.143% 0.0032 15.354);
+border-color: oklch(95.143% 0.0032 15.354);
 border-radius: 12px;
 padding: 1.2rem;
 box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 display: flex;
 justify-content: space-between; /* text left, icon right */
 align-items: center; /* vertically center icon with text block */
-width: 280px;
+width: 220px;
 height: 80px;
 transition: transform 0.2s ease;
 }
@@ -162,57 +178,65 @@ opacity: 0.8;
 
 /* Icon aligned to the middle of the title-number block */
 .stat-card header.icon {
-display: flex;
-align-items: center; /* vertically center with text block */
-justify-content: center;
-width: 40px;
-height: 40px;
-border-radius: 10px;
-background: var(--discord-purple);
-color: #fff;
-font-size: 1.2rem;
-font-weight: bold;
-flex-shrink: 0;
-margin-left: 2rem; /* horizontal gap between text block and icon */
-order: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: transparent; /* This will make the icon background match the card */
+    color: #4B5563; /* A nice, dark gray for contrast */
+    font-size: 1.2rem;
+    font-weight: bold;
+    flex-shrink: 0;
+    margin-left: 2rem;
+    order: 2;
 }
 
 /* ========== Upcoming Sessions Calendar ========== */
-#sessions-calendar full-calendar {
-margin-top: 1rem;
-}
-
-#sessions-calendar .fc {
-font-family: 'Inter', sans-serif;
-}
 
 #sessions-calendar .fc-toolbar {
-margin-bottom: 1rem;
+display: flex;
+justify-content: space-between;
+align-items: center;
+flex-wrap: wrap;
 }
 
-#sessions-calendar .fc-button {
-background-color: linear-gradient(135deg, rgb(102, 126, 234), rgb(118, 75, 162));
-border: none;
-color: #fff;
-border-radius: 6px;
-padding: 0.4rem 0.8rem;
-font-size: 0.85rem;
+#sessions-calendar .fc-toolbar-title {
+order: 1;
+flex: 1 0 100%; /* take full width row */
+text-align: center;
+margin-bottom: 0.5rem;
 }
 
-#sessions-calendar .fc-button:hover {
-background-color: linear-gradient(135deg, rgb(102, 126, 234), rgb(118, 75, 162));
+#sessions-calendar .fc-toolbar-chunk:nth-child(1) { /* prev button */
+order: 2;
+flex: 1;
+text-align: left;
 }
 
-#sessions-calendar .fc-daygrid-event {
-background-color: linear-gradient(135deg, rgb(102, 126, 234), rgb(118, 75, 162));
-color: #fff;
-border-radius: 4px;
-padding: 0.2rem 0.4rem;
-font-size: 0.75rem;
-font-weight: 500;
+#sessions-calendar .fc-toolbar-chunk:nth-child(2) {
+display: flex;
+justify-content: center;
+align-items: center;
+gap: 0.75rem; /* space between title and today */
+flex: 1;
 }
+
+#sessions-calendar .fc-toolbar-chunk:nth-child(3) { /* next button */
+order: 4;
+flex: 1;
+text-align: right;
+}
+
+
 
 /* ========== Study Groups ========== */
+#new-groups .group-list {
+background: white;
+border: 2px solid oklch(86.536% 0.00218 14.712);
+}
+
 .group-item {
 border: 1px solid #e5e7eb;
 border-radius: 8px;
@@ -221,7 +245,8 @@ margin-bottom: 1rem;
 display: flex;
 align-items: center;
 justify-content: space-between; /* button on far right */
-background: rgb(242, 242, 246);
+background: oklch(86.536% 0.00218 14.712);
+
 }
 
 .group-item h3 {
@@ -232,11 +257,11 @@ margin-bottom: 0.25rem;
 
 .group-item p {
 font-size: 0.9rem;
-color: #4b5563;
+color: white;
 }
 
 .group-item .join-btn {
-background-color: #804cb4;
+background-color: rgb(26, 25, 25);
 color: white;
 border: none;
 border-radius: 6px;
@@ -248,7 +273,7 @@ flex-shrink: 0;
 }
 
 .group-item .join-btn:hover {
-background-color: #7242a3;
+background-color: grey;
 }
 
 /* ========== Responsive ========== */
@@ -260,4 +285,27 @@ gap: 0.8rem;
 .stats-row {
 flex-direction: column;
 }
+}
+
+/* styles for past sessions */
+.past-session {
+text-decoration: line-through;
+opacity: 0.7;
+}
+
+/* Refresh button styling */
+.fc-refreshBtn-button {
+background-color: #003366 !important;
+border-color: #003366 !important;
+color: white !important;
+
+&:hover {
+background-color: #002244 !important;
+}
+}
+
+/* Loading state for manual refresh */
+.refreshing {
+opacity: 0.7;
+pointer-events: none;
 }
