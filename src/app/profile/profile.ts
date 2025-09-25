@@ -6,6 +6,8 @@ import { catchError } from 'rxjs/operators';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { UserApiService } from '../services/user.service';
 import { AcademicApiService } from '../services/academic.service';
+import { AuthService } from '../services';
+import { UserService } from '../services/supabase.service';
 
 // --- SANITIZER PIPE for SVG ---
 @Pipe({ name: 'safeHtml', standalone: true })
@@ -16,12 +18,10 @@ export class SafeHtmlPipe implements PipeTransform {
   }
 }
 
-// --- INTERFACES ---
 interface Module { courseCode: string; courseName: string; facultyid: string; }
 interface Degree { degreeid: number; degree_name: string; degree_type: string; facultyid: number; }
 interface Stat { svgIcon: string; value: string; label: string; }
 interface UserCourse { userid: string; courseCode: string; }
-// ✅ UPDATED: Properties now match the API response (e.g., yearofstudy)
 interface User {
   userId: string;
   degreeid: number;
@@ -44,9 +44,11 @@ interface User {
   styleUrls: ['./profile.scss'],
 })
 export class Profile implements OnInit {
-  // ✅ Injected both required services
+  // ✅ Injected all necessary services
   private userApiService = inject(UserApiService);
   private academicApiService = inject(AcademicApiService);
+  private authService = inject(AuthService);
+  private userService = inject(UserService);
 
   // --- STATE SIGNALS ---
   isLoading = signal<boolean>(true);
@@ -74,15 +76,39 @@ export class Profile implements OnInit {
   moduleSearchTerm = signal('');
 
   ngOnInit(): void {
-    this.fetchFullProfileData();
+    // ✅ Start the dynamic data fetching process
+    this.initializeProfile();
   }
 
-  // ✅ Fetches all data in parallel for efficiency
-  fetchFullProfileData(): void {
-    const userId = "b0f045ac-e7b0-4d56-9b4a-245b98d1555c"; // Using the user ID from your previous example
-    const name = "Tom Kennedy";
+  // ✅ Orchestrates fetching the user's ID and name before fetching the rest of the data.
+  async initializeProfile(): Promise<void> {
     this.isLoading.set(true);
+    try {
+      const authResult = await this.authService.getCurrentUser();
+      const userId = authResult.data.user?.id;
 
+      if (!userId) {
+        throw new Error("Could not determine current user.");
+      }
+
+      const userProfile = await this.userService.getUserById(userId);
+      const name = userProfile.name || 'User'; // Fallback name
+
+      // ✅ Now that we have the dynamic ID and name, fetch the rest of the data
+      this.fetchFullProfileData(userId, name);
+
+    } catch (err) {
+      console.error("Error initializing profile:", err);
+      this.isLoading.set(false);
+    }
+  }
+
+  /**
+   * Fetches all academic and user-specific data from APIs.
+   * @param userId The ID of the currently logged-in user.
+   * @param name The name of the currently logged-in user.
+   */
+  fetchFullProfileData(userId: string, name: string): void {
     forkJoin({
       userResponse: this.userApiService.getUserById(userId).pipe(catchError(() => of(null))),
       coursesResponse: this.userApiService.getUserCourses(userId).pipe(catchError(() => of({ courses: [] }))),
@@ -93,7 +119,7 @@ export class Profile implements OnInit {
       this.availableDegrees.set(degreesResponse);
       this.allAvailableModules.set(modulesResponse);
 
-      // ✅ Transform and set user's courses from the API
+      // Transform and set user's courses from the API
       const courseCodes = coursesResponse.courses || [];
       this.userCourses.set(
         courseCodes.map((code: string) => ({ userid: userId, courseCode: code }))
@@ -103,7 +129,8 @@ export class Profile implements OnInit {
       const apiUserData = Array.isArray(userResponse) ? userResponse[0] : userResponse;
       if (apiUserData) {
         this.user.set({
-          userId, name,
+          userId,
+          name,
           initials: this.getInitials(name),
           university: "Wits University",
           stats: this.dummyStats,

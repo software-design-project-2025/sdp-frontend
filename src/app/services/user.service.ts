@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import {HttpClient, HttpHeaders} from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment.prod';
 //import {environment} from '../../environments/environment';
 
 @Injectable({
@@ -9,11 +10,11 @@ import { Observable } from 'rxjs';
 export class UserApiService {
   constructor(private http: HttpClient) { }
 
-  private url = "https://campus-study-budy-fwhpaahfach9g8bw.canadacentral-01.azurewebsites.net";
+  private url = `${environment.apiBaseUrl}`;
 
   private getHeaders(): HttpHeaders {
     return new HttpHeaders({
-      'Authorization': `Bearer `, //needs fixing
+      'Authorization': `Bearer ${environment.API_KEY_ADMIN}`,
       'Content-Type': 'application/json'
     });
   }

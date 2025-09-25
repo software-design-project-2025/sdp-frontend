@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import {Injectable} from '@angular/core';
-import {UUID} from 'node:crypto';
+//import {UUID} from 'node:crypto';
 import { environment } from '../../environments/environment.prod'
 
 
@@ -14,7 +14,7 @@ export const supabase = createClient(
 })
 export class UserService {
 
-  async getUserById(userId: UUID) {
+  async getUserById(userId: string) {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
