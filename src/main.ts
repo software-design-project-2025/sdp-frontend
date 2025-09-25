@@ -1,5 +1,5 @@
 // src/main.ts
-import 'zone.js'; 
+import 'zone.js';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { AppComponent } from './app/app.component';  // Correct import path
 import { provideRouter } from '@angular/router';

@@ -6,12 +6,15 @@ import { SignupComponent } from './auth/signup/signup.component';
 import { LoginSuccessComponent } from './auth/LoginSuccessComponent/LoginSuccessComponent';
 import { HomeComponent } from './dashboard/home/home.component';
 import { AuthGuard } from './guards/auth.guard';
+import { Chat } from './chat/chat';
 
 const routes: Routes = [
     { path: 'login', component: LoginComponent },
     { path: 'signup', component: SignupComponent },
     { path: 'login-success', component: LoginSuccessComponent },
-    { path: 'dashboard/home', component: HomeComponent }
+    { path: 'dashboard/home', component: HomeComponent },
+    { path: 'chat', component: Chat}
+
 ];
 
 @NgModule({
