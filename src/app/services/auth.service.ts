@@ -2,7 +2,18 @@ import { Injectable } from '@angular/core';
 import { createClient, SupabaseClient, AuthResponse } from '@supabase/supabase-js';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment.prod';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { HttpClient,HttpHeaders } from '@angular/common/http';
+
+interface User {
+  userid: string;
+  role: string;
+  degreeid: number;
+  yearofstudy: number;
+  bio: string;
+  status: string;
+  profile_picture: string;
+}
 
 export interface AuthResult {
   data: any;
@@ -28,13 +39,22 @@ export class AuthService {
   private currentUserSubject = new BehaviorSubject<any>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor(private router: Router) {
+  constructor(private router: Router, 
+              private http: HttpClient) {
 
     this.supabase = createClient(
       environment.supabaseUrl, 
       environment.supabaseKey
     );
     
+  }
+
+  private getHeaders(): HttpHeaders {
+    return new HttpHeaders({
+      'Authorization': `Bearer ${environment.API_KEY_ADMIN}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    });
   }
   
   async signIn(email: string, password: string): Promise<AuthResult> {
@@ -150,5 +170,24 @@ async getSession() {
   }
   isAuthenticated() {
     return this.supabase.auth.getSession();
+  }
+
+  createUser(userId: string): Observable<User>{
+
+    const user: User = {
+      userid: userId,
+      role: "student",
+      degreeid: 0,
+      yearofstudy: 0,
+      bio: "",
+      status: "active",
+      profile_picture: ""
+
+    };
+
+    return this.http.post<User>(
+      `${environment.apiBaseUrl}/api/user/createUser`,
+      user, {headers: this.getHeaders()}
+    );
   }
 }
