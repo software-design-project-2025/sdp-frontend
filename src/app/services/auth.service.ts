@@ -186,7 +186,7 @@ async getSession() {
     };
 
     return this.http.post<User>(
-      `${environment.apiBaseUrl}/api/user/createUser`,
+      `${environment.apiBaseUrl}/api/users/createUser`,
       user, {headers: this.getHeaders()}
     );
   }
