@@ -60,4 +60,12 @@ export class ChatService {
       { headers: this.getHeaders() } 
     );
   }
+
+  createChat(chat: any): Observable<Chat> {
+    return this.http.post<Chat>(
+      `${environment.apiBaseUrl}/api/chat/createChat`,
+      chat,
+      {headers: this.getHeaders()}
+    );
+  }
 }
