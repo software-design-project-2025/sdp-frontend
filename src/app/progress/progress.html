@@ -1,8 +1,17 @@
+<!-- Main container for the progress tracker page -->
 <div class="progress-container">
+
+  <!-- ✅ ADDED: Loading Overlay -->
+  @if (isLoading()) {
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+    </div>
+  }
+
   <!-- Header: Title and Log Progress Button -->
   <header class="progress-header">
     <h1>Progress Tracker</h1>
-    <button class="log-progress-btn" (click)="logProgress()">
+    <button class="log-progress-btn" (click)="openLogProgressModal()">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
       <span>Log Progress</span>
     </button>
@@ -15,13 +24,9 @@
         <div class="card-content">
           <p class="card-label">{{ card.label }}</p>
           <h2 class="card-value">{{ card.value }}</h2>
-          @if (card.percentageChange) {
-            <p class="card-change">{{ card.percentageChange }}</p>
-          } @else {
-            <p class="card-change record">New record!</p>
-          }
+          <!-- ✅ REMOVED: Percentage change logic as requested -->
         </div>
-        <div class="card-icon" [innerHTML]="card.icon "></div>
+        <div class="card-icon" [innerHTML]="card.icon"></div>
       </div>
     }
   </section>
@@ -43,27 +48,15 @@
         <div class="overview-grid">
           <div class="chart-container">
             <h3>Weekly Study Hours</h3>
-            <!-- Placeholder for chart -->
-            <div class="chart-placeholder">Bar chart coming soon...</div>
+            <div class="chart-wrapper">
+              <canvas #weeklyHoursCanvas></canvas>
+            </div>
           </div>
           <div class="chart-container">
             <h3>Topic Completion</h3>
-            <!-- Placeholder for chart -->
-            <div class="chart-placeholder">Pie chart coming soon...</div>
-          </div>
-          <div class="subject-progress-container">
-            <h3>Subject Progress</h3>
-            @for (subject of subjectProgress(); track subject.courseCode) {
-              <div class="progress-item">
-                <div class="progress-info">
-                  <span>{{ subject.courseName }}</span>
-                  <span>{{ subject.topicsCompleted }}/{{ subject.totalTopics }} topics</span>
-                </div>
-                <div class="progress-bar-container">
-                  <div class="progress-bar" [style.width.%]="(subject.topicsCompleted / subject.totalTopics) * 100"></div>
-                </div>
-              </div>
-            }
+            <div class="chart-wrapper">
+              <canvas #topicCompletionCanvas></canvas>
+            </div>
           </div>
         </div>
       }
@@ -72,8 +65,9 @@
       @if (activeTab() === 'subjects') {
         <div class="chart-container full-width">
           <h3>Subject Performance</h3>
-          <!-- Placeholder for chart -->
-          <div class="chart-placeholder tall">Performance chart coming soon...</div>
+          <div class="chart-wrapper tall">
+            <canvas #subjectPerformanceCanvas></canvas>
+          </div>
         </div>
       }
 
@@ -87,18 +81,53 @@
               <th>Topic</th>
               <th>Subject</th>
               <th>Status</th>
+              <th>Time Spent (hrs)</th>
               <th>Completed</th>
+              <th class="actions-column">Actions</th>
             </tr>
             </thead>
             <tbody>
-              @for (topic of topics(); track topic.topicID) {
+            <!-- ✅ FIX: Changed topic.topicID to topic.topicid -->
+              @for (topic of topics(); track topic.topicid) {
                 <tr>
                   <td>{{ topic.title }}</td>
-                  <td>{{ getSubjectName(topic.courseCode) }}</td>
+                  <!-- ✅ FIX: Changed topic.courseCode to topic.course_code -->
+                  <td>{{ getSubjectName(topic.course_code) }}</td>
                   <td>
-                    <span class="status-badge" [class]="topic.status">{{ topic.status.replace('-', ' ') }}</span>
+                    <!-- ✅ FIX: Use topic.topicid -->
+                    @if (editingTopicId() === topic.topicid && editedTopicData()) {
+                      <select class="inline-edit-input" [(ngModel)]="editedTopicData()!.status">
+                        <!-- ✅ FIX: Status values must match the interface exactly -->
+                        <option value="Not Started">Not Started</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                      </select>
+                    } @else {
+                      <!-- ✅ FIX: Class binding now correctly formats the status string -->
+                      <span class="status-badge" [class]="topic.status.toLowerCase().replace(' ', '-')">{{ topic.status }}</span>
+                    }
                   </td>
-                  <td>{{ topic.endDate || 'In progress' }}</td>
+                  <td>
+                    @if (editingTopicId() === topic.topicid && editedTopicData()) {
+                      <input type="number" class="inline-edit-input hours-input" [(ngModel)]="editedTopicData()!.hours" min="0" step="0.5">
+                    } @else {
+                      {{ topic.hours }}
+                    }
+                  </td>
+                  <!-- ✅ FIX: Changed topic.endDate to topic.end_date -->
+                  <td>{{ topic.end_date || 'In progress' }}</td>
+                  <td class="actions-column">
+                    @if (editingTopicId() === topic.topicid) {
+                      <div class="action-buttons">
+                        <button class="action-btn save" (click)="saveEditTopic(topic.topicid)">Save</button>
+                        <button class="action-btn cancel" (click)="cancelEditTopic()">Cancel</button>
+                      </div>
+                    } @else {
+                      <div class="action-buttons">
+                        <button class="action-btn edit" (click)="startEditTopic(topic)">Edit</button>
+                      </div>
+                    }
+                  </td>
                 </tr>
               }
             </tbody>
@@ -108,3 +137,54 @@
     </div>
   </main>
 </div>
+
+<!-- Log Progress Modal -->
+@if (isLogProgressModalOpen()) {
+  <div class="modal-overlay" (click)="closeLogProgressModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <header class="modal-header">
+        <h2>Log New Progress</h2>
+        <button class="close-btn" (click)="closeLogProgressModal()">&times;</button>
+      </header>
+      <form class="modal-form" (ngSubmit)="saveNewTopic()">
+        <div class="form-group">
+          <label for="topicTitle">Topic Title</label>
+          <input id="topicTitle" type="text" [(ngModel)]="newTopic().title" name="title" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="topicSubject">Subject</label>
+            <!-- ✅ FIX: Changed ngModel to newTopic().course_code -->
+            <select id="topicSubject" [(ngModel)]="newTopic().course_code" name="courseCode" required>
+              @for(subject of subjects(); track subject.courseCode) {
+                <option [value]="subject.courseCode">{{ subject.courseName }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="topicHours">Hours Spent</label>
+            <input id="topicHours" type="number" [(ngModel)]="newTopic().hours" name="hours" min="0" step="0.5">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="topicStatus">Status</label>
+          <select id="topicStatus" [(ngModel)]="newTopic().status" name="status">
+            <!-- ✅ FIX: Status values must match the interface exactly -->
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Not Started">Not Started</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="topicDescription">Description (Optional)</label>
+          <textarea id="topicDescription" [(ngModel)]="newTopic().description" name="description" rows="3"></textarea>
+        </div>
+        <footer class="modal-footer">
+          <button type="button" class="cancel-btn" (click)="closeLogProgressModal()">Cancel</button>
+          <button type="submit" class="save-btn">Save Progress</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+}
+
