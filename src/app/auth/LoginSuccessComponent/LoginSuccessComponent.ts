@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-login-success',
@@ -40,6 +41,12 @@ export class LoginSuccessComponent implements OnInit {
                       'User';
         this.userEmail = user.email || '';
         console.log('User authenticated successfully:', { userName: this.userName, userEmail: this.userEmail });
+
+        //Store user in postgres db
+        const result = await firstValueFrom(this.authService.createUser(user.id));
+        if (!(result)){
+          throw new Error('Failed to store user in postgres db');
+        }
 
         // Force change detection
         setTimeout(() => {
