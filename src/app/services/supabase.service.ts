@@ -5,7 +5,7 @@ import { environment } from '../../environments/environment.prod'
 
 
 export const supabase = createClient(
-  environment.apiBaseUrl,
+  environment.supabaseUrl,
   environment.supabaseKey
 );
 
