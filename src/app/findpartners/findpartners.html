@@ -4,6 +4,11 @@
   <p class="loading-text">Finding potential study partners...</p>
 </div>
 
+<div *ngIf="isNavigating | async" class="loading-overlay">
+  <div class="spinner"></div>
+  <p class="loading-text">Connecting to study partner...</p>
+</div>
+
 <!-- Main Content -->
 <main *ngIf="!(isLoading | async)" class="study-partners-container">
   <header class="page-header">
@@ -57,7 +62,7 @@
           </ul>
         </div>
         <footer class="card-footer">
-          <button class="message-btn">Message</button>
+          <button (click)="messageOnClick(partner)" [disabled]="isButtonDisabled" class="message-btn">Message</button>
         </footer>
       </article>
     </div>
