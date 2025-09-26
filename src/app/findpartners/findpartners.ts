@@ -19,7 +19,7 @@ interface User {
   yearofstudy: number;
 }
 
-// ✅ UPDATED: Interface now expects a 'name' property directly.
+// Interface for a Supabase user
 interface SupabaseUser {
   id: string;
   email: string;
@@ -59,8 +59,8 @@ export class FindPartners implements OnInit {
   partners: User[] = [];
   userCourses: UserCourse[] = [];
   modules: Module[] = [];
-  degrees: Degree[] = [];
-  data: any;
+  degrees: Degree[] = []; // This holds ALL degrees from the API
+  availableDegreesForFilter: Degree[] = []; // This will hold only relevant degrees for the dropdown
   isLoading$ = new BehaviorSubject<boolean>(true);
   isLoading = this.isLoading$.asObservable();
   user: any;
@@ -98,12 +98,6 @@ export class FindPartners implements OnInit {
         console.error("Error getting current user:", err);
         this.isLoading$.next(false);
       });
-
-    this.userService.getUserById('7afa86ff-8c02-4f3d-9bdd-f50ed80193e2')
-      .then(result => {
-        this.tester = result;
-        console.log('Tester user loaded:', result.name);
-      });
   }
 
   /**
@@ -114,17 +108,14 @@ export class FindPartners implements OnInit {
     const apiCalls = forkJoin({
       degrees: this.apiService.getDegree().pipe(catchError(() => of([]))),
       modules: this.apiService.getModule().pipe(catchError(() => of([]))),
-      // ✅ UPDATED: Fetch all user courses, not just for the logged-in user.
       allUserCourses: this.apiService.getAllUserCourses().pipe(catchError(() => of([]))),
       partners: this.apiService.getUser().pipe(catchError(() => of([]))),
-      // Assumes getAllUsers() returns an Observable of Supabase users
       supabaseUsers: this.userService.getAllUsers()
     });
 
     apiCalls.subscribe((results) => {
         this.degrees = results.degrees;
         this.modules = results.modules;
-        // ✅ UPDATED: Directly assign the results. No transformation needed.
         this.userCourses = results.allUserCourses;
 
         // Create a Map for quick lookups of Supabase user data.
@@ -135,15 +126,22 @@ export class FindPartners implements OnInit {
           supabaseUserMap.set(user.id, { username, email });
         });
 
-        // MERGE the data from Postgres (partners) and Supabase (names/emails).
-        this.partners = results.partners.map((partner: User) => {
-          const supabaseInfo = supabaseUserMap.get(partner.userid);
+        const validatedPartners = results.partners.filter((partner: User) => supabaseUserMap.has(partner.userid));
+
+        const mergedPartners = validatedPartners.map((partner: User) => {
+          const supabaseInfo = supabaseUserMap.get(partner.userid)!;
           return {
             ...partner,
-            username: supabaseInfo?.username || 'Unknown User',
-            email: supabaseInfo?.email || 'No email'
+            username: supabaseInfo.username,
+            email: supabaseInfo.email
           };
         });
+
+        this.partners = mergedPartners.filter((partner: User) => partner.userid !== currentUserId);
+
+        // Calculate which degrees are actually represented in the final partner list.
+        const availableDegreeIds = new Set(this.partners.map(p => p.degreeid));
+        this.availableDegreesForFilter = this.degrees.filter(d => availableDegreeIds.has(d.degreeid));
 
         console.log('All data fetched and merged successfully');
         this.applyFilters();
@@ -188,6 +186,7 @@ export class FindPartners implements OnInit {
   }
 
   getDegreeName(degreeId: number): string {
+    // ✅ FIXED: Removed extra dot before .find()
     const degree = this.degrees.find(d => d.degreeid === degreeId);
     return degree ? degree.degree_name : 'Unknown Degree';
   }
@@ -221,5 +220,4 @@ export class FindPartners implements OnInit {
     }
   }
 }
-
 

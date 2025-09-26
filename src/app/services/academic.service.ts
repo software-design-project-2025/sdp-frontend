@@ -9,7 +9,7 @@ import {environment} from '../../environments/environment.prod';
 export class AcademicApiService {
     constructor(private http: HttpClient) { }
 
-    private url = environment.apiBaseUrl;
+    private url = `${environment.apiBaseUrl}`;
 
     private getHeaders(): HttpHeaders {
         return new HttpHeaders({
