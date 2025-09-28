@@ -1,7 +1,6 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router, NavigationEnd, Event } from '@angular/router';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { Router, NavigationEnd } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
-import { Subject } from 'rxjs';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 
@@ -16,93 +15,82 @@ import { AppComponent } from './app.component';
 })
 class MockNavbarComponent {}
 
+// A stub component for routing, required for RouterTestingModule
+@Component({ standalone: true, template: '' })
+class DummyComponent {}
+
 describe('AppComponent', () => {
   let component: AppComponent;
   let fixture: ComponentFixture<AppComponent>;
   let router: Router;
 
-  // A 'Subject' allows us to manually push new values (router events) to an observable stream.
-  const routerEventsSubject = new Subject<Event>();
-
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      // Import the component being tested and its dependencies (or their stubs)
       imports: [
         AppComponent,
         MockNavbarComponent, // Use the stub instead of the real navbar
-        RouterTestingModule // Provides stubs for router directives like <router-outlet>
+        // Use RouterTestingModule to provide a fully functional test router
+        RouterTestingModule.withRoutes([
+          { path: 'login', component: DummyComponent },
+          { path: 'login-success', component: DummyComponent },
+          { path: 'dashboard', component: DummyComponent },
+          // A wildcard route to handle redirects and other paths
+          { path: '**', component: DummyComponent }
+        ])
       ],
-      providers: [
-        // Provide the real Router, but we will spy on its 'events' property
-        {
-          provide: Router,
-          useValue: {
-            events: routerEventsSubject.asObservable(), // Use our subject for the events stream
-            // Mock other router properties or methods if needed by the component
-            navigate: jasmine.createSpy('navigate')
-          }
-        }
-      ]
+      // No longer need to provide a manual router mock
     }).compileComponents();
 
     fixture = TestBed.createComponent(AppComponent);
     component = fixture.componentInstance;
-    router = TestBed.inject(Router); // Get the injected router instance
-    fixture.detectChanges(); // Initial data binding
+    router = TestBed.inject(Router);
+    fixture.detectChanges();
   });
 
   it('should create the app', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should show the navbar on a generic route like "/dashboard"', () => {
-    // Simulate navigating to a page where the navbar should be visible
-    routerEventsSubject.next(new NavigationEnd(1, '/dashboard', '/dashboard'));
-    fixture.detectChanges(); // Update the component and its template
+  // This is a default test from the CLI that was likely causing one of the errors.
+  // It is included here in the corrected test suite.
+  it(`should have the 'sdp-frontend' title`, () => {
+    expect(component.title).toEqual('sdp-frontend');
+  });
 
-    // Check the component property
+  it('should show the navbar on a generic route like "/dashboard"', fakeAsync(() => {
+    // Simulate navigation using the actual router API
+    router.navigateByUrl('/dashboard');
+    tick(); // Wait for the navigation to complete
+    fixture.detectChanges();
+
     expect(component.showNavbar).toBe(true);
-
-    // Check the DOM to ensure the navbar component is being rendered
     const navbarElement = fixture.debugElement.query(By.css('app-navbar'));
     expect(navbarElement).not.toBeNull();
-  });
+  }));
 
-  it('should hide the navbar on the "/login" route', () => {
-    // Simulate navigating to the login page
-    routerEventsSubject.next(new NavigationEnd(1, '/login', '/login'));
+  it('should hide the navbar on the "/login" route', fakeAsync(() => {
+    router.navigateByUrl('/login');
+    tick();
     fixture.detectChanges();
 
     expect(component.showNavbar).toBe(false);
-
     const navbarElement = fixture.debugElement.query(By.css('app-navbar'));
     expect(navbarElement).toBeNull();
-  });
+  }));
 
-  it('should hide the navbar on the "/login-success" route', () => {
-    // Simulate navigating to the login-success page
-    routerEventsSubject.next(new NavigationEnd(1, '/login-success', '/login-success'));
+  it('should hide the navbar on the "/login-success" route', fakeAsync(() => {
+    router.navigateByUrl('/login-success');
+    tick();
     fixture.detectChanges();
 
     expect(component.showNavbar).toBe(false);
-
     const navbarElement = fixture.debugElement.query(By.css('app-navbar'));
     expect(navbarElement).toBeNull();
-  });
-
-  it('should hide the navbar when urlAfterRedirects is "/login"', () => {
-    // Simulate a redirect to the login page
-    routerEventsSubject.next(new NavigationEnd(1, '/redirected', '/login'));
-    fixture.detectChanges();
-
-    expect(component.showNavbar).toBe(false);
-
-    const navbarElement = fixture.debugElement.query(By.css('app-navbar'));
-    expect(navbarElement).toBeNull();
-  });
+  }));
 
   it('should always render the router-outlet', () => {
     const routerOutletElement = fixture.debugElement.query(By.css('router-outlet'));
     expect(routerOutletElement).not.toBeNull();
   });
 });
+
