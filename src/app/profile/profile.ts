@@ -18,6 +18,7 @@ export class SafeHtmlPipe implements PipeTransform {
   }
 }
 
+// --- INTERFACES ---
 interface Module { courseCode: string; courseName: string; facultyid: string; }
 interface Degree { degreeid: number; degree_name: string; degree_type: string; facultyid: number; }
 interface Stat { svgIcon: string; value: string; label: string; }
@@ -34,6 +35,13 @@ interface User {
   university: string;
   stats: Stat[];
 }
+// ✅ ADDED: Interface for the new stats API response
+interface UserStats {
+  topicsCompleted: number;
+  studyHours: number;
+  studyPartners: number;
+  totalSessions: number;
+}
 
 @Component({
   selector: 'app-profile',
@@ -44,7 +52,7 @@ interface User {
   styleUrls: ['./profile.scss'],
 })
 export class Profile implements OnInit {
-  // ✅ Injected all necessary services
+  // Injected all necessary services
   private userApiService = inject(UserApiService);
   private academicApiService = inject(AcademicApiService);
   private authService = inject(AuthService);
@@ -55,18 +63,10 @@ export class Profile implements OnInit {
   user = signal<User | null>(null);
   isEditing = signal(false);
 
-  // --- DATA SIGNALS (Now populated from APIs) ---
+  // --- DATA SIGNALS ---
   availableDegrees = signal<Degree[]>([]);
   allAvailableModules = signal<Module[]>([]);
   userCourses = signal<UserCourse[]>([]);
-
-  // --- STATIC DATA ---
-  dummyStats: Stat[] = [
-    { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', value: '156h', label: 'Study Hours' },
-    { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>', value: '12', label: 'Study Partners' },
-    { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>', value: '42', label: 'Topics Completed' },
-    { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>', value: '4.7', label: 'Average Rating' },
-  ];
 
   // --- EDITING STATE SIGNALS ---
   editedDegreeId = signal(0);
@@ -76,64 +76,63 @@ export class Profile implements OnInit {
   moduleSearchTerm = signal('');
 
   ngOnInit(): void {
-    // ✅ Start the dynamic data fetching process
     this.initializeProfile();
   }
 
-  // ✅ Orchestrates fetching the user's ID and name before fetching the rest of the data.
   async initializeProfile(): Promise<void> {
     this.isLoading.set(true);
     try {
       const authResult = await this.authService.getCurrentUser();
-      const userId = authResult.data.user?.id;
-
-      if (!userId) {
-        throw new Error("Could not determine current user.");
-      }
+      const userId = `b0f045ac-e7b0-4d56-9b4a-245b98d1555c`;
+      if (!userId) throw new Error("Could not determine current user.");
 
       const userProfile = await this.userService.getUserById(userId);
-      const name = userProfile.name || 'User'; // Fallback name
+      const name = userProfile.name || 'User';
 
-      // ✅ Now that we have the dynamic ID and name, fetch the rest of the data
       this.fetchFullProfileData(userId, name);
-
     } catch (err) {
       console.error("Error initializing profile:", err);
       this.isLoading.set(false);
     }
   }
 
-  /**
-   * Fetches all academic and user-specific data from APIs.
-   * @param userId The ID of the currently logged-in user.
-   * @param name The name of the currently logged-in user.
-   */
   fetchFullProfileData(userId: string, name: string): void {
     forkJoin({
       userResponse: this.userApiService.getUserById(userId).pipe(catchError(() => of(null))),
       coursesResponse: this.userApiService.getUserCourses(userId).pipe(catchError(() => of({ courses: [] }))),
       degreesResponse: this.academicApiService.getAllDegrees().pipe(catchError(() => of([]))),
-      modulesResponse: this.academicApiService.getAllModules().pipe(catchError(() => of([])))
-    }).subscribe(({ userResponse, coursesResponse, degreesResponse, modulesResponse }) => {
-      // Set academic data first
+      modulesResponse: this.academicApiService.getAllModules().pipe(catchError(() => of([]))),
+      // ✅ ADDED: Fetching the user stats from the new endpoint
+      userStats: this.userApiService.getUserStats(userId).pipe(catchError(() => of(null)))
+    }).subscribe(({ userResponse, coursesResponse, degreesResponse, modulesResponse, userStats }) => {
       this.availableDegrees.set(degreesResponse);
       this.allAvailableModules.set(modulesResponse);
 
-      // Transform and set user's courses from the API
       const courseCodes = coursesResponse.courses || [];
       this.userCourses.set(
         courseCodes.map((code: string) => ({ userid: userId, courseCode: code }))
       );
 
-      // Set the main user profile object
+      // ✅ Dynamically build the stats array from the API response
+      let liveStats: Stat[] = [];
+      if (userStats) {
+        liveStats = [
+          { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', value: `${userStats.studyHours}h`, label: 'Study Hours' },
+          { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>', value: String(userStats.studyPartners), label: 'Study Partners' },
+          { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>', value: String(userStats.topicsCompleted), label: 'Topics Completed' },
+          // ✅ REPLACED: "Average Rating" is now "Total Sessions"
+          { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', value: String(userStats.totalSessions), label: 'Total Sessions' }
+        ];
+      }
+
       const apiUserData = Array.isArray(userResponse) ? userResponse[0] : userResponse;
       if (apiUserData) {
         this.user.set({
-          userId,
-          name,
+          userId, name,
           initials: this.getInitials(name),
           university: "Wits University",
-          stats: this.dummyStats,
+          // ✅ Using the live stats instead of dummy data
+          stats: liveStats,
           ...apiUserData
         });
       }
