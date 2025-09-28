@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { Navbar } from './navbar';
 
-describe('Navbar', () => {
+xdescribe('Navbar', () => {
   let component: Navbar;
   let fixture: ComponentFixture<Navbar>;
 

@@ -7,6 +7,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "test:ci": "ng test --watch=false --browsers=ChromeHeadless --code-coverage",
     "serve:ssr:sdp-angular-app": "node dist/sdp-angular-app/server/server.mjs"
   },
   "prettier": {
@@ -21,9 +22,12 @@
   },
   "private": true,
   "dependencies": {
+    "@angular/animations": "^20.1.7",
+    "@angular/cdk": "^20.2.5",
     "@angular/common": "^20.1.0",
     "@angular/compiler": "^20.1.0",
     "@angular/forms": "^20.1.0",
+    "@angular/material": "^20.2.5",
     "@angular/platform-server": "^20.1.0",
     "@angular/router": "^20.1.0",
     "@angular/ssr": "^20.1.4",
