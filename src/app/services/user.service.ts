@@ -29,4 +29,10 @@ export class UserApiService {
       { headers: this.getHeaders() }
     );
   }
+
+  getUserStats(userid: string): Observable<any> {
+    return this.http.get(`${this.url}/api/users/stats/${userid}`,
+      { headers: this.getHeaders() }
+    );
+  }
 }
