@@ -83,7 +83,7 @@ export class Profile implements OnInit {
     this.isLoading.set(true);
     try {
       const authResult = await this.authService.getCurrentUser();
-      const userId = `b0f045ac-e7b0-4d56-9b4a-245b98d1555c`;
+      const userId = authResult.data.user?.id;
       if (!userId) throw new Error("Could not determine current user.");
 
       const userProfile = await this.userService.getUserById(userId);
