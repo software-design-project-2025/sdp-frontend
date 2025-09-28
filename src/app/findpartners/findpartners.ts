@@ -4,8 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { ApiService} from '../services/findpartner.service';
 import { AuthService } from '../services';
 import { UserService } from '../services/supabase.service';
-import {BehaviorSubject, forkJoin, of} from 'rxjs';
+import { ChatService } from '../services/chat.service';
+import {BehaviorSubject, firstValueFrom, forkJoin, of} from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { Router } from '@angular/router';
+
 
 // Interface for a study partner
 interface User {
@@ -56,13 +59,16 @@ interface Degree {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FindPartners implements OnInit {
+  isButtonDisabled: boolean = false;
   partners: User[] = [];
   userCourses: UserCourse[] = [];
   modules: Module[] = [];
   degrees: Degree[] = []; // This holds ALL degrees from the API
   availableDegreesForFilter: Degree[] = []; // This will hold only relevant degrees for the dropdown
   isLoading$ = new BehaviorSubject<boolean>(true);
+  isNavigating$ = new BehaviorSubject<boolean>(false);
   isLoading = this.isLoading$.asObservable();
+  isNavigating = this.isNavigating$.asObservable();
   user: any;
   userId: string | undefined = '';
   tester: any;
@@ -76,7 +82,9 @@ export class FindPartners implements OnInit {
 
   constructor(private apiService: ApiService,
               private authService: AuthService,
-              private userService: UserService
+              private userService: UserService,
+              private chatService: ChatService,
+              private router: Router
   ) { }
 
   ngOnInit() {
@@ -217,6 +225,33 @@ export class FindPartners implements OnInit {
       case 3: return '3rd Year';
       case 4: return '4th Year';
       default: return `${year}th Year`;
+    }
+  }
+
+  async messageOnClick(partner: User): Promise<void> {
+    this.isButtonDisabled = true;
+    this.isNavigating$.next(true);
+    try{
+      //this.router.navigate(['/chat']);
+      const result = await firstValueFrom(this.chatService.createChat({
+        user1: {
+          userid: this.user.data.user.id
+        },
+        user2: {
+          userid:partner.userid
+        }
+      }));
+      if (result){
+        this.isNavigating$.next(false);
+        this.router.navigate(['/chat']);     
+      }
+      else{
+        throw new Error;
+      }
+    }
+    catch(error){
+        console.error("Error finding chats:", error);
+        this.isNavigating$.next(false);
     }
   }
 }
