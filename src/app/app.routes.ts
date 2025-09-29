@@ -9,9 +9,10 @@ import { Chat } from './chat/chat';
 import { FindPartners } from './findpartners/findpartners';
 import { Profile } from './profile/profile'
 import { Progress } from './progress/progress'
+import { LandingPage } from './landingpage/landingpage';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'login', pathMatch: 'full' }, // Default route
+  { path: '', redirectTo: 'landingpage', pathMatch: 'full' }, // Default route
   { path: 'login', component: LoginComponent },
   { path: 'signup', component: SignupComponent },
   { path: 'login-success', component: LoginSuccessComponent },
@@ -20,6 +21,7 @@ export const routes: Routes = [
   { path: 'profile', component: Profile},
   { path: 'progress', component: Progress},
   { path: 'home', component: HomeComponent },
+  { path: 'landingpage', component: LandingPage },
   { path: 'sessions', component: SessionsComponent },
-  { path: '**', redirectTo: 'login' } // Fallback route
+  { path: '**', redirectTo: 'landingpage' } // Fallback route
 ];
