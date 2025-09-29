@@ -85,24 +85,33 @@ jobs:
         run: |
           echo "Checking coverage directory..."
           ls -la coverage/
-          if [ -d coverage/sdp-frontend ]; then
+          if [ -d coverage/sdp-angular-app ]; then
             echo "✓ Angular coverage folder found"
-            ls -la coverage/sdp-frontend/
+            ls -la coverage/sdp-angular-app/
+            if [ -f coverage/sdp-angular-app/lcov.info ]; then
+              echo "✓ lcov.info exists"
+            else
+              echo "✗ lcov.info NOT found"
+              exit 1
+            fi
+          else
+            echo "✗ coverage/sdp-angular-app folder NOT found"
+            exit 1
           fi
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report # The name of the artifact to be downloaded
-          path: coverage/       # The path to the folder to upload
+          name: coverage-report
+          path: coverage/
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: software-design-project-2025/sdp-frontend
-          files: ./coverage/sdp-frontend/lcov.info
-          fail_ci_if_error: false
+          files: coverage/sdp-angular-app/lcov.info
+          fail_ci_if_error: true
           verbose: true
 
   close_pull_request_job:
