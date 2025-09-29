@@ -5,7 +5,7 @@ import { Router, NavigationEnd, RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { filter } from 'rxjs/operators';
 import {Navbar} from './navbar/navbar';
-import { HttpClient } from '@angular/common/http';
+//import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-root',
@@ -26,7 +26,8 @@ export class AppComponent {
     ).subscribe((event: NavigationEnd) => {
       // Check if the current URL is the login page
       this.showNavbar = !(event.url === '/login' || event.urlAfterRedirects === '/login' ||
-                          event.url === '/login-success' || event.urlAfterRedirects === '/login-success');
+                          event.url === '/login-success' || event.urlAfterRedirects === '/login-success' ||
+                          event.url === '/signup' || event.urlAfterRedirects === '/signup');
     });
   }
 }
