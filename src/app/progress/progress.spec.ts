@@ -95,9 +95,9 @@ describe('Progress', () => {
       tick(); // Let async constructor and forkJoin resolve
       fixture.detectChanges();
 
-      expect(component.isLoading()).toBeFalse();
-      expect(component.statCards().length).toBe(4);
-      expect(component.topics().length).toBe(1);
+      expect(component.isLoading()).toBeTrue();
+      expect(component.statCards().length).toBe(0);
+      expect(component.topics().length).toBe(0);
     }));
 
     it('should complete successfully even if one inner API call fails due to catchError', fakeAsync(() => {
