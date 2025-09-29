@@ -89,7 +89,7 @@ jobs:
             echo "✓ Angular coverage folder found"
             ls -la coverage/sdp-frontend/
           fi
-
+          
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
