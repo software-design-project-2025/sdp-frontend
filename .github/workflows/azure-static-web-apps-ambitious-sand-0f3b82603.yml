@@ -39,14 +39,6 @@ jobs:
       - name: Copy routing config to output folder
         run: cp staticwebapp.config.json dist/sdp-angular-app/browser/
 
-      - name: Run tests with coverage
-        run: npm run test:ci # This script must generate a coverage report
-
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
       - name: List build output (debugging)
         run: |
           echo "Contents of dist directory:"
@@ -64,6 +56,36 @@ jobs:
           action: "upload"
           app_location: "/"
           output_location: "dist/sdp-angular-app/browser"
+
+  test:
+    name: Run tests and collect coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm run test:ci
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report # The name of the artifact to be downloaded
+          path: coverage/       # The path to the folder to upload
+
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: software-design-project-2025/sdp-frontend
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

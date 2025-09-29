@@ -1,23 +1,25 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { Router, NavigationEnd } from '@angular/router';
+import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
-
 import { AppComponent } from './app.component';
+import {Navbar} from './navbar/navbar';
 
-// Create a "stub" component to stand in for the real Navbar.
-// This isolates our test and prevents errors if the real Navbar has its own dependencies.
-@Component({
-  selector: 'app-navbar',
-  standalone: true,
-  template: '' // No template needed for the stub
-})
+// --- STUB COMPONENTS ---
+// Create dummy components to represent the pages we'll navigate to.
+@Component({ selector: 'app-navbar', standalone: true, template: '' })
 class MockNavbarComponent {}
 
-// A stub component for routing, required for RouterTestingModule
 @Component({ standalone: true, template: '' })
-class DummyComponent {}
+class MockLoginComponent {}
+
+@Component({ standalone: true, template: '' })
+class MockLoginSuccessComponent {}
+
+@Component({ standalone: true, template: '' })
+class MockDashboardComponent {}
+
 
 describe('AppComponent', () => {
   let component: AppComponent;
@@ -26,71 +28,83 @@ describe('AppComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      // Import the component being tested and the RouterTestingModule
       imports: [
         AppComponent,
-        MockNavbarComponent, // Use the stub instead of the real navbar
-        // Use RouterTestingModule to provide a fully functional test router
         RouterTestingModule.withRoutes([
-          { path: 'login', component: DummyComponent },
-          { path: 'login-success', component: DummyComponent },
-          { path: 'dashboard', component: DummyComponent },
-          // A wildcard route to handle redirects and other paths
-          { path: '**', component: DummyComponent }
+          { path: 'login', component: MockLoginComponent },
+          { path: 'login-success', component: MockLoginSuccessComponent },
+          { path: 'dashboard', component: MockDashboardComponent },
+          { path: '', redirectTo: '/dashboard', pathMatch: 'full' }
         ])
       ],
-      // No longer need to provide a manual router mock
-    }).compileComponents();
+      // Override the real NavbarComponent with our mock for isolation
+      // Note: Since AppComponent's 'imports' includes the real Navbar, we override it here.
+      // If AppComponent didn't import Navbar, we'd add MockNavbarComponent to 'declarations'.
+    })
+      // This override is needed because the standalone AppComponent imports the real Navbar.
+      // We replace it with a mock to keep the test simple and isolated.
+      .overrideComponent(AppComponent, {
+        remove: { imports: [Navbar] },
+        add: { imports: [MockNavbarComponent] }
+      })
+      .compileComponents();
 
     fixture = TestBed.createComponent(AppComponent);
     component = fixture.componentInstance;
     router = TestBed.inject(Router);
-    fixture.detectChanges();
+
+    // Initial navigation to a default route
+    fixture.ngZone?.run(() => router.initialNavigation());
   });
 
   it('should create the app', () => {
     expect(component).toBeTruthy();
   });
 
-  // This is a default test from the CLI that was likely causing one of the errors.
-  // It is included here in the corrected test suite.
   it(`should have the 'sdp-frontend' title`, () => {
     expect(component.title).toEqual('sdp-frontend');
   });
 
-  it('should show the navbar on a generic route like "/dashboard"', fakeAsync(() => {
-    // Simulate navigation using the actual router API
-    router.navigateByUrl('/dashboard');
-    tick(); // Wait for the navigation to complete
+  it('should always render the router-outlet', () => {
     fixture.detectChanges();
+    const routerOutlet = fixture.debugElement.query(By.css('router-outlet'));
+    expect(routerOutlet).not.toBeNull();
+  });
 
+  it('should show the navbar on a generic route like "/dashboard"', fakeAsync(() => {
+    // Navigate to the dashboard route
+    fixture.ngZone?.run(() => router.navigateByUrl('/dashboard'));
+    tick(); // Wait for navigation to complete
+    fixture.detectChanges(); // Update the view
+
+    // Assertions
     expect(component.showNavbar).toBe(true);
-    const navbarElement = fixture.debugElement.query(By.css('app-navbar'));
-    expect(navbarElement).not.toBeNull();
+    const navbar = fixture.debugElement.query(By.css('app-navbar'));
+    expect(navbar).not.toBeNull();
   }));
 
   it('should hide the navbar on the "/login" route', fakeAsync(() => {
-    router.navigateByUrl('/login');
-    tick();
-    fixture.detectChanges();
+    // Navigate to the login route
+    fixture.ngZone?.run(() => router.navigateByUrl('/login'));
+    tick(); // Wait for navigation to complete
+    fixture.detectChanges(); // Update the view
 
+    // Assertions
     expect(component.showNavbar).toBe(false);
-    const navbarElement = fixture.debugElement.query(By.css('app-navbar'));
-    expect(navbarElement).toBeNull();
+    const navbar = fixture.debugElement.query(By.css('app-navbar'));
+    expect(navbar).toBeNull();
   }));
 
   it('should hide the navbar on the "/login-success" route', fakeAsync(() => {
-    router.navigateByUrl('/login-success');
-    tick();
-    fixture.detectChanges();
+    // Navigate to the login-success route
+    fixture.ngZone?.run(() => router.navigateByUrl('/login-success'));
+    tick(); // Wait for navigation to complete
+    fixture.detectChanges(); // Update the view
 
+    // Assertions
     expect(component.showNavbar).toBe(false);
-    const navbarElement = fixture.debugElement.query(By.css('app-navbar'));
-    expect(navbarElement).toBeNull();
+    const navbar = fixture.debugElement.query(By.css('app-navbar'));
+    expect(navbar).toBeNull();
   }));
-
-  it('should always render the router-outlet', () => {
-    const routerOutletElement = fixture.debugElement.query(By.css('router-outlet'));
-    expect(routerOutletElement).not.toBeNull();
-  });
 });
-
