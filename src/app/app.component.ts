@@ -27,7 +27,8 @@ export class AppComponent {
       // Check if the current URL is the login page
       this.showNavbar = !(event.url === '/login' || event.urlAfterRedirects === '/login' ||
                           event.url === '/login-success' || event.urlAfterRedirects === '/login-success' ||
-                          event.url === '/signup' || event.urlAfterRedirects === '/signup');
+                          event.url === '/signup' || event.urlAfterRedirects === '/signup' ||
+                          event.url === '/landingpage' || event.urlAfterRedirects === '/landingpage');
     });
   }
 }

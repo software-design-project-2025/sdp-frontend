@@ -1,0 +1,127 @@
+<div class="landing-container">
+
+  <header class="main-header">
+    <div class="logo">
+      <img src="assets/logo.png" alt="StudyBuddy Logo" class="app-logo">
+      <span>StudyBuddy</span>
+    </div>
+    <nav class="main-nav">
+      <ul>
+        <li *ngFor="let link of navLinks"
+            (click)="selectTab(link)"
+            [ngClass]="{'active': activeTab === link}">
+          <a>{{ link }}</a>
+        </li>
+      </ul>
+    </nav>
+    <div class="auth-buttons">
+      <a href="/login" class="btn-login">Log In</a>
+      <a href="/signup" class="btn-join">Get Started</a>
+    </div>
+  </header>
+
+  <main [ngSwitch]="activeTab" class="content-fader">
+
+    <section *ngSwitchCase="'Home'" class="hero-section">
+      <div class="hero-content">
+        <h1>Unlock Your Academic Potential — Find Your Perfect Study Buddy Today!</h1>
+        <p>Connect with peers, create study groups, and track your progress together. Stop studying alone and start succeeding together.</p>
+        <a href="/signup" class="btn-cta">Find a Partner
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </a>
+      </div>
+      <div class="hero-graphic">
+        <div class="orbit-container">
+          <div class="center-circle">
+            <h2>5k+</h2>
+            <p>Study Groups</p>
+          </div>
+          <div class="orbit-item item-1">
+            <img src="https://i.pravatar.cc/150?img=1" alt="User Avatar 1">
+          </div>
+          <div class="orbit-item item-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+          </div>
+          <div class="orbit-item item-3">
+            <img src="https://i.pravatar.cc/150?img=2" alt="User Avatar 2">
+          </div>
+          <div class="orbit-item item-4">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21 6H3V5h18v1zm0 5H3v1h18v-1zm0 6H3v1h18v-1z"/></svg>
+          </div>
+          <div class="orbit-item item-5">
+            <img src="https://i.pravatar.cc/150?img=3" alt="User Avatar 3">
+          </div>
+          <div class="orbit-item item-6">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4v11H4zm6-5h4v16h-4zm6 8h4v8h-4z"/></svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section *ngSwitchCase="'About'" class="content-section about-section">
+      <h2>About StudyBuddy</h2>
+      <p class="subtitle">Fostering collaboration and enhancing the university experience.</p>
+      <div class="about-content">
+        <div class="text-content">
+          <h3>Our Mission</h3>
+          <p>At StudyBuddy, we believe that learning is a collaborative journey. Our platform was born from a simple idea: to make it easier for university students to connect, share knowledge, and achieve their academic goals together. We break down the barriers of isolated studying by providing intuitive tools for finding partners, managing groups, and tracking educational progress within your own university community.</p>
+          <h3>Who We Are</h3>
+          <p>We are a team of educators, developers, and former students who understand the challenges of university life. We are passionate about creating a supportive environment where every student has the resources they need to succeed.</p>
+        </div>
+        <div class="image-content">
+          <img src="assets/group.jpg" alt="Students studying together" class="about-image">
+        </div>
+      </div>
+    </section>
+
+    <section *ngSwitchCase="'Features'" class="content-section features-section">
+      <h2>Platform Features</h2>
+      <p class="subtitle">All the tools you need to succeed, in one place.</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="icon">🤝</div>
+          <h3>Find Study Partners</h3>
+          <p>Our matching API connects you with students based on shared modules, topics, and study habits. View profiles and find the perfect partner.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">👥</div>
+          <h3>Create Study Groups</h3>
+          <p>Easily create or join study groups. Use integrated chat, share notes, and set group goals to stay on track together.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">📈</div>
+          <h3>Track Your Progress</h3>
+          <p>Log completed topics, chapters, and sections. Visualize your study hours and progress with clear tables and charts.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">📅</div>
+          <h3>Plan Sessions</h3>
+          <p>Schedule future study sessions with partners or groups. Get automatic reminders so you never miss a meeting.</p>
+        </div>
+      </div>
+    </section>
+
+    <section *ngSwitchCase="'Community'" class="content-section community-section">
+      <h2>Join Thousands of Students</h2>
+      <p class="subtitle">Become part of a thriving academic community dedicated to mutual success.</p>
+      <div class="testimonial-container">
+        <div class="testimonial">
+          <p>"StudyBuddy completely changed how I approach studying. I found a group for my toughest module and we all passing with distinctions!"</p>
+          <span>- Monare Selahe, Computer Science Student</span>
+        </div>
+        <div class="testimonial">
+          <p>"The progress tracker is a game-changer. Seeing my study hours laid out in a chart keeps me motivated every week."</p>
+          <span>- Ndivho Shilling, Computer Science Student</span>
+        </div>
+      </div>
+      <a href="/signup" class="btn-cta">Get Started Now</a>
+    </section>
+  </main>
+
+  <footer class="partners-footer">
+    <div *ngFor="let partner of universityPartners" class="partner-logo">
+      <span>{{ partner.name }}</span>
+    </div>
+  </footer>
+
+</div>
