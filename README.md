@@ -46,6 +46,17 @@ To execute unit tests with the [Karma](https://karma-runner.github.io) test runn
 ng test
 ```
 
+To generate a coverage scores with the [Karma](https://karma-runner.github.io) test runner, use the following command: 
+
+```bash
+ng test --code-coverage
+```
+A folder called 'coverage' will be generated and inside will be an `index.html` file.
+
+## View Automated Tests
+
+Automated tests are available in the job summary as a zip file, inside will be an `index.html` file.
+
 ## Running end-to-end tests
 
 For end-to-end (e2e) testing, run:

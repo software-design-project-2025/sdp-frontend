@@ -2,23 +2,41 @@ import { Component, ChangeDetectionStrategy, signal, computed, AfterViewInit, On
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Chart } from 'chart.js/auto';
-import { forkJoin, of } from 'rxjs';
+import {firstValueFrom, forkJoin, of} from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { TopicApiService } from '../services/topic.service'; // For topics and stats
 import { UserApiService } from '../services/user.service';   // For user's courses
 import { AcademicApiService } from '../services/academic.service'; // For all modules
-import { AuthService } from '../services'; // For getting the current user
+import { AuthService } from '../services';
+import {MatSnackBar} from '@angular/material/snack-bar'; // For getting the current user
 
 // --- INTERFACES ---
 interface StatCard { label: string; value: string; icon: string; colorClass: string; }
+// ✅ UPDATED: Aligned with the API response (snake_case)
 interface Topic {
   topicid: number; userid: string; title: string; description: string;
   status: 'Completed' | 'In Progress' | 'Not Started';
-  start_date?: string; end_date?: string; hours: number; course_code: string;
+  start_date: string; // API returns dates as strings
+  end_date: string;
+  hours: number;
+  course_code: string;
 }
 interface Subject { courseCode: string; courseName: string; }
 interface WeeklyStat { weekLabel: string; hoursStudied: number; }
 interface Module { courseCode: string; courseName: string; facultyid: string; }
+
+// Interface for the POST request to create a new topic
+interface NewTopicPayload {
+  userid: string;
+  title: string;
+  description: string;
+  start_date: Date;
+  end_date: Date;
+  status: string;
+  course_code: string;
+  hours: number;
+}
+
 
 @Component({
   selector: 'app-progress',
@@ -34,6 +52,7 @@ export class Progress implements AfterViewInit, OnDestroy {
   private userApiService = inject(UserApiService);
   private academicApiService = inject(AcademicApiService);
   private authService = inject(AuthService);
+  private snackBar = inject(MatSnackBar);
 
   // --- CHART ELEMENTS & INSTANCES ---
   weeklyHoursCanvas = viewChild<ElementRef<HTMLCanvasElement>>('weeklyHoursCanvas');
@@ -45,12 +64,13 @@ export class Progress implements AfterViewInit, OnDestroy {
 
   // --- STATE MANAGEMENT ---
   isLoading = signal<boolean>(true);
+  isSaving = signal<boolean>(false); // ✅ ADDED: For modal save button state
   activeTab = signal<'overview' | 'subjects' | 'topics'>('overview');
   isLogProgressModalOpen = signal(false);
   editingTopicId = signal<number | null>(null);
 
   // --- FORM MODELS ---
-  newTopic = signal<Omit<Topic, 'topicid' | 'userid'>>({
+  newTopic = signal({
     title: '', description: '', status: 'In Progress', course_code: '', hours: 1,
     start_date: new Date().toISOString().split('T')[0]
   });
@@ -96,7 +116,6 @@ export class Progress implements AfterViewInit, OnDestroy {
     this.isLoading.set(true);
     try {
       const user = await this.authService.getCurrentUser();
-      // ✅ FIX: Using the dynamic user ID from the auth service
       const userId = user.data.user?.id;
       if (!userId) throw new Error("User not found");
 
@@ -120,7 +139,6 @@ export class Progress implements AfterViewInit, OnDestroy {
         const enrolledCourseCodes = new Set(userCourses.courses);
         const enrolledSubjects = allModules
           .filter((mod: Module) => enrolledCourseCodes.has(mod.courseCode))
-          // ✅ FIX: Mapped from mod.courseName (camelCase) to match the API response.
           .map((mod: Module) => ({ courseCode: mod.courseCode, courseName: mod.courseName }));
         this.subjects.set(enrolledSubjects);
 
@@ -263,11 +281,56 @@ export class Progress implements AfterViewInit, OnDestroy {
     this.isLogProgressModalOpen.set(true);
   }
   closeLogProgressModal = () => this.isLogProgressModalOpen.set(false);
-  saveNewTopic(): void {
-    // This would become an API call
-    console.log("Saving new topic...", this.newTopic());
-    this.closeLogProgressModal();
+
+  // ✅ UPDATED: Implemented API call for saving a new topic
+  async saveNewTopic(): Promise<void> {
+    this.isSaving.set(true);
+    try {
+      const user = await this.authService.getCurrentUser();
+      const userId = user.data.user?.id;
+      if (!userId) throw new Error("User not found for saving topic.");
+
+      const formValue = this.newTopic();
+      if (!formValue.title || !formValue.course_code) {
+        alert('Please fill in at least a title and select a subject.');
+        this.isSaving.set(false);
+        return;
+      }
+
+      // Construct the payload matching the service's Topic interface
+      const topicPayload: NewTopicPayload = {
+        userid: userId,
+        title: formValue.title,
+        description: formValue.description.trim() || 'No description provided.',
+        start_date: new Date(formValue.start_date),
+        // Set end_date only if status is 'Completed'
+        end_date: formValue.status === 'Completed' ? new Date() : new Date(), // API expects a date
+        status: formValue.status,
+        course_code: formValue.course_code,
+        hours: formValue.hours,
+      };
+
+      console.log(this.topics.length);
+      await firstValueFrom(this.topicApiService.createTopic(topicPayload));
+      this.snackBar.open('Topic created successfully!', 'Dismiss', {
+        duration: 2000,
+        panelClass: ['snackbar-success'],
+      })
+
+      this.closeLogProgressModal();
+      await this.initializePageData(); // Refresh all data
+
+    } catch (error) {
+      console.error("Failed to save new topic:", error);
+      this.snackBar.open('There was an error saving your progress. Please try again.', 'Dismiss', {
+        duration: 2000,
+        panelClass: ['snackbar-error'],
+      })
+    } finally {
+      this.isSaving.set(false);
+    }
   }
+
   startEditTopic(topic: Topic): void {
     this.editingTopicId.set(topic.topicid);
     this.editedTopicData.set({ status: topic.status, hours: topic.hours });
