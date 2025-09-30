@@ -23,46 +23,46 @@ export class SessionsService {
   constructor(private http: HttpClient) { }
 
   getSessions(): Observable<SessionDisplay[]> {
-    return this.http.get<Session[]>(this.apiUrl).pipe(
+    return this.http.get<Session[]>(`${this.apiUrl}/api/sessions`, {headers: this.getHeaders()}).pipe(
       map(sessions => sessions.map(s => this.convertToDisplay(s))),
       catchError(this.handleError<SessionDisplay[]>('getSessions', []))
     );
   }
 
   getSessionById(id: number): Observable<Session> {
-    return this.http.get<Session>(`${this.apiUrl}/${id}`).pipe(
+    return this.http.get<Session>(`${this.apiUrl}/api/sessions/${id}`, {headers: this.getHeaders()}).pipe(
       catchError(this.handleError<Session>('getSessionById'))
     );
   }
 
   getSessionsByCreator(creatorId: string): Observable<Session[]> {
-    return this.http.get<Session[]>(`${this.apiUrl}/creator/${creatorId}`).pipe(
+    return this.http.get<Session[]>(`${this.apiUrl}/api/sessions/creator/${creatorId}`, {headers: this.getHeaders()}).pipe(
       catchError(this.handleError<Session[]>('getSessionsByCreator', []))
     );
   }
 
   getSessionsByGroup(groupId: number): Observable<Session[]> {
-    return this.http.get<Session[]>(`${this.apiUrl}/group/${groupId}`).pipe(
+    return this.http.get<Session[]>(`${this.apiUrl}/api/sessions/group/${groupId}`, {headers: this.getHeaders()}).pipe(
       catchError(this.handleError<Session[]>('getSessionsByGroup', []))
     );
   }
 
   createSession(session: any): Observable<Session> {
-    const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
-    return this.http.post<Session>(this.apiUrl, session, { headers }).pipe(
+    //const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+    return this.http.post<Session>(this.apiUrl, session, {headers: this.getHeaders()}).pipe(
       catchError(this.handleError<Session>('createSession'))
     );
   }
 
   updateSession(id: number, session: Session): Observable<Session> {
     const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
-    return this.http.put<Session>(`${this.apiUrl}/${id}`, session, { headers }).pipe(
+    return this.http.put<Session>(`${this.apiUrl}/api/sessions/${id}`, session, { headers }).pipe(
       catchError(this.handleError<Session>('updateSession'))
     );
   }
 
   deleteSession(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}`).pipe(
+    return this.http.delete<void>(`${this.apiUrl}/api/sessions/${id}`).pipe(
       catchError(this.handleError<void>('deleteSession'))
     );
   }

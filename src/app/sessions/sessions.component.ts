@@ -10,6 +10,7 @@ import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-sessions',
+  standalone: true,
   templateUrl: './sessions.component.html',
   imports: [CommonModule, FormsModule],
   styleUrls: ['./sessions.component.scss']
