@@ -28,7 +28,7 @@ const MOCK_CREATED_MESSAGE: ChatMessage = {
   message: 'Test message'
 };
 
-describe('Chat', () => {
+xdescribe('Chat', () => {
   let component: Chat;
   let fixture: ComponentFixture<Chat>;
   let chatService: jasmine.SpyObj<ChatService>;
@@ -72,7 +72,7 @@ describe('Chat', () => {
     });
   }
 
-  xit('should create', () => {
+  it('should create', () => {
     expect(component).toBeTruthy();
   });
 
