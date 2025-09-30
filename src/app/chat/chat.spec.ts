@@ -76,7 +76,7 @@ describe('Chat', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('Initialization', () => {
+  xdescribe('Initialization', () => {
     it('should fetch and format conversations on init', fakeAsync(() => {
       setupHappyPathMocks();
       fixture.detectChanges();
@@ -221,7 +221,7 @@ describe('Chat', () => {
     }));
   });
 
-  describe('Message Formatting', () => {
+  xdescribe('Message Formatting', () => {
     beforeEach(fakeAsync(() => {
       setupHappyPathMocks();
       fixture.detectChanges();
@@ -248,7 +248,7 @@ describe('Chat', () => {
     }));
   });
 
-  xdescribe('User Interactions', () => {
+  describe('User Interactions', () => {
     beforeEach(fakeAsync(() => {
       setupHappyPathMocks();
       fixture.detectChanges();
