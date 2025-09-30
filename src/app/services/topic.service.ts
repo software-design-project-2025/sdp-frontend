@@ -3,6 +3,17 @@ import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment.prod';
 
+export interface Topic {
+  userid: string;
+  title: string;
+  description: string;
+  start_date: Date;
+  end_date: Date;
+  status: string;
+  course_code: string;
+  hours: number;
+}
+
 @Injectable({
   providedIn: 'root' // Makes the service a singleton
 })
@@ -47,4 +58,13 @@ export class TopicApiService {
     });
   }
 
+  createTopic(topicData: Topic): Observable<Topic> {
+    return this.http.post<Topic>(
+      `${this.url}/api/topic/new`,
+      {
+        ...topicData,
+      },
+      { headers: this.getHeaders() }
+    );
+  }
 }

@@ -145,7 +145,20 @@ export class FindPartners implements OnInit {
           };
         });
 
-        this.partners = mergedPartners.filter((partner: User) => partner.userid !== currentUserId);
+        // ✅ Create a set of user IDs who have courses for efficient lookup
+        const usersWithCourses = new Set(this.userCourses.map(uc => uc.userid));
+
+        // ✅ Apply all filters:
+        // 1. User must have a year of study > 0
+        // 2. User must be enrolled in at least one module
+        // 3. User cannot be the currently logged-in user
+        this.partners = mergedPartners.filter((partner: User) => {
+          const hasValidYear = partner.yearofstudy > 0;
+          const hasModules = usersWithCourses.has(partner.userid);
+          const isNotCurrentUser = partner.userid !== currentUserId;
+
+          return hasValidYear && hasModules && isNotCurrentUser;
+        });
 
         // Calculate which degrees are actually represented in the final partner list.
         const availableDegreeIds = new Set(this.partners.map(p => p.degreeid));
@@ -194,7 +207,6 @@ export class FindPartners implements OnInit {
   }
 
   getDegreeName(degreeId: number): string {
-    // ✅ FIXED: Removed extra dot before .find()
     const degree = this.degrees.find(d => d.degreeid === degreeId);
     return degree ? degree.degree_name : 'Unknown Degree';
   }
@@ -243,15 +255,15 @@ export class FindPartners implements OnInit {
       }));
       if (result){
         this.isNavigating$.next(false);
-        this.router.navigate(['/chat']);     
+        this.router.navigate(['/chat']);
       }
       else{
         throw new Error;
       }
     }
     catch(error){
-        console.error("Error finding chats:", error);
-        this.isNavigating$.next(false);
+      console.error("Error finding chats:", error);
+      this.isNavigating$.next(false);
     }
   }
 }
