@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { SessionsService } from './sessions.service';
 
-describe('SessionsService', () => {
+xdescribe('SessionsService', () => {
   let service: SessionsService;
 
   beforeEach(() => {

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import {HttpClient, HttpHeaders} from '@angular/common/http';
+import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment.prod';
 
@@ -45,6 +45,17 @@ export class TopicApiService {
     return this.http.get(`${this.url}/api/topic/weekly-hours/${userid}`,
       { headers: this.getHeaders() }
     );
+  }
+
+  getTopicsCount(userId: string): Observable<any> {
+    const params = new HttpParams().set('userId', userId);
+    
+    console.log('🔍 [TopicApiService] Getting topics count for user:', userId);
+    
+    return this.http.get<any>(`${this.url}/api/topic/topics/num-topics`, {
+      params,
+      headers: this.getHeaders()
+    });
   }
 
   createTopic(topicData: Topic): Observable<Topic> {
