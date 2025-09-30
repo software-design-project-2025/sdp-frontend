@@ -28,7 +28,7 @@ const MOCK_CREATED_MESSAGE: ChatMessage = {
   message: 'Test message'
 };
 
-xdescribe('Chat', () => {
+describe('Chat', () => {
   let component: Chat;
   let fixture: ComponentFixture<Chat>;
   let chatService: jasmine.SpyObj<ChatService>;
@@ -318,7 +318,7 @@ xdescribe('Chat', () => {
     }));
   });
 
-  describe('Conversation Management', () => {
+  xdescribe('Conversation Management', () => {
     beforeEach(fakeAsync(() => {
       setupHappyPathMocks();
       fixture.detectChanges();
@@ -416,7 +416,7 @@ xdescribe('Chat', () => {
     });
   });
 
-  describe('More Options', () => {
+  xdescribe('More Options', () => {
     it('should show more options alert', () => {
       spyOn(window, 'alert');
       component.showMoreOptions();
@@ -424,7 +424,7 @@ xdescribe('Chat', () => {
     });
   });
 
-  describe('Accessibility Helpers', () => {
+  xdescribe('Accessibility Helpers', () => {
     it('should generate correct ARIA label for conversations with unread messages', () => {
       const convoWithUnread = {
         participant: { name: 'Jane' },
@@ -481,7 +481,7 @@ xdescribe('Chat', () => {
     });
   });
 
-  describe('TrackBy Functions', () => {
+  xdescribe('TrackBy Functions', () => {
     it('should track conversations by index', () => {
       const convo = { id: 123 } as any;
       expect(component.trackByConversationId(5, convo)).toBe(5);
@@ -493,7 +493,7 @@ xdescribe('Chat', () => {
     });
   });
 
-  describe('Template Rendering', () => {
+  xdescribe('Template Rendering', () => {
     beforeEach(fakeAsync(() => {
       setupHappyPathMocks();
       fixture.detectChanges();
