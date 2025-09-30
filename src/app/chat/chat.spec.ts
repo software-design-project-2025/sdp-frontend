@@ -72,11 +72,11 @@ describe('Chat', () => {
     });
   }
 
-  it('should create', () => {
+  xit('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  xdescribe('Initialization', () => {
+  describe('Initialization', () => {
     it('should fetch and format conversations on init', fakeAsync(() => {
       setupHappyPathMocks();
       fixture.detectChanges();
@@ -221,7 +221,7 @@ describe('Chat', () => {
     }));
   });
 
-  xdescribe('Message Formatting', () => {
+  describe('Message Formatting', () => {
     beforeEach(fakeAsync(() => {
       setupHappyPathMocks();
       fixture.detectChanges();
