@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { Session } from '../models/session.model';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -52,9 +54,54 @@ export class SessionsService {
     }
   ];
 
-  constructor() { }
+    constructor(private http: HttpClient) {}
 
   getSessions(): Observable<Session[]> {
     return of(this.mockSessions);
   }
+
+  private apiUrl = 'http://localhost:8080/api/auth';
+
+    private getHeaders(): HttpHeaders {
+        return new HttpHeaders({
+        'Authorization': `Bearer ${environment.API_KEY_ADMIN}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+        });
+    }
+
+    getUpcomingSessions(userId: string): Observable<Session[]> {
+    const params = new HttpParams().set('userId', userId);
+    
+    console.log('🔍 [SessionService] Calling:', `${this.apiUrl}/sessions/upcoming`);
+    console.log('🔍 [SessionService] With userId:', userId);
+    
+    return this.http.get<Session[]>(`${this.apiUrl}/sessions/upcoming`, {
+        params,
+        headers: this.getHeaders()
+    });
+    }
+
+    getStudyHours(userId: string): Observable<any> {
+    const params = new HttpParams().set('userId', userId);
+    
+    console.log('🔍 [SessionService] Getting study hours for user:', userId);
+    
+    return this.http.get<any>(`${this.apiUrl}/sessions/study-hours`, {
+      params,
+      headers: this.getHeaders()
+    });
+  }
+
+  getSessionsCount(userId: string): Observable<any> {
+    const params = new HttpParams().set('userId', userId);
+    
+    console.log('🔍 [SessionService] Getting sessions count for user:', userId);
+    
+    return this.http.get<any>(`${this.apiUrl}/sessions/num-sessions`, {
+      params,
+      headers: this.getHeaders()
+    });
+  }
+
 }
