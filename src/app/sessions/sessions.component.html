@@ -8,6 +8,10 @@
 <section class="sessions-container">
   <h2 class="section-title">Upcoming Sessions</h2>
 
+  <div *ngIf="sessions.length === 0" style="padding: 2rem; text-align: center; color: #666;">
+    No upcoming sessions. Create one to get started!
+  </div>
+
   <!-- Session Cards -->
   <article class="session-card" *ngFor="let session of sessions">
     <header class="session-header">
@@ -50,7 +54,9 @@
       <ul class="session-info">
         <li class="info-item">📅 {{ session.date }}</li>
         <li class="info-item">⏰ {{ session.time }}</li>
-        <li class="info-item">📍 {{ session.type === 'in-person' ? session.location : session.url }}</li>
+        <li class="info-item" *ngIf="session.location || session.url">
+          📍 {{ session.type === 'in-person' ? session.location : (session.url || 'Online') }}
+        </li>
       </ul>
 
       <footer class="session-meta">
@@ -59,10 +65,14 @@
       </footer>
     </section>
 
-    <section class="session-topics" *ngIf="session.topics.length > 0">
+    <section class="session-topics" *ngIf="session.topics && session.topics.length > 0">
       <ul>
         <li class="topic-tag" *ngFor="let topic of session.topics">#{{ topic }}</li>
       </ul>
+    </section>
+
+    <section *ngIf="session.description" style="margin-top: 0.8rem; color: #555; font-size: 0.9rem;">
+      {{ session.description }}
     </section>
   </article>
 </section>
@@ -99,24 +109,29 @@
     <h2>Create New Session</h2>
 
     <label>
-      Session Name:
-      <input type="text" [(ngModel)]="newSession.title" placeholder="Enter session name" />
+      Session Title: <span style="color: red;">*</span>
+      <input type="text" [(ngModel)]="newSession.title" placeholder="e.g., Calculus Study Group" required />
     </label>
 
     <label>
-      Date:
-      <input type="date" [(ngModel)]="newSession.date" />
+      Group: <span style="color: red;">*</span>
+      <select [(ngModel)]="newSession.groupid" required>
+        <option [value]="0" disabled>Select a group</option>
+        <option *ngFor="let group of groups" [value]="group.groupid">
+          {{ group.title }}
+        </option>
+      </select>
     </label>
 
     <label>
-      Start Time:
-      <input type="time" [(ngModel)]="newSession.time" />
+      Start Date & Time: <span style="color: red;">*</span>
+      <input type="datetime-local" [(ngModel)]="newSession.start_time" required />
     </label>
 
-<!--    <label>-->
-<!--      End Time:-->
-<!--      <input type="time" [(ngModel)]="newSession.endTime" />-->
-<!--    </label>-->
+    <label>
+      End Date & Time: (Optional)
+      <input type="datetime-local" [(ngModel)]="newSession.end_time" />
+    </label>
 
     <label>
       Status:
@@ -128,45 +143,25 @@
     </label>
 
     <label>
-      Session Type:
-      <select [(ngModel)]="newSession.type">
-        <option value="online">Online</option>
-        <option value="in-person">In-Person</option>
-      </select>
-    </label>
-
-    <label *ngIf="newSession.type === 'in-person'">
-      Venue:
-      <input type="text" [(ngModel)]="newSession.location" placeholder="Enter venue" />
-    </label>
-
-    <label *ngIf="newSession.type === 'online'">
-      Virtual Platform / URL:
-      <input type="text" [(ngModel)]="newSession.url" placeholder="Enter URL" />
+      Location/URL: (Optional)
+      <input type="text" [(ngModel)]="newSession.location"
+             placeholder="e.g., Library Room 305 or https://meet.google.com/..." />
+      <small style="color: #666; font-size: 0.8rem;">
+        Enter a physical location or online meeting URL
+      </small>
     </label>
 
     <label>
-      Max Participants:
-      <input type="number" min="1" [(ngModel)]="newSession.maxParticipants" />
+      Description: (Optional)
+      <textarea [(ngModel)]="newSession.description"
+                rows="3"
+                placeholder="Add session details, topics to cover, etc."
+                style="padding: 0.5rem; border-radius: 8px; border: 1px solid #ccc; font-size: 0.9rem; font-family: inherit; resize: vertical;">
+      </textarea>
     </label>
-
-    <label>
-      Topics:
-      <div class="topics-input">
-        <input type="text" [(ngModel)]="topicInput" placeholder="Add topic" (keyup.enter)="addTopic()" />
-        <button type="button" (click)="addTopic()">➕ Add</button>
-      </div>
-    </label>
-
-    <div class="topics-list" *ngIf="newSession.topics.length > 0">
-      <span class="topic-tag" *ngFor="let topic of newSession.topics; let i = index">
-        #{{ topic }}
-        <button type="button" (click)="removeTopic(i)">❌</button>
-      </span>
-    </div>
 
     <div class="modal-actions">
-      <button class="confirm-btn" (click)="confirmSession()">Confirm</button>
+      <button class="confirm-btn" (click)="confirmSession()">Create Session</button>
       <button class="cancel-btn" (click)="cancelSession()">Cancel</button>
     </div>
   </div>
