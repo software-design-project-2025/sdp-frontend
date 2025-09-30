@@ -49,7 +49,7 @@ export class SessionsService {
 
   createSession(session: any): Observable<Session> {
     //const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
-    return this.http.post<Session>(this.apiUrl, session, {headers: this.getHeaders()}).pipe(
+    return this.http.post<Session>(`${this.apiUrl}/api/sessions`, session, {headers: this.getHeaders()}).pipe(
       catchError(this.handleError<Session>('createSession'))
     );
   }
