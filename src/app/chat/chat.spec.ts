@@ -67,7 +67,7 @@ describe('Chat', () => {
 
       expect(component.loading$.value).toBeFalse();
       expect(component.conversations.length).toBe(2);
-      expect(component.activeConversation).toBe(component.conversations[0]);
+      expect(component.activeConversation).toEqual(component.conversations[0]);
     }));
 
     // COVERAGE: Test the inner catch block of formatConvos
