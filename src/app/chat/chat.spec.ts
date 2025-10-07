@@ -26,7 +26,7 @@ describe('Chat', () => {
   let authService: jasmine.SpyObj<AuthService>;
 
   beforeEach(async () => {
-    const chatServiceSpy = jasmine.createSpyObj('ChatService', ['getChatById', 'getMessagesByChatId', 'createMessage']);
+    const chatServiceSpy = jasmine.createSpyObj('ChatService', ['getChatById', 'getMessagesByChatId', 'createMessage', 'getPartnerID']);
     const authServiceSpy = jasmine.createSpyObj('AuthService', ['getCurrentUser', 'getUserById']);
 
     await TestBed.configureTestingModule({
@@ -46,6 +46,7 @@ describe('Chat', () => {
   function setupHappyPathMocks() {
     authService.getCurrentUser.and.returnValue(Promise.resolve({ data: { user: MOCK_CURRENT_USER } } as any));
     chatService.getChatById.and.returnValue(of(MOCK_CHATS_API as any));
+    chatService.getPartnerID.and.returnValue(null);
     authService.getUserById.and.callFake((id: string) => {
       if (id === 'user-2') return Promise.resolve({ data: MOCK_OTHER_USER } as any);
       if (id === 'user-3') return Promise.resolve({ data: { id: 'user-3', name: 'Bob' } } as any);
