@@ -466,3 +466,203 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     background: $text-secondary;
   }
 }
+// Skeleton loading animation
+@keyframes skeleton-pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.skeleton {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  background-color: $border-color;
+  border-radius: 4px;
+  color: transparent !important;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.4),
+      transparent
+    );
+    animation: skeleton-shimmer 1.5s infinite;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+// Skeleton specific styles - use individual classes instead of compound selectors
+.skeleton-text {
+  height: 1em;
+  margin-bottom: 0.5em;
+}
+
+.skeleton-text-short {
+  width: 60%;
+}
+
+.skeleton-text-medium {
+  width: 80%;
+}
+
+.skeleton-text-long {
+  width: 95%;
+}
+
+.skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton-circle {
+  border-radius: 50%;
+}
+
+.skeleton-message {
+  height: 3.5em;
+  border-radius: 18px;
+  
+  &.sent {
+    align-self: flex-end;
+    max-width: 70%;
+    width: 60%;
+  }
+  
+  &.received {
+    align-self: flex-start;
+    max-width: 70%;
+    width: 80%;
+  }
+}
+
+// Loading states for conversation list
+.conversations-loading {
+  .conversation-item {
+    pointer-events: none;
+    
+    .conversation-card {
+      .avatar {
+        background: $border-color !important;
+        
+        abbr {
+          visibility: hidden;
+        }
+        
+        .online-status {
+          display: none;
+        }
+      }
+      
+      .conversation-content {
+        .conversation-header h3,
+        .conversation-header time,
+        .last-message {
+          @extend .skeleton;
+        }
+        
+        .conversation-header h3 {
+          @extend .skeleton-text;
+          @extend .skeleton-text-medium;
+        }
+        
+        .conversation-header time {
+          @extend .skeleton-text;
+          @extend .skeleton-text-short;
+          height: 0.875em;
+        }
+        
+        .last-message {
+          @extend .skeleton-text;
+          @extend .skeleton-text-long;
+        }
+      }
+    }
+  }
+}
+
+// Loading state for chat header
+.chat-header-loading {
+  .contact-info {
+    .avatar {
+      background: $border-color !important;
+      
+      abbr {
+        visibility: hidden;
+      }
+    }
+    
+    .contact-details h2 {
+      @extend .skeleton;
+      @extend .skeleton-text;
+      @extend .skeleton-text-medium;
+      height: 1.25em;
+    }
+  }
+}
+
+// Loading state for messages
+.messages-loading {
+  .message {
+    p {
+      @extend .skeleton;
+      background-color: $border-color !important;
+      color: transparent !important;
+    }
+    
+    time {
+      @extend .skeleton;
+      @extend .skeleton-text;
+      @extend .skeleton-text-short;
+      height: 0.875em;
+      display: inline-block;
+    }
+    
+    &.sent time {
+      margin-left: auto;
+    }
+  }
+}
+
+// Loading state for message input
+.message-input-loading {
+  .message-form {
+    .message-input {
+      @extend .skeleton;
+      color: transparent !important;
+      
+      &::placeholder {
+        color: transparent;
+      }
+    }
+    
+    .send-button {
+      @extend .skeleton;
+      background-color: $border-color !important;
+      color: transparent !important;
+    }
+  }
+}
