@@ -46,7 +46,8 @@ describe('Chat', () => {
   function setupHappyPathMocks() {
     authService.getCurrentUser.and.returnValue(Promise.resolve({ data: { user: MOCK_CURRENT_USER } } as any));
     chatService.getChatById.and.returnValue(of(MOCK_CHATS_API as any));
-    chatService.getPartnerID.and.returnValue(null);
+    // FIX: Set partnerID to match the first conversation's participant
+    chatService.getPartnerID.and.returnValue('user-2');
     authService.getUserById.and.callFake((id: string) => {
       if (id === 'user-2') return Promise.resolve({ data: MOCK_OTHER_USER } as any);
       if (id === 'user-3') return Promise.resolve({ data: { id: 'user-3', name: 'Bob' } } as any);
@@ -62,8 +63,8 @@ describe('Chat', () => {
   describe('Initialization', () => {
     it('should fetch and format conversations on init', fakeAsync(() => {
       setupHappyPathMocks();
-      fixture.detectChanges();
-      tick();
+      fixture.detectChanges(); // This triggers ngOnInit
+      tick(); // Process all pending async operations
 
       expect(component.loading$.value).toBeFalse();
       expect(component.conversations.length).toBe(2);
@@ -74,6 +75,7 @@ describe('Chat', () => {
     it('should handle error when getChatById fails', fakeAsync(() => {
       authService.getCurrentUser.and.returnValue(Promise.resolve({ data: { user: MOCK_CURRENT_USER } } as any));
       chatService.getChatById.and.returnValue(throwError(() => new Error('API Error')));
+      chatService.getPartnerID.and.returnValue(null);
 
       fixture.detectChanges();
       tick();
@@ -105,10 +107,21 @@ describe('Chat', () => {
       // The conversation should still be processed but with an empty name
       expect(component.conversations[0].participant.name).toBe('');
     }));
+
+    // NEW TEST: Verify behavior when no partnerID is set
+    it('should not set active conversation when no partnerID is provided', fakeAsync(() => {
+      setupHappyPathMocks();
+      chatService.getPartnerID.and.returnValue(null); // No partner ID
+      fixture.detectChanges();
+      tick();
+
+      expect(component.conversations.length).toBe(2);
+      expect(component.activeConversation).toBeNull();
+    }));
   });
 
   // FAILS
-  xdescribe('User Interactions', () => {
+  describe('User Interactions', () => {
     beforeEach(fakeAsync(() => {
       setupHappyPathMocks();
       fixture.detectChanges();
