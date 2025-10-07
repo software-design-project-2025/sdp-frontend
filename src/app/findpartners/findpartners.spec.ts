@@ -64,7 +64,7 @@ describe('FindPartners', () => {
     const apiServiceSpy = jasmine.createSpyObj('ApiService', ['getDegree', 'getModule', 'getAllUserCourses', 'getUser']);
     const authServiceSpy = jasmine.createSpyObj('AuthService', ['getCurrentUser']);
     const userServiceSpy = jasmine.createSpyObj('UserService', ['getAllUsers']);
-    const chatServiceSpy = jasmine.createSpyObj('ChatService', ['createChat']);
+    const chatServiceSpy = jasmine.createSpyObj('ChatService', ['createChat', 'setPartnerID']);
 
     await TestBed.configureTestingModule({
       imports: [FindPartners, FormsModule, RouterTestingModule.withRoutes([{ path: 'chat', children: [] }])],
