@@ -97,7 +97,8 @@ export class Chat implements OnInit {
       this.currentUser.userid = userid;
 
       const convos = await this.formatConvos(userid);       
-
+      const partnerID = this.chatService.getPartnerID();  
+    
       for (const convo of convos){
 
         const name = await this.getOtherUserName(convo);
@@ -105,6 +106,10 @@ export class Chat implements OnInit {
           continue; //ADD PROPER ERROR HANDLING
         }else{
           convo.participant.name = name;
+        }
+        
+        if (partnerID && (partnerID == convo.participant.userid)){ 
+          this.setActiveConversation(convo);
         }
         
         const messages = await this.retrieveMessages(convo.id, userid); 
@@ -119,9 +124,6 @@ export class Chat implements OnInit {
       this.conversations = convos;
       this.filteredConversations = [...this.conversations];
 
-      if (this.conversations.length > 0) {
-        this.setActiveConversation(this.conversations[0]);
-      }
       this.loading$.next(false);
       this.cdr.detectChanges();
 
