@@ -1,15 +1,3 @@
-<!-- Top Navigation -->
-<!--<header class="top-nav">-->
-<!--  <a routerLink="/home">-->
-<!--    <img src="assets/logo.png" alt="StudyLink Logo" class="logo-img" />-->
-<!--  </a>-->
-<!--  <nav class="top-nav-links">-->
-<!--    <a routerLink="/dashboard/home" routerLinkActive="active">Dashboard</a>-->
-<!--    <a routerLink="/sessions" routerLinkActive="active">Sessions</a>-->
-<!--    <a routerLink="/chat" routerLinkActive="active">Chat</a>-->
-<!--  </nav>-->
-<!--</header>-->
-
 <main class="dashboard">
   <!-- Welcome Section -->
   <section id="welcome-section" class="card">
@@ -24,7 +12,7 @@
     <article class="stat-card hours">
       <header class="icon">⏱</header>
       <p>
-        <strong>45h</strong><br />
+        <strong>{{ studyHours }}h</strong><br />
         <small>Study Hours</small>
       </p>
     </article>
@@ -32,23 +20,23 @@
     <article class="stat-card groups">
       <header class="icon">👥</header>
       <p>
-        <strong>3</strong><br />
-        <small>Active Groups</small>
+        <strong>{{ sessionsCount }}</strong><br />
+        <small>Sessions Log</small>
       </p>
     </article>
 
     <article class="stat-card topics">
       <header class="icon">📘</header>
       <p>
-        <strong>12</strong><br />
-        <small>Completed Topics</small>
+        <strong>{{ topicsCount }}</strong><br />
+        <small>Covered Topics</small>
       </p>
     </article>
 
     <article class="stat-card messages">
       <header class="icon">💬</header>
       <p>
-        <strong>5</strong><br />
+        <strong>{{ messagesCount }}</strong><br />
         <small>Messages</small>
       </p>
     </article>

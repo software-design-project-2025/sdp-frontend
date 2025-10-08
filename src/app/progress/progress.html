@@ -87,23 +87,18 @@
             </tr>
             </thead>
             <tbody>
-            <!-- ✅ FIX: Changed topic.topicID to topic.topicid -->
               @for (topic of topics(); track topic.topicid) {
                 <tr>
                   <td>{{ topic.title }}</td>
-                  <!-- ✅ FIX: Changed topic.courseCode to topic.course_code -->
                   <td>{{ getSubjectName(topic.course_code) }}</td>
                   <td>
-                    <!-- ✅ FIX: Use topic.topicid -->
                     @if (editingTopicId() === topic.topicid && editedTopicData()) {
                       <select class="inline-edit-input" [(ngModel)]="editedTopicData()!.status">
-                        <!-- ✅ FIX: Status values must match the interface exactly -->
                         <option value="Not Started">Not Started</option>
                         <option value="In Progress">In Progress</option>
                         <option value="Completed">Completed</option>
                       </select>
                     } @else {
-                      <!-- ✅ FIX: Class binding now correctly formats the status string -->
                       <span class="status-badge" [class]="topic.status.toLowerCase().replace(' ', '-')">{{ topic.status }}</span>
                     }
                   </td>
@@ -114,8 +109,8 @@
                       {{ topic.hours }}
                     }
                   </td>
-                  <!-- ✅ FIX: Changed topic.endDate to topic.end_date -->
-                  <td>{{ topic.end_date || 'In progress' }}</td>
+                  <!-- ✅ FIXED: Now only shows the date if the topic status is 'Completed'. -->
+                  <td>{{ topic.status === 'Completed' ? (topic.end_date | date:'mediumDate') : '-' }}</td>
                   <td class="actions-column">
                     @if (editingTopicId() === topic.topicid) {
                       <div class="action-buttons">
@@ -163,7 +158,7 @@
           </div>
           <div class="form-group">
             <label for="topicHours">Hours Spent</label>
-            <input id="topicHours" type="number" [(ngModel)]="newTopic().hours" name="hours" min="0" step="0.5">
+            <input id="topicHours" type="number" [(ngModel)]="newTopic().hours" name="hours" min="1" step="1">
           </div>
         </div>
         <div class="form-group">
