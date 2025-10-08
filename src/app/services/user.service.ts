@@ -35,4 +35,28 @@ export class UserApiService {
       { headers: this.getHeaders() }
     );
   }
+
+  patchUser(userid: string, userData: any): Observable<any> {
+    return this.http.patch(
+      `${this.url}/api/users/patch/${userid}`,
+      userData,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  postUserCourse(userid: string, courseCode: string): Observable<any> {
+    console.log("haha", courseCode);
+    return this.http.post<any>(
+      `${this.url}/api/courses/post/${userid}`,
+      {courseCode: courseCode},
+      { headers: this.getHeaders() }
+    );
+  }
+
+  deleteUserCourse(userid: string, course_code: string): Observable<any> {
+    return this.http.delete<any>(
+      `${this.url}/api/courses/delete/${userid}/${course_code}`,
+      { headers: this.getHeaders() }
+    );
+  }
 }

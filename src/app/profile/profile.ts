@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, signal, computed, OnInit, inject, Pipe, PipeTransform } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { forkJoin, of } from 'rxjs';
+import {firstValueFrom, forkJoin, of, Observable} from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { UserApiService } from '../services/user.service';
@@ -34,8 +34,8 @@ interface User {
   name: string;
   university: string;
   stats: Stat[];
+  profile_picture: string;
 }
-// ✅ ADDED: Interface for the new stats API response
 interface UserStats {
   topicsCompleted: number;
   studyHours: number;
@@ -52,7 +52,6 @@ interface UserStats {
   styleUrls: ['./profile.scss'],
 })
 export class Profile implements OnInit {
-  // Injected all necessary services
   private userApiService = inject(UserApiService);
   private academicApiService = inject(AcademicApiService);
   private authService = inject(AuthService);
@@ -60,6 +59,7 @@ export class Profile implements OnInit {
 
   // --- STATE SIGNALS ---
   isLoading = signal<boolean>(true);
+  isSaving = signal<boolean>(false);
   user = signal<User | null>(null);
   isEditing = signal(false);
 
@@ -67,6 +67,7 @@ export class Profile implements OnInit {
   availableDegrees = signal<Degree[]>([]);
   allAvailableModules = signal<Module[]>([]);
   userCourses = signal<UserCourse[]>([]);
+  originalUserCourses = signal<string[]>([]);
 
   // --- EDITING STATE SIGNALS ---
   editedDegreeId = signal(0);
@@ -89,60 +90,66 @@ export class Profile implements OnInit {
       const userProfile = await this.userService.getUserById(userId);
       const name = userProfile.name || 'User';
 
-      this.fetchFullProfileData(userId, name);
+      // This now returns a promise that can be awaited
+      await this.fetchFullProfileData(userId, name);
     } catch (err) {
       console.error("Error initializing profile:", err);
       this.isLoading.set(false);
     }
   }
 
-  fetchFullProfileData(userId: string, name: string): void {
-    forkJoin({
-      userResponse: this.userApiService.getUserById(userId).pipe(catchError(() => of(null))),
-      coursesResponse: this.userApiService.getUserCourses(userId).pipe(catchError(() => of({ courses: [] }))),
-      degreesResponse: this.academicApiService.getAllDegrees().pipe(catchError(() => of([]))),
-      modulesResponse: this.academicApiService.getAllModules().pipe(catchError(() => of([]))),
-      // ✅ ADDED: Fetching the user stats from the new endpoint
-      userStats: this.userApiService.getUserStats(userId).pipe(catchError(() => of(null)))
-    }).subscribe(({ userResponse, coursesResponse, degreesResponse, modulesResponse, userStats }) => {
-      this.availableDegrees.set(degreesResponse);
-      this.allAvailableModules.set(modulesResponse);
+  fetchFullProfileData(userId: string, name: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      forkJoin({
+        userResponse: this.userApiService.getUserById(userId).pipe(catchError(() => of(null))),
+        coursesResponse: this.userApiService.getUserCourses(userId).pipe(catchError(() => of({ courses: [] }))),
+        degreesResponse: this.academicApiService.getAllDegrees().pipe(catchError(() => of([]))),
+        modulesResponse: this.academicApiService.getAllModules().pipe(catchError(() => of([]))),
+        userStats: this.userApiService.getUserStats(userId).pipe(catchError(() => of(null)))
+      }).subscribe({
+        next: ({ userResponse, coursesResponse, degreesResponse, modulesResponse, userStats }) => {
+          this.availableDegrees.set(degreesResponse);
+          this.allAvailableModules.set(modulesResponse);
 
-      const courseCodes = coursesResponse.courses || [];
-      this.userCourses.set(
-        courseCodes.map((code: string) => ({ userid: userId, courseCode: code }))
-      );
+          const userCourseObjects: UserCourse[] = coursesResponse || [];
+          this.userCourses.set(userCourseObjects);
 
-      // ✅ Dynamically build the stats array from the API response
-      let liveStats: Stat[] = [];
-      if (userStats) {
-        liveStats = [
-          { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', value: `${userStats.studyHours}h`, label: 'Study Hours' },
-          { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>', value: String(userStats.studyPartners), label: 'Study Partners' },
-          { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>', value: String(userStats.topicsCompleted), label: 'Topics Completed' },
-          // ✅ REPLACED: "Average Rating" is now "Total Sessions"
-          { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', value: String(userStats.totalSessions), label: 'Total Sessions' }
-        ];
-      }
+          const courseCodes = userCourseObjects.map(course => course.courseCode);
+          this.originalUserCourses.set(courseCodes);
 
-      const apiUserData = Array.isArray(userResponse) ? userResponse[0] : userResponse;
-      if (apiUserData) {
-        this.user.set({
-          userId, name,
-          initials: this.getInitials(name),
-          university: "Wits University",
-          // ✅ Using the live stats instead of dummy data
-          stats: liveStats,
-          ...apiUserData
-        });
-      }
+          let liveStats: Stat[] = [];
+          if (userStats) {
+            liveStats = [
+              { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', value: `${userStats.studyHours}h`, label: 'Study Hours' },
+              { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>', value: String(userStats.studyPartners), label: 'Study Partners' },
+              { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>', value: String(userStats.topicsCompleted), label: 'Topics Completed' },
+              { svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', value: String(userStats.totalSessions), label: 'Total Sessions' }
+            ];
+          }
 
-      this.isLoading.set(false);
-    }, error => {
-      console.error("Failed to fetch profile data", error);
-      this.isLoading.set(false);
+          const apiUserData = Array.isArray(userResponse) ? userResponse[0] : userResponse;
+          if (apiUserData) {
+            this.user.set({
+              userId, name,
+              initials: this.getInitials(name),
+              university: "Wits University",
+              stats: liveStats,
+              ...apiUserData
+            });
+          }
+
+          this.isLoading.set(false);
+          resolve(); // Resolve promise on success
+        },
+        error: (error) => {
+          console.error("Failed to fetch profile data", error);
+          this.isLoading.set(false);
+          reject(error); // Reject promise on error
+        }
+      });
     });
   }
+
 
   // --- COMPUTED SIGNALS ---
   userDegreeName = computed(() => {
@@ -181,21 +188,65 @@ export class Profile implements OnInit {
     this.isEditing.set(true);
   }
 
-  saveChanges(): void {
+  // ✅ UPDATED: Rewritten to be async and to re-fetch data on success.
+  async saveChanges(): Promise<void> {
     const currentUser = this.user();
     if (!currentUser) return;
-    this.user.update(u => u ? {
-      ...u,
-      degreeid: this.editedDegreeId(),
-      yearofstudy: this.editedYearOfStudy(),
-      bio: this.editedBio(),
-    } : null);
-    const newUserCourses = this.editedSelectedModuleCodes().map(courseCode => ({
-      userid: currentUser.userId, courseCode
-    }));
-    this.userCourses.set(newUserCourses);
-    console.log("Saving data...", { user: this.user(), courses: this.userCourses() });
-    this.isEditing.set(false);
+
+    this.isSaving.set(true);
+
+    try {
+      const degreeId = this.editedDegreeId();
+      const yearOfStudy = this.editedYearOfStudy();
+      const bio = this.editedBio();
+
+      const userData = {
+        userid: currentUser.userId,
+        role: currentUser.role,
+        degreeid: Number(degreeId),
+        yearofstudy: Number(yearOfStudy),
+        bio: bio,
+        status: currentUser.status,
+        profile_picture: currentUser.profile_picture
+      };
+
+      const originalCourses = this.originalUserCourses();
+      const newCourses = this.editedSelectedModuleCodes();
+      const coursesToAdd = newCourses.filter(code => !originalCourses.includes(code));
+      const coursesToRemove = originalCourses.filter(code => !newCourses.includes(code));
+
+      const apiCalls: Observable<any>[] = [];
+
+      // Only push patchUser call if data has actually changed
+      if (currentUser.degreeid !== userData.degreeid || currentUser.yearofstudy !== userData.yearofstudy || currentUser.bio !== userData.bio) {
+        apiCalls.push(this.userApiService.patchUser(currentUser.userId, userData));
+      }
+
+      coursesToRemove.forEach(courseCode => {
+        apiCalls.push(this.userApiService.deleteUserCourse(currentUser.userId, courseCode));
+      });
+
+      coursesToAdd.forEach(courseCode => {
+        apiCalls.push(this.userApiService.postUserCourse(currentUser.userId, courseCode));
+      });
+
+      // Only run forkJoin if there are actual API calls to make
+      if (apiCalls.length > 0) {
+        await firstValueFrom(forkJoin(apiCalls));
+      }
+
+      // ✅ On success, re-fetch all profile data to ensure UI is in sync
+      await this.initializeProfile();
+
+      console.log('All changes saved successfully');
+      this.isEditing.set(false);
+
+    } catch (err) {
+      console.error('Error saving changes:', err);
+      alert('An error occurred while saving changes. Please try again.');
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
   cancelEdit(): void {
