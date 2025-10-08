@@ -1,7 +1,5 @@
-// Location: src/app/services/sessions.service.ts
-
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { Session, SessionDisplay } from '../models/session.model';
@@ -53,6 +51,7 @@ export class SessionsService {
       catchError(this.handleError<Session>('createSession'))
     );
   }
+    constructor(private http: HttpClient) {}
 
   updateSession(id: number, session: Session): Observable<Session> {
     const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
@@ -99,4 +98,49 @@ export class SessionsService {
       return of(result as T);
     };
   }
+
+  private apiUrl = 'http://localhost:8080/api/auth';
+
+    private getHeaders(): HttpHeaders {
+        return new HttpHeaders({
+        'Authorization': `Bearer ${environment.API_KEY_ADMIN}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+        });
+    }
+
+    getUpcomingSessions(userId: string): Observable<Session[]> {
+    const params = new HttpParams().set('userId', userId);
+
+    console.log('🔍 [SessionService] Calling:', `${this.apiUrl}/sessions/upcoming`);
+    console.log('🔍 [SessionService] With userId:', userId);
+
+    return this.http.get<Session[]>(`${this.apiUrl}/sessions/upcoming`, {
+        params,
+        headers: this.getHeaders()
+    });
+    }
+
+    getStudyHours(userId: string): Observable<any> {
+    const params = new HttpParams().set('userId', userId);
+
+    console.log('🔍 [SessionService] Getting study hours for user:', userId);
+
+    return this.http.get<any>(`${this.apiUrl}/sessions/study-hours`, {
+      params,
+      headers: this.getHeaders()
+    });
+  }
+
+  getSessionsCount(userId: string): Observable<any> {
+    const params = new HttpParams().set('userId', userId);
+
+    console.log('🔍 [SessionService] Getting sessions count for user:', userId);
+
+    return this.http.get<any>(`${this.apiUrl}/sessions/num-sessions`, {
+      params,
+      headers: this.getHeaders()
+    });
+  }
+
 }

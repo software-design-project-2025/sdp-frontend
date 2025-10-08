@@ -243,6 +243,7 @@ export class FindPartners implements OnInit {
   async messageOnClick(partner: User): Promise<void> {
     this.isButtonDisabled = true;
     this.isNavigating$.next(true);
+    this.chatService.setPartnerID(partner.userid);
     try{
       //this.router.navigate(['/chat']);
       const result = await firstValueFrom(this.chatService.createChat({

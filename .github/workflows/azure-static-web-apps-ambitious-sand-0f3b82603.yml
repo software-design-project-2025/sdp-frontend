@@ -87,12 +87,6 @@ jobs:
           name: coverage-report # The name of the artifact to be downloaded
           path: coverage/       # The path to the folder to upload
 
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: software-design-project-2025/sdp-frontend
-
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest

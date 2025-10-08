@@ -38,15 +38,18 @@ const mockDegrees = [
 
 const mockModules = [
   { courseCode: 'CS101', courseName: 'Intro to Programming' },
-  { courseCode: 'CS303', courseName: 'Advanced Angular' },
   { courseCode: 'DS202', courseName: 'Machine Learning Basics' },
 ];
 
 const mockUserCourses = [
   { userid: 'user-2', courseCode: 'CS101' },
-  { userid: 'user-2', courseCode: 'CS303' },
   { userid: 'user-3', courseCode: 'DS202' },
+  { userid: 'user-5', courseCode: 'CS101' },
+  { userid: 'user-7', courseCode: 'CS101' },
+  // Note: user-6 has no courses
 ];
+
+const mockChat = { chatid: 'chat-123' };
 
 describe('FindPartners', () => {
   let component: FindPartners;
@@ -61,7 +64,7 @@ describe('FindPartners', () => {
     const apiServiceSpy = jasmine.createSpyObj('ApiService', ['getDegree', 'getModule', 'getAllUserCourses', 'getUser']);
     const authServiceSpy = jasmine.createSpyObj('AuthService', ['getCurrentUser']);
     const userServiceSpy = jasmine.createSpyObj('UserService', ['getAllUsers']);
-    const chatServiceSpy = jasmine.createSpyObj('ChatService', ['createChat']);
+    const chatServiceSpy = jasmine.createSpyObj('ChatService', ['createChat', 'setPartnerID']);
 
     await TestBed.configureTestingModule({
       imports: [FindPartners, FormsModule, RouterTestingModule.withRoutes([{ path: 'chat', children: [] }])],
