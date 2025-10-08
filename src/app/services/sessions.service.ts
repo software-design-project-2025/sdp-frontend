@@ -9,59 +9,59 @@ import {environment} from '../../environments/environment.prod';
   providedIn: 'root'
 })
 export class SessionsService {
-  private apiUrl = `${environment.apiBaseUrl}`;
+  private apiUrl = `${environment.apiBaseUrl}/api/sessions`;
 
-  private getHeaders(): HttpHeaders {
-    return new HttpHeaders({
-      'Authorization': `Bearer ${environment.API_KEY_ADMIN}`,
-      'Content-Type': 'application/json'
-    });
-  }
+  // private getHeaders(): HttpHeaders {
+  //   return new HttpHeaders({
+  //     'Authorization': `Bearer ${environment.API_KEY_ADMIN}`,
+  //     'Content-Type': 'application/json'
+  //   });
+  // }
 
   constructor(private http: HttpClient) { }
 
   getSessions(): Observable<SessionDisplay[]> {
-    return this.http.get<Session[]>(this.apiUrl).pipe(
+    return this.http.get<Session[]>(this.apiUrl, { headers: this.getHeaders() }).pipe(
       map(sessions => sessions.map(s => this.convertToDisplay(s))),
       catchError(this.handleError<SessionDisplay[]>('getSessions', []))
     );
   }
 
   getSessionById(id: number): Observable<Session> {
-    return this.http.get<Session>(`${this.apiUrl}/${id}`).pipe(
+    return this.http.get<Session>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() }).pipe(
       catchError(this.handleError<Session>('getSessionById'))
     );
   }
 
   getSessionsByCreator(creatorId: string): Observable<Session[]> {
-    return this.http.get<Session[]>(`${this.apiUrl}/creator/${creatorId}`).pipe(
+    return this.http.get<Session[]>(`${this.apiUrl}/creator/${creatorId}`, { headers: this.getHeaders() }).pipe(
       catchError(this.handleError<Session[]>('getSessionsByCreator', []))
     );
   }
 
   getSessionsByGroup(groupId: number): Observable<Session[]> {
-    return this.http.get<Session[]>(`${this.apiUrl}/group/${groupId}`).pipe(
+    return this.http.get<Session[]>(`${this.apiUrl}/group/${groupId}`, { headers: this.getHeaders() }).pipe(
       catchError(this.handleError<Session[]>('getSessionsByGroup', []))
     );
   }
 
   createSession(session: any): Observable<Session> {
     const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
-    return this.http.post<Session>(this.apiUrl, session, { headers }).pipe(
+    return this.http.post<Session>(this.apiUrl, session, { headers: this.getHeaders() }).pipe(
       catchError(this.handleError<Session>('createSession'))
     );
   }
-    constructor(private http: HttpClient) {}
+    // constructor(private http: HttpClient) {}
 
   updateSession(id: number, session: Session): Observable<Session> {
     const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
-    return this.http.put<Session>(`${this.apiUrl}/${id}`, session, { headers }).pipe(
+    return this.http.put<Session>(`${this.apiUrl}/${id}`, session, { headers: this.getHeaders() }).pipe(
       catchError(this.handleError<Session>('updateSession'))
     );
   }
 
   deleteSession(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}`).pipe(
+    return this.http.delete<void>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() }).pipe(
       catchError(this.handleError<void>('deleteSession'))
     );
   }
@@ -99,7 +99,7 @@ export class SessionsService {
     };
   }
 
-  private apiUrl = 'http://localhost:8080/api/auth';
+  // private apiUrl = 'http://localhost:8080/api/auth';
 
     private getHeaders(): HttpHeaders {
         return new HttpHeaders({

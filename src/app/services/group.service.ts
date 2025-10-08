@@ -23,13 +23,13 @@ export class GroupService {
   constructor(private http: HttpClient) { }
 
   getAllGroups(): Observable<Group[]> {
-    return this.http.get<Group[]>(this.apiUrl).pipe(
+    return this.http.get<Group[]>(this.apiUrl, { headers: this.getHeaders() }).pipe(
       catchError(this.handleError<Group[]>('getAllGroups', []))
     );
   }
 
   getGroupById(id: number): Observable<Group | undefined> {
-    return this.http.get<Group>(`${this.apiUrl}/${id}`).pipe(
+    return this.http.get<Group>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() }).pipe(
       catchError(this.handleError<Group>('getGroupById'))
     );
   }
