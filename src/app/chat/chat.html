@@ -17,7 +17,10 @@
       </form>
     </section>
 
-    <nav *ngIf="!(loading | async)" class="conversations-nav" aria-label="Conversations">
+    <nav 
+      *ngIf="!(loading | async); else conversationsLoading" 
+      class="conversations-nav" 
+      aria-label="Conversations">
       <ul class="conversations-list">
         <li 
           *ngFor="let conversation of filteredConversations; trackBy: trackByConversationId" 
@@ -66,13 +69,31 @@
       </p>
     </nav>
     
-    <p *ngIf="loading | async" class="loading-conversations">
-      Loading conversations...
-    </p>
+    <ng-template #conversationsLoading>
+      <nav class="conversations-nav conversations-loading" aria-label="Conversations loading">
+        <ul class="conversations-list">
+          <li *ngFor="let item of [1,2,3,4,5]" class="conversation-item">
+            <article class="conversation-card" tabindex="0" aria-hidden="true">
+              <figure class="avatar skeleton-avatar skeleton">
+                <abbr class="avatar-initials"> </abbr>
+              </figure>
+              
+              <section class="conversation-content">
+                <header class="conversation-header">
+                  <h2 class="skeleton skeleton-text medium">Loading username</h2>
+                  <time class="skeleton skeleton-text short">00:00</time>
+                </header>
+                <p class="last-message skeleton skeleton-text long">Loading last message content</p>
+              </section>
+            </article>
+          </li>
+        </ul>
+      </nav>
+    </ng-template>
   </aside>
 
-  <section class="chat-main" *ngIf="activeConversation; else noConversation">
-    <header class="chat-header">
+  <section class="chat-main" *ngIf="activeConversation; else noConversationSelected">
+    <header class="chat-header" [class.chat-header-loading]="messagesLoading | async">
       <section class="contact-info">
         <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
           <abbr 
@@ -86,61 +107,54 @@
           <h2>{{ activeConversation.participant.name || 'Unknown User' }}</h2>
         </section>
       </section>
-      
-      <menu class="chat-actions" aria-label="Chat actions">
-        <li>
-          <button 
-            type="button" 
-            class="action-btn" 
-            aria-label="Voice call"
-            (click)="initiateCall(false)">
-            📞
-          </button>
-        </li>
-        <li>
-          <button 
-            type="button" 
-            class="action-btn" 
-            aria-label="Video call"
-            (click)="initiateCall(true)">
-            📹
-          </button>
-        </li>
-        <li>
-          <button 
-            type="button" 
-            class="action-btn" 
-            aria-label="More options"
-            (click)="showMoreOptions()">
-            ⋮
-          </button>
-        </li>
-      </menu>
     </header>
 
-    <section class="messages-container" aria-label="Chat messages">
+    <section 
+      class="messages-container" 
+      [class.messages-loading]="messagesLoading | async"
+      aria-label="Chat messages">
+      
       <article 
-        *ngFor="let message of activeConversation.messages; trackBy: trackByMessageId" 
-        class="message"
-        [class.sent]="message.type === 'sent'"
-        [class.received]="message.type === 'received'"
-        [attr.aria-label]="getMessageAriaLabel(message)">
-        <blockquote cite="#">
-          <p>{{ message.content }}</p>
-          <footer>
-            <time [attr.datetime]="message.timestamp.toISOString()">
-              {{ formatTime(message.timestamp) }}
-            </time>
-          </footer>
-        </blockquote>
+        *ngIf="(messagesLoading | async); else loadedMessages"
+        class="message-container">
+        <article *ngFor="let item of [1,2,3,4,5,6,7]" 
+                 class="message"
+                 [class.sent]="item % 2 === 0"
+                 [class.received]="item % 2 === 1"
+                 aria-hidden="true">
+          <blockquote cite="#">
+            <p class="skeleton-message skeleton">{{ item % 2 === 0 ? 'Sent message content' : 'Received message content' }}</p>
+            <footer>
+              <time class="skeleton skeleton-text short">00:00</time>
+            </footer>
+          </blockquote>
+        </article>
       </article>
       
-      <p *ngIf="activeConversation.messages.length === 0" class="no-messages">
-        No messages yet. Start the conversation!
-      </p>
+      <ng-template #loadedMessages>
+        <article 
+          *ngFor="let message of activeConversation.messages; trackBy: trackByMessageId" 
+          class="message"
+          [class.sent]="message.type === 'sent'"
+          [class.received]="message.type === 'received'"
+          [attr.aria-label]="getMessageAriaLabel(message)">
+          <blockquote cite="#">
+            <p>{{ message.content }}</p>
+            <footer>
+              <time [attr.datetime]="message.timestamp.toISOString()">
+                {{ formatTime(message.timestamp) }}
+              </time>
+            </footer>
+          </blockquote>
+        </article>
+        
+        <p *ngIf="activeConversation.messages.length === 0" class="no-messages">
+          No messages yet. Start the conversation!
+        </p>
+      </ng-template>
     </section>
 
-    <footer class="message-input-section">
+    <footer class="message-input-section" [class.message-input-loading]="messagesLoading | async">
       <form 
         [formGroup]="messageForm" 
         (ngSubmit)="sendMessage()" 
@@ -158,14 +172,14 @@
           type="submit" 
           class="send-button" 
           aria-label="Send message"
-          [disabled]="messageForm.invalid">
+          [disabled]="messageForm.invalid || (messagesLoading | async)">
           ➤
         </button>
       </form>
     </footer>
   </section>
 
-  <ng-template #noConversation>
+  <ng-template #noConversationSelected>
     <section class="no-conversation">
       <p>Select a conversation to start messaging</p>
     </section>
