@@ -17,7 +17,7 @@
     height: var(--navbar-height);
     padding: 0 2rem;
     margin: 1rem auto;
-    max-width: 1200px;
+    max-width: 1300px;
     background: var(--glass-effect);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -62,10 +62,44 @@
     flex-grow: 1;
   }
 
+  /* Add these new styles to your src/app/components/navbar/navbar.scss file */
+
+  // --- Right Side Container ---
   .navbar-right {
     display: flex;
     align-items: center;
+    gap: 0.75rem; // Add a gap between buttons
     margin-left: 2rem;
+  }
+
+  // ✨ NEW: Theme Toggle Button Styling
+  .theme-toggle-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--text-color);
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    width: 46px; // Fixed width for a circular feel
+    height: 46px; // Fixed height to match logout button padding
+    cursor: pointer;
+    transition: var(--transition);
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      background: rgba(30, 57, 50, 0.08);
+      transform: translateY(-1px);
+      border-color: var(--accent-color);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
   }
 
   // --- Logo ---
@@ -130,7 +164,7 @@
         transform: translateX(-50%);
         width: 4px;
         height: 4px;
-        background: var(--accent-color);
+        //background: var(--accent-color);
         border-radius: 50%;
       }
     }

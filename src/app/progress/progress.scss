@@ -1,5 +1,6 @@
 /* --- CSS Variable Definitions --- */
 :host {
+  --card-background: #ffffff;
   --primary-color: #4f46e5;
   --primary-hover: #4338ca;
   --text-primary: #111827;
@@ -61,7 +62,7 @@
   margin-bottom: 2rem;
 }
 .stat-card {
-  background-color: #ffffff;
+  background-color: var(--card-background);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-lg);
   padding: 1.5rem;
@@ -88,7 +89,7 @@
 
 /* --- Main Content & Tabs --- */
 .main-content {
-  background-color: #ffffff;
+  background-color: var(--card-background);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-lg);
   box-shadow: var(--card-shadow);
@@ -165,7 +166,7 @@
   justify-content: center; align-items: center; z-index: 1000;
 }
 .modal-content {
-  background-color: white; border-radius: var(--border-radius-lg);
+  background-color: var(--card-background); border-radius: var(--border-radius-lg);
   box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 500px;
   max-height: 90vh; overflow-y: auto;
 }
@@ -204,9 +205,54 @@
 }
 .modal-footer .save-btn:hover { background-color: var(--primary-hover); }
 .modal-footer .cancel-btn {
-  background-color: #ffffff; color: var(--text-secondary); border: 1px solid var(--border-color);
+  background-color: var(--card-background); color: var(--text-secondary); border: 1px solid var(--border-color);
   padding: 0.65rem 1.25rem; border-radius: var(--border-radius-md); font-weight: 500;
   cursor: pointer; transition: background-color 0.2s;
 }
 .modal-footer .cancel-btn:hover { background-color: var(--background-light); }
+
+/* 🌙 Dark Theme Overrides for Progress Page */
+:host-context(body.dark-theme) {
+  /* --- Variable Redefinitions --- */
+  --primary-color: #6e66f3;
+  --primary-hover: #5a51e6;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --border-color: rgba(255, 255, 255, 0.15);
+  --background-light: #374151; /* For inputs and hover states */
+  --background-page: #111827;
+  --card-background: #1f2937; /* The variable we added */
+  --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+  --color-blue: #60a5fa;
+  --color-purple: #a78bfa;
+  --color-green: #4ade80;
+  --color-orange: #fb923c;
+  --color-red: #f87171;
+
+  /* --- Specific Element Overrides --- */
+
+  /* Status Badges */
+  .status-badge.completed { background-color: #14532d; color: #bbf7d0; }
+  .status-badge.in-progress { background-color: #78350f; color: #fef08a; }
+  .status-badge.not-started { background-color: #374151; color: #d1d5db; }
+
+  /* Table Action Buttons */
+  .action-btn.edit, .action-btn.cancel {
+    background-color: var(--card-background);
+    color: var(--text-secondary);
+  }
+  .action-btn.edit:hover, .action-btn.cancel:hover {
+    background-color: var(--background-light);
+  }
+
+  /* Disabled Tab */
+  .tabs button.disabled-tab {
+    color: #4b5563;
+  }
+
+  /* Modal Overlay */
+  .modal-overlay {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+}
 
