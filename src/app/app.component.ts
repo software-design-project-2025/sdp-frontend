@@ -1,6 +1,7 @@
 // src/app/app.component.ts
 // import { HttpClient } from '@angular/common/http';
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { ThemeService } from './theme.service';
 import { Router, NavigationEnd, RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { filter } from 'rxjs/operators';
@@ -16,10 +17,12 @@ import {Navbar} from './navbar/navbar';
 })
 export class AppComponent {
   title = 'sdp-frontend';
+  private themeService = inject(ThemeService);
 
   showNavbar = true; // Default to false, router will set it to true on pages other than login
 
   constructor(private router: Router) {
+    this.themeService.initTheme();
     // Listen for route changes to determine if the navbar should be shown
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd)

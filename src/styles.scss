@@ -1,39 +1,64 @@
+/* src/styles.scss */
 
-// Include theming for Angular Material with `mat.theme()`.
-// This Sass mixin will define CSS variables that are used for styling Angular Material
-// components according to the Material 3 design spec.
-// Learn more about theming and how to use it for your application's
-// custom components at https://material.angular.dev/guide/theming
-@use '@angular/material' as mat;
+// 1. Define Color Variables
+// ===================================
 
-html {
-  @include mat.theme((
-    color: (
-      primary: mat.$azure-palette,
-      tertiary: mat.$blue-palette,
-    ),
-    typography: Roboto,
-    density: 0,
-  ));
+/* 💡 Default Light Theme */
+:root {
+  // General App Colors
+  --app-background: #f4f7f6;
+  --app-text: #1e3932;
+
+  // Navbar Specific Colors (from your component)
+  --navbar-bg: #ffffff;
+  --text-color: #1e3932;
+  --accent-color: #3b8270;
+  --border-color: rgba(30, 57, 50, 0.1);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --glass-effect: rgba(255, 255, 255, 0.9);
+
+  // Transitions for smooth theme changes
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 🌙 Dark Theme Overrides */
+.dark-theme {
+  // General App Colors
+  --app-background: #121212;
+  --app-text: #e0e0e0;
+
+  // Navbar Specific Colors
+  --navbar-bg: #1e1e1e;
+  --text-color: #e0e0e0;
+  --accent-color: #59c2a9; // A brighter accent for dark mode
+  --border-color: rgba(224, 224, 224, 0.15);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  --glass-effect: rgba(30, 30, 30, 0.75);
+}
+
+
+// 2. Global Styles
+// ===================================
+
+html, body {
+  height: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
-  color-scheme: light;
-
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
-
-  // Reset the user agent margin.
   margin: 0;
-}
-/* You can add global styles to this file, and also import other style files */
+  font-family: Roboto, "Helvetica Neue", sans-serif;
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+  // Apply the theme variables
+  background-color: var(--app-background);
+  color: var(--app-text);
+}
+
+// Set the color scheme for browser UI (like scrollbars)
+body {
+  color-scheme: light;
+}
+
+.dark-theme {
+  color-scheme: dark;
+}

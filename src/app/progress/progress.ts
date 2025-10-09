@@ -136,7 +136,7 @@ export class Progress implements AfterViewInit, OnDestroy {
         }
         this.topics.set(topics);
 
-        const enrolledCourseCodes = new Set(userCourses.courses);
+        const enrolledCourseCodes = new Set((userCourses || []).map((course: { courseCode: any; }) => course.courseCode));
         const enrolledSubjects = allModules
           .filter((mod: Module) => enrolledCourseCodes.has(mod.courseCode))
           .map((mod: Module) => ({ courseCode: mod.courseCode, courseName: mod.courseName }));
@@ -237,23 +237,43 @@ export class Progress implements AfterViewInit, OnDestroy {
     const canvas = this.subjectPerformanceCanvas()?.nativeElement;
     if (!canvas) return;
     const initialData = this.subjectPerformanceData();
+
+    // ✅ FIX: Use bar chart for 1-2 subjects, radar for 3+
+    const useBarChart = initialData.labels.length < 3;
+
     const chart = new Chart(canvas, {
-      type: 'radar',
+      type: useBarChart ? 'bar' : 'radar',
       data: {
         labels: initialData.labels,
         datasets: [{
           label: 'Hours Studied',
           data: initialData.data,
-          fill: true,
-          backgroundColor: 'rgba(79, 70, 229, 0.2)',
+          fill: !useBarChart,
+          backgroundColor: useBarChart
+            ? 'rgba(79, 70, 229, 0.7)'
+            : 'rgba(79, 70, 229, 0.2)',
           borderColor: 'rgb(79, 70, 229)',
+          borderWidth: useBarChart ? 1 : 2,
+          borderRadius: useBarChart ? 4 : 0,
           pointBackgroundColor: 'rgb(79, 70, 229)',
           pointBorderColor: '#fff',
           pointHoverBackgroundColor: '#fff',
           pointHoverBorderColor: 'rgb(79, 70, 229)'
         }]
       },
-      options: { responsive: true, maintainAspectRatio: false, scales: { r: { beginAtZero: true } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'bottom' }
+        },
+        scales: useBarChart
+          ? {
+            y: { beginAtZero: true, title: { display: true, text: 'Hours' } },
+            x: { title: { display: true, text: 'Subjects' } }
+          }
+          : { r: { beginAtZero: true } }
+      }
     });
     this.subjectPerformanceChart.set(chart);
   }
