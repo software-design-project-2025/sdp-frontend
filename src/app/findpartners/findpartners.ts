@@ -28,6 +28,7 @@ interface User {
   bio: string;
   degreeid: number;
   yearofstudy: number;
+  profile_picture: string | null;
 }
 interface SupabaseUser { id: string; email: string; name: string; user_metadata: { [key: string]: any }; }
 interface UserCourse { userid: string; courseCode: string; }

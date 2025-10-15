@@ -18,6 +18,12 @@ export class UserApiService {
     });
   }
 
+  private getAuthHeaders(): HttpHeaders {
+    return new HttpHeaders({
+      'Authorization': `Bearer ${environment.API_KEY_ADMIN}`
+    });
+  }
+
   getUserById(userid: string): Observable<any> {
     return this.http.get(`${this.url}/api/users/${userid}`,
       { headers: this.getHeaders() }
@@ -57,6 +63,17 @@ export class UserApiService {
     return this.http.delete<any>(
       `${this.url}/api/courses/delete/${userid}/${course_code}`,
       { headers: this.getHeaders() }
+    );
+  }
+
+  uploadProfilePicture(userId: string, file: File): Observable<any> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+
+    return this.http.put(
+      `${this.url}/api/users/${userId}/profile-picture`,
+      formData,
+      { headers: this.getAuthHeaders() }
     );
   }
 }

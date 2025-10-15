@@ -48,9 +48,13 @@
       <article *ngFor="let partner of paginatedPartners | async" class="partner-card">
         <!-- Card content remains the same -->
         <header class="card-header">
-          <div class="avatar" [style.backgroundColor]="getAvatarColor(partner.username)">
-            {{ getInitials(partner.username) }}
-          </div>
+          @if (partner.profile_picture) {
+            <img [src]="partner.profile_picture" [alt]="partner.username" class="avatar-image">
+          } @else {
+            <div class="avatar" [style.backgroundColor]="getAvatarColor(partner.username)">
+              {{ getInitials(partner.username) }}
+            </div>
+          }
           <div class="partner-info">
             <h3>{{ partner.username }}</h3>
             <p>{{ getDegreeName(partner.degreeid) }} • {{ getYearOfStudy(partner.yearofstudy) }}</p>
@@ -107,9 +111,13 @@
   <div class="profile-modal-card" (click)="$event.stopPropagation()">
     <button class="close-btn" (click)="closeProfile()">&times;</button>
     <div class="profile-header">
-      <div class="profile-avatar" [style.backgroundColor]="getAvatarColor(partner.username)">
-        {{ getInitials(partner.username) }}
-      </div>
+      @if (partner.profile_picture) {
+        <img [src]="partner.profile_picture" [alt]="partner.username" class="profile-avatar-image">
+      } @else {
+        <div class="profile-avatar" [style.backgroundColor]="getAvatarColor(partner.username)">
+          {{ getInitials(partner.username) }}
+        </div>
+      }
       <div class="profile-info">
         <h1 class="user-name">{{ partner.username }}</h1>
         <p>{{ getDegreeName(partner.degreeid) }} • {{ getYearOfStudy(partner.yearofstudy) }}</p>
