@@ -47,7 +47,7 @@
             <section class="conversation-content">
               <header class="conversation-header">
                 <h2>{{ conversation.participant.name || 'Unknown User' }}</h2>
-                <time [attr.datetime]="conversation.timestamp.toISOString()">
+                <time *ngIf="conversation.timestamp" [attr.datetime]="conversation.timestamp.toISOString()">
                   {{ formatTime(conversation.timestamp) }}
                 </time>
               </header>
@@ -74,16 +74,17 @@
         <ul class="conversations-list">
           <li *ngFor="let item of [1,2,3,4,5]" class="conversation-item">
             <article class="conversation-card" tabindex="0" aria-hidden="true">
-              <figure class="avatar skeleton-avatar skeleton">
+              <figure class="avatar skeleton skeleton-avatar">
                 <abbr class="avatar-initials"> </abbr>
               </figure>
               
               <section class="conversation-content">
                 <header class="conversation-header">
-                  <h2 class="skeleton skeleton-text medium">Loading username</h2>
-                  <time class="skeleton skeleton-text short">00:00</time>
+                  <!-- FIXED: Use separate classes instead of compound names -->
+                  <h2 class="skeleton skeleton-text skeleton-text-medium">Loading username</h2>
+                  <time class="skeleton skeleton-text skeleton-text-short">00:00</time>
                 </header>
-                <p class="last-message skeleton skeleton-text long">Loading last message content</p>
+                <p class="last-message skeleton skeleton-text skeleton-text-long">Loading last message content</p>
               </section>
             </article>
           </li>
@@ -114,20 +115,18 @@
       [class.messages-loading]="messagesLoading | async"
       aria-label="Chat messages">
       
-      <article 
-        *ngIf="(messagesLoading | async); else loadedMessages"
-        class="message-container">
+      <article *ngIf="(messagesLoading | async); else loadedMessages" class="message-container">
         <article *ngFor="let item of [1,2,3,4,5,6,7]" 
-                 class="message"
-                 [class.sent]="item % 2 === 0"
-                 [class.received]="item % 2 === 1"
-                 aria-hidden="true">
-          <blockquote cite="#">
-            <p class="skeleton-message skeleton">{{ item % 2 === 0 ? 'Sent message content' : 'Received message content' }}</p>
-            <footer>
-              <time class="skeleton skeleton-text short">00:00</time>
-            </footer>
-          </blockquote>
+                class="message"
+                [class.sent]="item % 2 === 0"
+                [class.received]="item % 2 === 1"
+                aria-hidden="true">
+          
+          <!-- FIXED: Use proper skeleton classes -->
+          <p [class]="item % 2 === 0 ? 'skeleton skeleton-message sent' : 'skeleton skeleton-message received'">
+            {{ item % 2 === 0 ? 'Sent message content' : 'Received message content' }}
+          </p>
+          <time class="skeleton skeleton-text skeleton-text-short">00:00</time>
         </article>
       </article>
       
@@ -138,14 +137,11 @@
           [class.sent]="message.type === 'sent'"
           [class.received]="message.type === 'received'"
           [attr.aria-label]="getMessageAriaLabel(message)">
-          <blockquote cite="#">
-            <p>{{ message.content }}</p>
-            <footer>
-              <time [attr.datetime]="message.timestamp.toISOString()">
-                {{ formatTime(message.timestamp) }}
-              </time>
-            </footer>
-          </blockquote>
+          
+          <p>{{ message.content }}</p>
+          <time [attr.datetime]="message.timestamp.toISOString()">
+            {{ formatTime(message.timestamp) }}
+          </time>
         </article>
         
         <p *ngIf="activeConversation.messages.length === 0" class="no-messages">

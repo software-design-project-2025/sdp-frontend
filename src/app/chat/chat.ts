@@ -31,7 +31,7 @@ interface Conversation {
   id: number;
   participant: User;
   lastMessage: string;
-  timestamp: Date;
+  timestamp: Date | null;
   unreadCount: number;
   messages: Message[];
 }
@@ -96,11 +96,14 @@ export class Chat implements OnInit {
       const userid = await this.getCurrentUserId();
       this.currentUser.userid = userid;
 
-      const convos = await this.formatConvos(userid);       
+      const convos = await this.formatConvos(userid);
+      const convosWithoutMessages = [];       
+      const convosWithMessages = [];
       const partnerID = this.chatService.getPartnerID();  
     
       for (const convo of convos) {
         const name = await this.getOtherUserName(convo);
+        
         if (name === undefined) {
           continue; //ADD PROPER ERROR HANDLING
         } else {
@@ -115,13 +118,24 @@ export class Chat implements OnInit {
         convo.messages = messages;
         if (messages.length > 0) {
           convo.timestamp = messages[messages.length-1].timestamp;
+          convosWithMessages.push(convo);
+        }
+        else{
+          convosWithoutMessages.push(convo);
         }
       }
       
-      // Sort messages by date
-      convos.sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime());
+      // Sort convos by date
+      convosWithMessages.sort((a, b) => {
+        if (!a.timestamp || !b.timestamp) return 0;
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
+      convosWithoutMessages.sort((a, b) => {
+        if (!a.timestamp || !b.timestamp) return 0;
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
 
-      this.conversations = convos;
+      this.conversations = [...convosWithMessages, ...convosWithoutMessages];
       this.filteredConversations = [...this.conversations];
 
       this.loading$.next(false);
@@ -193,7 +207,7 @@ export class Chat implements OnInit {
           },
           lastMessage: '',
           unreadCount: 0,
-          timestamp: new Date(),
+          timestamp: null,
           messages: []
         });
       }      
@@ -356,16 +370,23 @@ export class Chat implements OnInit {
 
   formatTime(date: Date): string {
     const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
     
-    if (diffInHours < 24) {
+    // Get midnight of today
+    const todayMidnight = new Date(now);
+    todayMidnight.setHours(0, 0, 0, 0);
+    
+    // Get midnight of yesterday
+    const yesterdayMidnight = new Date(todayMidnight);
+    yesterdayMidnight.setDate(yesterdayMidnight.getDate() - 1);
+    
+    if (date >= todayMidnight) {
       // Today - show time
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (diffInHours < 48) {
+    } else if (date >= yesterdayMidnight) {
       // Yesterday
-      return 'Yesterday';
+      return 'Yesterday at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else {
-      // Show date
+      // Older - show date
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
   }

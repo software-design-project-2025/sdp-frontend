@@ -301,29 +301,32 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     gap: 16px;
-    // padding-bottom to account for fixed message input
-    padding-bottom: 100px; // Adjust this value based on your message input height
+    padding-bottom: 100px; // This is crucial for the input section
 
     .message {
       max-width: 70%;
       word-wrap: break-word;
+      display: flex;
+      flex-direction: column;
 
       p {
         padding: 12px 16px;
         border-radius: 18px;
         font-size: 14px;
         line-height: 1.4;
-        margin-bottom: 4px;
+        margin-bottom: 0; // Remove bottom margin
       }
 
       time {
         font-size: 11px;
         color: $text-muted;
         display: block;
+        margin-top: 4px; // Add space between message and timestamp
       }
 
       &.sent {
         align-self: flex-end;
+        align-items: flex-end;
 
         p {
           background-color: $message-sent;
@@ -338,6 +341,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
 
       &.received {
         align-self: flex-start;
+        align-items: flex-start;
 
         p {
           background-color: $message-received;
@@ -467,20 +471,16 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 // Skeleton loading animation
-@keyframes skeleton-pulse {
+@keyframes skeleton-shimmer {
   0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
+    left: -100%;
   }
   100% {
-    opacity: 1;
+    left: 100%;
   }
 }
 
 .skeleton {
-  animation: skeleton-pulse 1.5s ease-in-out infinite;
   background-color: $border-color;
   border-radius: 4px;
   color: transparent !important;
@@ -504,19 +504,16 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 
-@keyframes skeleton-shimmer {
-  0% {
-    left: -100%;
-  }
-  100% {
-    left: 100%;
-  }
-}
-
-// Skeleton specific styles - use individual classes instead of compound selectors
+// Skeleton specific styles
 .skeleton-text {
   height: 1em;
   margin-bottom: 0.5em;
+  
+  &.skeleton-text-short { width: 60%; }
+  &.skeleton-text-medium { width: 80%; }
+  &.skeleton-text-long { width: 95%; }
+  &.skeleton-text-small { height: 0.875em; }
+  &.skeleton-text-large { height: 1.25em; }
 }
 
 .skeleton-text-short {
@@ -538,13 +535,10 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 }
 
-.skeleton-circle {
-  border-radius: 50%;
-}
-
 .skeleton-message {
   height: 3.5em;
   border-radius: 18px;
+  margin-bottom: 0;
   
   &.sent {
     align-self: flex-end;
@@ -559,7 +553,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 
-// Loading states for conversation list
+// Loading states for conversation list - FIXED
 .conversations-loading {
   .conversation-item {
     pointer-events: none;
@@ -578,12 +572,6 @@ $shadow-light: rgba(0, 0, 0, 0.1);
       }
       
       .conversation-content {
-        .conversation-header h3,
-        .conversation-header time,
-        .last-message {
-          @extend .skeleton;
-        }
-        
         .conversation-header h3 {
           @extend .skeleton-text;
           @extend .skeleton-text-medium;
@@ -604,7 +592,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 
-// Loading state for chat header
+// Loading state for chat header - FIXED
 .chat-header-loading {
   .contact-info {
     .avatar {
@@ -616,7 +604,6 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     }
     
     .contact-details h2 {
-      @extend .skeleton;
       @extend .skeleton-text;
       @extend .skeleton-text-medium;
       height: 1.25em;
@@ -624,17 +611,16 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 
-// Loading state for messages
+// Loading state for messages - FIXED
 .messages-loading {
   .message {
     p {
-      @extend .skeleton;
       background-color: $border-color !important;
       color: transparent !important;
+      @extend .skeleton-message;
     }
     
     time {
-      @extend .skeleton;
       @extend .skeleton-text;
       @extend .skeleton-text-short;
       height: 0.875em;
@@ -647,12 +633,12 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 
-// Loading state for message input
+// Loading state for message input - FIXED
 .message-input-loading {
   .message-form {
     .message-input {
-      @extend .skeleton;
       color: transparent !important;
+      @extend .skeleton;
       
       &::placeholder {
         color: transparent;
@@ -660,9 +646,9 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     }
     
     .send-button {
-      @extend .skeleton;
       background-color: $border-color !important;
       color: transparent !important;
+      @extend .skeleton;
     }
   }
 }
