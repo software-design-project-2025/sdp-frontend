@@ -238,7 +238,13 @@ export class Progress implements AfterViewInit, OnDestroy {
     if (!canvas) return;
     const initialData = this.subjectPerformanceData();
 
-    // ✅ FIX: Use bar chart for 1-2 subjects, radar for 3+
+    // Destroy existing chart instance if it exists
+    const existingChart = this.subjectPerformanceChart.set.length > 0 ? (this.subjectPerformanceChart as any)._value : null;
+    if (existingChart) {
+      existingChart.destroy();
+    }
+
+
     const useBarChart = initialData.labels.length < 3;
 
     const chart = new Chart(canvas, {
@@ -272,7 +278,15 @@ export class Progress implements AfterViewInit, OnDestroy {
             y: { beginAtZero: true, title: { display: true, text: 'Hours' } },
             x: { title: { display: true, text: 'Subjects' } }
           }
-          : { r: { beginAtZero: true } }
+          : {
+            r: {
+              beginAtZero: true,
+              // ✅ FIX: Add this ticks configuration to hide the scale numbers
+              ticks: {
+                display: false
+              }
+            }
+          }
       }
     });
     this.subjectPerformanceChart.set(chart);

@@ -189,6 +189,13 @@
       h3 { font-size: 1.125rem; font-weight: 600; margin: 0 0 0.25rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       p { font-size: 0.875rem; color: var(--text-secondary-color); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     }
+    .avatar-image {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover; // Prevents the image from stretching
+      flex-shrink: 0;
+    }
   }
 
   .description { font-size: 0.9375rem; color: var(--text-secondary-color); line-height: 1.6; margin-bottom: 1rem; flex-grow: 1; }
@@ -305,6 +312,14 @@
       flex: 1;
       .user-name { font-size: 1.75rem; font-weight: 700; margin: 0 0 0.5rem 0; }
       p { font-size: 1rem; color: var(--text-secondary-color); margin: 0; }
+    }
+    .profile-avatar-image {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover; // Prevents the image from stretching
+      flex-shrink: 0;
+      box-shadow: var(--shadow-md);
     }
     @media (max-width: 768px) { flex-direction: column; text-align: center; }
   }
