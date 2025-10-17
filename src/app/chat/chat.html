@@ -43,23 +43,22 @@
                 {{ conversation.participant.name ? conversation.participant.name.charAt(0).toUpperCase() : 'U' }}
               </abbr>
             </figure>
-            
+                        
             <section class="conversation-content">
               <header class="conversation-header">
-                <h2>{{ conversation.participant.name || 'Unknown User' }}</h2>
+                <h3>{{ conversation.participant.name || 'Unknown User' }}</h3>
                 <time *ngIf="conversation.timestamp" [attr.datetime]="conversation.timestamp.toISOString()">
                   {{ formatTime(conversation.timestamp) }}
                 </time>
+                <output 
+                  *ngIf="conversation.unreadCount > 0" 
+                  class="message-count"
+                  [attr.aria-label]="conversation.unreadCount + ' unread messages'">
+                  {{ conversation.unreadCount }}
+                </output>
               </header>
               <p class="last-message">{{ conversation.messages[conversation.messages.length-1]?.content || 'Start a conversation' }}</p>
             </section>
-            
-            <output 
-              *ngIf="conversation.unreadCount > 0" 
-              class="message-count"
-              [attr.aria-label]="conversation.unreadCount + ' unread messages'">
-              {{ conversation.unreadCount }}
-            </output>
           </article>
         </li>
       </ul>
@@ -80,8 +79,7 @@
               
               <section class="conversation-content">
                 <header class="conversation-header">
-                  <!-- FIXED: Use separate classes instead of compound names -->
-                  <h2 class="skeleton skeleton-text skeleton-text-medium">Loading username</h2>
+                  <h3 class="skeleton skeleton-text skeleton-text-medium">Loading username</h3>
                   <time class="skeleton skeleton-text skeleton-text-short">00:00</time>
                 </header>
                 <p class="last-message skeleton skeleton-text skeleton-text-long">Loading last message content</p>
@@ -111,6 +109,7 @@
     </header>
 
     <section 
+      #messagesContainer
       class="messages-container" 
       [class.messages-loading]="messagesLoading | async"
       aria-label="Chat messages">
@@ -122,7 +121,6 @@
                 [class.received]="item % 2 === 1"
                 aria-hidden="true">
           
-          <!-- FIXED: Use proper skeleton classes -->
           <p [class]="item % 2 === 0 ? 'skeleton skeleton-message sent' : 'skeleton skeleton-message received'">
             {{ item % 2 === 0 ? 'Sent message content' : 'Received message content' }}
           </p>

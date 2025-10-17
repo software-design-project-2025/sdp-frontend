@@ -17,6 +17,7 @@ export interface ChatMessage {
   message: string;
   senderid: string;
   sent_datetime: Date;
+  read_status: boolean;
 }
 
 @Injectable({
@@ -68,6 +69,17 @@ export class ChatService {
       chat,
       {headers: this.getHeaders()}
     );
+  }
+
+  updateStatus(messageid: number, read_status: boolean): Observable<void> {
+    return this.http.put<void>(
+      `${environment.apiBaseUrl}/api/chatMessage/updateStatus?messageid=${messageid}&read_status=${read_status}`,
+      null,
+      {
+        headers: this.getHeaders(),
+        responseType: 'text' as 'json'
+      }
+    )
   }
 
   setPartnerID(id: string) {

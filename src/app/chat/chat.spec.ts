@@ -13,15 +13,16 @@ const MOCK_CHATS_API = [
   { chatid: 102, user1: { userid: 'user-3' }, user2: { userid: 'user-1' } },
 ];
 const MOCK_MESSAGES_API_101 = [
-  { messageid: 1, chatid: 101, senderid: 'user-2', message: 'Hello!', sent_datetime: new Date('2025-01-01T10:00:00Z').toISOString() },
-  { messageid: 2, chatid: 101, senderid: 'user-1', message: 'Hi Alice!', sent_datetime: new Date('2025-01-01T10:01:00Z').toISOString() },
+  { messageid: 1, chatid: 101, senderid: 'user-2', message: 'Hello!', sent_datetime: new Date('2025-01-01T10:00:00Z').toISOString(), read_count : false },
+  { messageid: 2, chatid: 101, senderid: 'user-1', message: 'Hi Alice!', sent_datetime: new Date('2025-01-01T10:01:00Z').toISOString(), read_count : false },
 ];
 const MOCK_CREATED_MESSAGE: ChatMessage = { 
   messageid: 99, 
   chatid: 101, 
   senderid: MOCK_CURRENT_USER.id, 
   sent_datetime: new Date('2025-01-01T10:02:00Z') as any, 
-  message: 'Test message' 
+  message: 'Test message',
+  read_status: false
 };
 
 
@@ -100,7 +101,7 @@ describe('Chat', () => {
 
       expect(component.conversations[0].messages.length).toBe(0);
       // Timestamp should be the default new Date(), not updated
-      expect(component.conversations[0].timestamp.getFullYear()).toBe(new Date().getFullYear());
+      expect(component.conversations[0].timestamp!.getFullYear()).toBe(new Date().getFullYear());
     }));
 
     // COVERAGE: Test the branch where a participant's name can't be found

@@ -255,7 +255,10 @@ export class FindPartners implements OnInit {
     const suffixes = ['th', 'st', 'nd', 'rd'];
     return year + (suffixes[(year - 20) % 10] || suffixes[year] || suffixes[0]) + ' Year';
   };
-  async messageOnClick(partner: User): Promise<void> { /* ... existing implementation ... */ }
+  async messageOnClick(partner: User): Promise<void> {
+    this.chatService.setPartnerID(partner.userid);
+    this.router.navigate(['/chat']);
+  }
 }
 
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ChatMessage, ChatService, Chat as c } from '../services/chat.service';
 import { AuthService } from '../services/auth.service';
@@ -24,7 +24,8 @@ interface Message {
   timestamp: Date;
   senderid: string;
   content: string;
-  type: 'sent' | 'received';  
+  type: 'sent' | 'received'; 
+  read_status: boolean; 
 }
 
 interface Conversation {
@@ -46,7 +47,9 @@ interface Conversation {
   templateUrl: './chat.html',
   styleUrls: ['./chat.scss']
 })
-export class Chat implements OnInit {
+export class Chat implements OnInit, AfterViewChecked {
+  @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
+  private shouldScrollToBottom = false;
 
   // Loading states
   loading$ = new BehaviorSubject<boolean>(true);
@@ -88,6 +91,27 @@ export class Chat implements OnInit {
     });
   }
 
+  ngAfterViewChecked() {
+    if (this.shouldScrollToBottom) {
+      this.scrollToBottomSmooth();
+      this.shouldScrollToBottom = false;
+    }
+  }
+
+  private scrollToBottomSmooth(): void {
+    try {
+      if (this.messagesContainer) {
+        const element = this.messagesContainer.nativeElement;
+        element.scrollTo({
+          top: element.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    } catch (err) {
+      console.error('Error scrolling to bottom:', err);
+    }
+  }
+
   async ngOnInit(): Promise<void> {
     try {
       this.loading$.next(true);
@@ -103,7 +127,7 @@ export class Chat implements OnInit {
     
       for (const convo of convos) {
         const name = await this.getOtherUserName(convo);
-        
+
         if (name === undefined) {
           continue; //ADD PROPER ERROR HANDLING
         } else {
@@ -115,6 +139,8 @@ export class Chat implements OnInit {
         }
         
         const messages = await this.retrieveMessages(convo.id, userid); 
+        const unreadCount = this.handleUnreadCount(messages);
+        convo.unreadCount = unreadCount;
         convo.messages = messages;
         if (messages.length > 0) {
           convo.timestamp = messages[messages.length-1].timestamp;
@@ -127,10 +153,6 @@ export class Chat implements OnInit {
       
       // Sort convos by date
       convosWithMessages.sort((a, b) => {
-        if (!a.timestamp || !b.timestamp) return 0;
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-      });
-      convosWithoutMessages.sort((a, b) => {
         if (!a.timestamp || !b.timestamp) return 0;
         return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
       });
@@ -149,6 +171,17 @@ export class Chat implements OnInit {
       this.error = 'Page failed';
       this.loading$.next(false);
     }
+  }
+
+  private handleUnreadCount(messages: Message[]): number {
+    let unreadCount = 0;
+    
+    for (const message of messages){
+      if (message.read_status == false && message.senderid != this.currentUser.userid){
+        unreadCount++;
+      }
+    }
+    return unreadCount;
   }
 
   private async getCurrentUserId(): Promise<string> {
@@ -252,9 +285,15 @@ export class Chat implements OnInit {
             timestamp: utcDate,
             senderid: message.senderid,
             content: message.message,
-            type: (message.senderid === userid) ? 'sent' : 'received'
+            type: (message.senderid === userid) ? 'sent' : 'received',
+            read_status: message.read_status
           });
         }
+
+        messages.sort((a, b) => {
+          if (!a.timestamp || !b.timestamp) return 0;
+          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+        });
         
         return messages;
       }
@@ -311,17 +350,32 @@ export class Chat implements OnInit {
     });
   }
 
-  setActiveConversation(conversation: Conversation): void {
+  async setActiveConversation(conversation: Conversation): Promise<void> {
     this.messagesLoading$.next(true);
-    
+
     // Mark as read when selecting conversation
     conversation.unreadCount = 0;
     this.activeConversation = conversation;
+
+    //Mark unread messages as read
+    const updatePromises = [];
+    for (let i = conversation.messages.length - 1; i >= 0; i--) {
+      if (conversation.messages[i].read_status == false && conversation.messages[i].senderid != this.currentUser.userid) {
+        const promise = firstValueFrom(this.chatService.updateStatus(conversation.messages[i].id, true))
+        updatePromises.push(promise);
+      } else {
+        break;
+      }
+    }
     
-    // Simulate loading time for messages (you can remove this if messages load instantly)
-    setTimeout(() => {
-      this.messagesLoading$.next(false);
-    }, 500);
+    if (updatePromises.length > 0) {
+      await Promise.all(updatePromises);
+    }
+    
+    this.messagesLoading$.next(false);
+    
+    // Scroll to bottom when switching conversations
+    this.shouldScrollToBottom = true;
   }
 
   private async createMessage(chatid: number, messageContent: string): Promise<void> {
@@ -331,7 +385,8 @@ export class Chat implements OnInit {
         chatid: chatid,
         senderid: this.currentUser.userid,
         sent_datetime: new Date(),
-        message: messageContent
+        message: messageContent,
+        read_status: false
       };
       
       const result = await firstValueFrom(this.chatService.createMessage(newMessage));
@@ -354,11 +409,13 @@ export class Chat implements OnInit {
         content: messageContent,
         timestamp: new Date(),
         senderid: this.currentUser.userid,
-        type: 'sent'
+        type: 'sent',
+        read_status: false
       };
       this.messageForm.reset(); // Clear the input field
 
       this.activeConversation.messages.push(newMessage); // Add message to active conversation
+      this.shouldScrollToBottom = true;
 
       await this.createMessage(this.activeConversation.id, messageContent);
       
