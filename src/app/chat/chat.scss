@@ -164,29 +164,53 @@ $shadow-light: rgba(0, 0, 0, 0.1);
             flex: 1;
             min-width: 0;
 
-            .conversation-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 4px;
+          .conversation-header {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            grid-template-rows: auto auto;
+            column-gap: 8px;
+            row-gap: 2px;
+            align-items: start;
 
-              h3 {
-                font-size: 16px;
-                font-weight: 600;
-                color: $text-primary;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-              }
-
-              time {
-                font-size: 12px;
-                color: $text-secondary;
-                flex-shrink: 0;
-                margin-left: 8px;
-              }
+            h3 {
+              grid-column: 1;
+              grid-row: 1 / 3; // Span both rows so it doesn't shift
+              font-size: 16px;
+              font-weight: 600;
+              color: $text-primary;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              align-self: center; // Vertically center the name
             }
 
+            time {
+              grid-column: 2;
+              grid-row: 1;
+              font-size: 12px;
+              color: $text-secondary;
+              white-space: nowrap;
+            }
+
+            .message-count {
+              grid-column: 2;
+              grid-row: 2;
+              background-color: $primary-color;
+              color: white;
+              border-radius: 10px;
+              padding: 1px 6px;
+              font-size: 11px;
+              font-weight: 600;
+              min-width: 18px;
+              height: 18px;
+              text-align: center;
+              line-height: 16px; // Better vertical centering
+              justify-self: end;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+          }
             .last-message {
               font-size: 14px;
               color: $text-secondary;
@@ -195,18 +219,6 @@ $shadow-light: rgba(0, 0, 0, 0.1);
               text-overflow: ellipsis;
               margin-bottom: 4px;
             }
-          }
-
-          .message-count {
-            background-color: $primary-color;
-            color: white;
-            border-radius: 12px;
-            padding: 4px 8px;
-            font-size: 12px;
-            font-weight: 600;
-            min-width: 20px;
-            text-align: center;
-            flex-shrink: 0;
           }
         }
       }
@@ -301,29 +313,32 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     gap: 16px;
-    // padding-bottom to account for fixed message input
-    padding-bottom: 100px; // Adjust this value based on your message input height
+    padding-bottom: 100px; // This is crucial for the input section
 
     .message {
       max-width: 70%;
       word-wrap: break-word;
+      display: flex;
+      flex-direction: column;
 
       p {
         padding: 12px 16px;
         border-radius: 18px;
         font-size: 14px;
         line-height: 1.4;
-        margin-bottom: 4px;
+        margin-bottom: 0; // Remove bottom margin
       }
 
       time {
         font-size: 11px;
         color: $text-muted;
         display: block;
+        margin-top: 4px; // Add space between message and timestamp
       }
 
       &.sent {
         align-self: flex-end;
+        align-items: flex-end;
 
         p {
           background-color: $message-sent;
@@ -338,6 +353,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
 
       &.received {
         align-self: flex-start;
+        align-items: flex-start;
 
         p {
           background-color: $message-received;
@@ -467,20 +483,16 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 // Skeleton loading animation
-@keyframes skeleton-pulse {
+@keyframes skeleton-shimmer {
   0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
+    left: -100%;
   }
   100% {
-    opacity: 1;
+    left: 100%;
   }
 }
 
 .skeleton {
-  animation: skeleton-pulse 1.5s ease-in-out infinite;
   background-color: $border-color;
   border-radius: 4px;
   color: transparent !important;
@@ -504,19 +516,16 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 
-@keyframes skeleton-shimmer {
-  0% {
-    left: -100%;
-  }
-  100% {
-    left: 100%;
-  }
-}
-
-// Skeleton specific styles - use individual classes instead of compound selectors
+// Skeleton specific styles
 .skeleton-text {
   height: 1em;
   margin-bottom: 0.5em;
+  
+  &.skeleton-text-short { width: 60%; }
+  &.skeleton-text-medium { width: 80%; }
+  &.skeleton-text-long { width: 95%; }
+  &.skeleton-text-small { height: 0.875em; }
+  &.skeleton-text-large { height: 1.25em; }
 }
 
 .skeleton-text-short {
@@ -538,13 +547,10 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 }
 
-.skeleton-circle {
-  border-radius: 50%;
-}
-
 .skeleton-message {
   height: 3.5em;
   border-radius: 18px;
+  margin-bottom: 0;
   
   &.sent {
     align-self: flex-end;
@@ -559,7 +565,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 
-// Loading states for conversation list
+// Loading states for conversation list - FIXED
 .conversations-loading {
   .conversation-item {
     pointer-events: none;
@@ -578,12 +584,6 @@ $shadow-light: rgba(0, 0, 0, 0.1);
       }
       
       .conversation-content {
-        .conversation-header h3,
-        .conversation-header time,
-        .last-message {
-          @extend .skeleton;
-        }
-        
         .conversation-header h3 {
           @extend .skeleton-text;
           @extend .skeleton-text-medium;
@@ -599,12 +599,19 @@ $shadow-light: rgba(0, 0, 0, 0.1);
           @extend .skeleton-text;
           @extend .skeleton-text-long;
         }
+
+        .time-badge-wrapper {
+          .message-count {
+            @extend .skeleton;
+            visibility: hidden;
+          }
+        }
       }
     }
   }
 }
 
-// Loading state for chat header
+// Loading state for chat header - FIXED
 .chat-header-loading {
   .contact-info {
     .avatar {
@@ -616,7 +623,6 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     }
     
     .contact-details h2 {
-      @extend .skeleton;
       @extend .skeleton-text;
       @extend .skeleton-text-medium;
       height: 1.25em;
@@ -624,17 +630,22 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 
-// Loading state for messages
+.message-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
 .messages-loading {
   .message {
     p {
-      @extend .skeleton;
       background-color: $border-color !important;
       color: transparent !important;
+      @extend .skeleton-message;
     }
     
     time {
-      @extend .skeleton;
       @extend .skeleton-text;
       @extend .skeleton-text-short;
       height: 0.875em;
@@ -647,12 +658,11 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 
-// Loading state for message input
 .message-input-loading {
   .message-form {
     .message-input {
-      @extend .skeleton;
       color: transparent !important;
+      @extend .skeleton;
       
       &::placeholder {
         color: transparent;
@@ -660,9 +670,39 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     }
     
     .send-button {
-      @extend .skeleton;
       background-color: $border-color !important;
       color: transparent !important;
+      @extend .skeleton;
+    }
+  }
+}
+
+.avatar {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  .profile-avatar-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .avatar-initials {
+    color: white;
+    font-weight: 600;
+    font-size: 16px;
+    text-decoration: none;
+    
+    &.hidden {
+      display: none;
     }
   }
 }

@@ -1,9 +1,10 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ChatMessage, ChatService, Chat as c } from '../services/chat.service';
+import { ChatMessage, ChatService } from '../services/chat.service';
 import { AuthService } from '../services/auth.service';
 import { CommonModule } from '@angular/common';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
+import { UserApiService } from '../services/user.service';
 
 
 // Interface definitions
@@ -24,14 +25,15 @@ interface Message {
   timestamp: Date;
   senderid: string;
   content: string;
-  type: 'sent' | 'received';  
+  type: 'sent' | 'received'; 
+  read_status: boolean; 
 }
 
 interface Conversation {
   id: number;
   participant: User;
   lastMessage: string;
-  timestamp: Date;
+  timestamp: Date | null;
   unreadCount: number;
   messages: Message[];
 }
@@ -46,7 +48,10 @@ interface Conversation {
   templateUrl: './chat.html',
   styleUrls: ['./chat.scss']
 })
-export class Chat implements OnInit {
+export class Chat implements OnInit, AfterViewChecked {
+  @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
+  private shouldScrollToBottom = false;
+  private imageErrors = new Set<string>();
 
   // Loading states
   loading$ = new BehaviorSubject<boolean>(true);
@@ -77,6 +82,7 @@ export class Chat implements OnInit {
     private fb: FormBuilder,
     private chatService: ChatService,
     private authService: AuthService,
+    private UserService: UserApiService,
     private cdr: ChangeDetectorRef
   ) {
     this.searchForm = this.fb.group({
@@ -88,6 +94,38 @@ export class Chat implements OnInit {
     });
   }
 
+  ngAfterViewChecked() {
+    if (this.shouldScrollToBottom) {
+      this.scrollToBottomSmooth();
+      this.shouldScrollToBottom = false;
+    }
+  }
+
+  // Clean up blob URLs when component is destroyed
+  ngOnDestroy(): void {
+    // Revoke any blob URLs to prevent memory leaks
+    this.conversations.forEach(conversation => {
+      const profilePic = conversation.participant.profile_picture;
+      if (profilePic && profilePic.startsWith('blob:')) {
+        URL.revokeObjectURL(profilePic);
+      }
+    });
+  }
+
+  private scrollToBottomSmooth(): void {
+    try {
+      if (this.messagesContainer) {
+        const element = this.messagesContainer.nativeElement;
+        element.scrollTo({
+          top: element.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    } catch (err) {
+      console.error('Error scrolling to bottom:', err);
+    }
+  }
+
   async ngOnInit(): Promise<void> {
     try {
       this.loading$.next(true);
@@ -96,11 +134,15 @@ export class Chat implements OnInit {
       const userid = await this.getCurrentUserId();
       this.currentUser.userid = userid;
 
-      const convos = await this.formatConvos(userid);       
+      const convos = await this.formatConvos(userid);
+      const user = await firstValueFrom(this.UserService.getUserById(userid));
+      const convosWithoutMessages = [];       
+      const convosWithMessages = [];
       const partnerID = this.chatService.getPartnerID();  
     
       for (const convo of convos) {
         const name = await this.getOtherUserName(convo);
+
         if (name === undefined) {
           continue; //ADD PROPER ERROR HANDLING
         } else {
@@ -112,16 +154,25 @@ export class Chat implements OnInit {
         }
         
         const messages = await this.retrieveMessages(convo.id, userid); 
+        const unreadCount = this.handleUnreadCount(messages);
+        convo.unreadCount = unreadCount;
         convo.messages = messages;
         if (messages.length > 0) {
           convo.timestamp = messages[messages.length-1].timestamp;
+          convosWithMessages.push(convo);
+        }
+        else{
+          convosWithoutMessages.push(convo);
         }
       }
       
-      // Sort messages by date
-      convos.sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime());
+      // Sort convos by date
+      convosWithMessages.sort((a, b) => {
+        if (!a.timestamp || !b.timestamp) return 0;
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
 
-      this.conversations = convos;
+      this.conversations = [...convosWithMessages, ...convosWithoutMessages];
       this.filteredConversations = [...this.conversations];
 
       this.loading$.next(false);
@@ -135,6 +186,17 @@ export class Chat implements OnInit {
       this.error = 'Page failed';
       this.loading$.next(false);
     }
+  }
+
+  private handleUnreadCount(messages: Message[]): number {
+    let unreadCount = 0;
+    
+    for (const message of messages){
+      if (message.read_status == false && message.senderid != this.currentUser.userid){
+        unreadCount++;
+      }
+    }
+    return unreadCount;
   }
 
   private async getCurrentUserId(): Promise<string> {
@@ -178,6 +240,7 @@ export class Chat implements OnInit {
         }
 
         const otherUserId = isUser1Current ? chat.user2.userid : chat.user1.userid;
+        const otherUserProfilePic = isUser1Current ? chat.user2.profile_picture : chat.user1.profile_picture;
 
         convos.push({
           id: chat.chatid,
@@ -189,11 +252,11 @@ export class Chat implements OnInit {
             yearofstudy: 0,
             bio: '',
             status: '',
-            profile_picture: 'placeholder'
+            profile_picture: otherUserProfilePic || 'placeholder'
           },
           lastMessage: '',
           unreadCount: 0,
-          timestamp: new Date(),
+          timestamp: null,
           messages: []
         });
       }      
@@ -238,9 +301,15 @@ export class Chat implements OnInit {
             timestamp: utcDate,
             senderid: message.senderid,
             content: message.message,
-            type: (message.senderid === userid) ? 'sent' : 'received'
+            type: (message.senderid === userid) ? 'sent' : 'received',
+            read_status: message.read_status
           });
         }
+
+        messages.sort((a, b) => {
+          if (!a.timestamp || !b.timestamp) return 0;
+          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+        });
         
         return messages;
       }
@@ -297,17 +366,32 @@ export class Chat implements OnInit {
     });
   }
 
-  setActiveConversation(conversation: Conversation): void {
+  async setActiveConversation(conversation: Conversation): Promise<void> {
     this.messagesLoading$.next(true);
-    
+
     // Mark as read when selecting conversation
     conversation.unreadCount = 0;
     this.activeConversation = conversation;
+
+    //Mark unread messages as read
+    const updatePromises = [];
+    for (let i = conversation.messages.length - 1; i >= 0; i--) {
+      if (conversation.messages[i].read_status == false && conversation.messages[i].senderid != this.currentUser.userid) {
+        const promise = firstValueFrom(this.chatService.updateStatus(conversation.messages[i].id, true))
+        updatePromises.push(promise);
+      } else {
+        break;
+      }
+    }
     
-    // Simulate loading time for messages (you can remove this if messages load instantly)
-    setTimeout(() => {
-      this.messagesLoading$.next(false);
-    }, 500);
+    if (updatePromises.length > 0) {
+      await Promise.all(updatePromises);
+    }
+    
+    this.messagesLoading$.next(false);
+    
+    // Scroll to bottom when switching conversations
+    this.shouldScrollToBottom = true;
   }
 
   private async createMessage(chatid: number, messageContent: string): Promise<void> {
@@ -317,7 +401,8 @@ export class Chat implements OnInit {
         chatid: chatid,
         senderid: this.currentUser.userid,
         sent_datetime: new Date(),
-        message: messageContent
+        message: messageContent,
+        read_status: false
       };
       
       const result = await firstValueFrom(this.chatService.createMessage(newMessage));
@@ -340,11 +425,13 @@ export class Chat implements OnInit {
         content: messageContent,
         timestamp: new Date(),
         senderid: this.currentUser.userid,
-        type: 'sent'
+        type: 'sent',
+        read_status: false
       };
       this.messageForm.reset(); // Clear the input field
 
       this.activeConversation.messages.push(newMessage); // Add message to active conversation
+      this.shouldScrollToBottom = true;
 
       await this.createMessage(this.activeConversation.id, messageContent);
       
@@ -356,17 +443,52 @@ export class Chat implements OnInit {
 
   formatTime(date: Date): string {
     const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
     
-    if (diffInHours < 24) {
+    // Get midnight of today
+    const todayMidnight = new Date(now);
+    todayMidnight.setHours(0, 0, 0, 0);
+    
+    // Get midnight of yesterday
+    const yesterdayMidnight = new Date(todayMidnight);
+    yesterdayMidnight.setDate(yesterdayMidnight.getDate() - 1);
+    
+    if (date >= todayMidnight) {
       // Today - show time
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (diffInHours < 48) {
+    } else if (date >= yesterdayMidnight) {
       // Yesterday
-      return 'Yesterday';
+      return 'Yesterday at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else {
-      // Show date
+      // Older - show date
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
+  }
+
+  handleImageError(event: Event, conversation: any): void {
+    const imgElement = event.target as HTMLImageElement;
+    const imageUrl = conversation.participant.profile_picture;
+    
+    // Add to error tracking
+    this.imageErrors.add(imageUrl);
+    
+    // Clean up blob URL if it's a blob
+    if (imageUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(imageUrl);
+    }
+    
+    // Trigger change detection
+    this.cdr.detectChanges();
+  }
+
+  isImageLoadingError(conversation: any): boolean {
+    return this.imageErrors.has(conversation.participant.profile_picture);
+  }
+
+  onImageLoad(event: Event): void {
+    const imgElement = event.target as HTMLImageElement;
+    const imageUrl = imgElement.src;
+    
+    // Remove from error tracking if it was previously marked as failed
+    this.imageErrors.delete(imageUrl);
   }
 }

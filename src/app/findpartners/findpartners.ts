@@ -283,6 +283,7 @@ export class FindPartners implements OnInit {
 
       if (result) {
         this.router.navigate(['/chat']);
+        this.chatService.setPartnerID(partner.userid);
       } else {
         throw new Error("Chat creation did not return a successful result.");
       }
