@@ -1,7 +1,8 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core'; // Add inject
 import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../services';
+import { ThemeService } from '../theme.service';
 
 @Component({
   selector: 'app-navbar',
@@ -14,6 +15,8 @@ import { AuthService } from '../services';
 export class Navbar {
   isMenuOpen = false;
 
+  themeService = inject(ThemeService);
+
   navLinks = [
     { name: 'Dashboard', path: '/home' },
     { name: 'Find Partners', path: '/findpartners' },
@@ -24,7 +27,8 @@ export class Navbar {
   ];
 
   // Inject both AuthService and Router
-  constructor(private authService: AuthService, private router: Router) {}
+  private authService = inject(AuthService);
+  private router = inject(Router);
 
   toggleMenu(): void {
     this.isMenuOpen = !this.isMenuOpen;

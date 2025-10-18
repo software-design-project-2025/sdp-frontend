@@ -1,150 +1,448 @@
-/* --- CSS Variable Definitions --- */
+// --- Variables for a consistent and modern theme ---
 :host {
-  --primary-color: #4f46e5;
-  --primary-hover: #4338ca;
-  --primary-light: #e0e7ff;
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
-  --text-on-primary-light: #3730a3;
-  --border-color: #e5e7eb;
-  --background-light: #f9fafb;
-  --background-page: #f3f4f6;
-  --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --border-radius-md: 8px;
-  --border-radius-lg: 16px;
+  --primary-color: #6a5af9;
+  --primary-hover-color: #5a4af7;
+  --success-color: #28a745;
+  --success-hover-color: #218838;
+  --danger-color: #dc3545;
+  --danger-hover-color: #c82333;
+  --text-color-primary: #212529;
+  --text-color-secondary: #6c757d;
+  --background-color: #f8f9fa;
+  --card-background-color: #ffffff;
+  --border-color: #dee2e6;
+  --input-background-color: #f1f3f5;
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --border-radius: 12px;
+  --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+  --transition-speed: 0.2s ease-in-out;
 }
 
-/* --- Base and Loading Styles --- */
+// --- Global container styling ---
 :host {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 40px 20px;
-  background-color: var(--background-page);
   min-height: 100vh;
-  font-family: 'Inter', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--background-color);
+  padding: 2rem;
+  font-family: var(--font-family);
+  color: var(--text-color-primary);
 }
 
+// --- Loading Overlay ---
 .loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: var(--background-page);
-  z-index: 100;
-}
-.spinner {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 8px solid var(--border-color);
-  border-top-color: var(--primary-color);
-  animation: spin 1s linear infinite;
-}
-.loading-text {
-  margin-top: 1rem;
-  font-size: 1.1rem;
-  color: var(--text-secondary);
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+  z-index: 1000;
 
-/* --- Main Profile Card --- */
+  .spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .loading-text {
+    margin-top: 1rem;
+    font-size: 1rem;
+    color: var(--text-color-secondary);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// --- Main Profile Card ---
 .profile-card {
   width: 100%;
-  max-width: 950px;
-  background-color: #ffffff;
-  padding: 32px;
-  border-radius: var(--border-radius-lg);
+  max-width: 900px;
+  background: var(--card-background-color);
+  border-radius: var(--border-radius);
   box-shadow: var(--card-shadow);
-  border: 1px solid var(--border-color);
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
 }
 
-/* --- Profile Header Section --- */
+// --- Header Section ---
 .profile-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 24px;
+  gap: 1.5rem;
+
+  .profile-identity {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .profile-info {
+    .user-name {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    p {
+      color: var(--text-color-secondary);
+      margin: 0.25rem 0 0.75rem;
+    }
+
+    .meta-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-color-secondary);
+
+      svg {
+        flex-shrink: 0;
+      }
+    }
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .profile-avatar-container {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+
+    // Style for the actual image
+    .profile-avatar-image {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover; // Prevents image from stretching
+      border: 3px solid white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    // Style for the fallback initials circle
+    .profile-avatar {
+      // ... your existing .profile-avatar styles ...
+    }
+
+    // Style for the upload overlay
+    .upload-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      cursor: pointer;
+      opacity: 0;
+      transition: var(--transition-speed);
+
+      &:hover {
+        opacity: 1;
+      }
+
+      .spinner { // Spinner for when uploading
+        width: 28px;
+        height: 28px;
+        border-width: 3px;
+      }
+    }
+  }
 }
-.profile-identity {
+
+// --- Generic Button Styling ---
+button {
   display: flex;
   align-items: center;
-  gap: 24px;
-  flex-grow: 1;
-}
-.profile-avatar {
-  width: 80px; height: 80px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #a5b4fc, #4f46e5);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  border: none;
   font-weight: 600;
-  flex-shrink: 0;
-  box-shadow: 0 0 0 4px #fff;
+  cursor: pointer;
+  transition: var(--transition-speed);
+
+  svg {
+    stroke-width: 2.5px;
+  }
+
+  &.edit-profile-button {
+    background-color: #fff;
+    color: var(--text-color-primary);
+    border: 1px solid var(--border-color);
+
+    &:hover {
+      background-color: var(--background-color);
+    }
+  }
+
+  &.save-button {
+    background-color: var(--success-color);
+    color: white;
+
+    &:hover {
+      background-color: var(--success-hover-color);
+    }
+  }
+
+  &.cancel-button {
+    background-color: transparent;
+    color: var(--text-color-secondary);
+
+    &:hover {
+      background-color: var(--input-background-color);
+    }
+  }
 }
-.profile-info .user-name { margin: 0; font-size: 28px; font-weight: 700; color: var(--text-primary); }
-.profile-info p { margin: 4px 0 0; color: var(--text-secondary); font-size: 16px; }
-.profile-info .meta-info { display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap; }
-.location-info { display: flex; align-items: center; gap: 6px; }
-.location-info svg { flex-shrink: 0; }
 
-/* --- Edit Input Fields --- */
-.edit-fields-inline { display: flex; gap: 16px; width: 100%; margin: 4px 0; }
-.edit-fields-inline label { font-size: 14px; color: var(--text-secondary); font-weight: 500; margin-bottom: 4px; display: block; }
-.edit-input { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-size: 16px; width: 100%; transition: border-color 0.2s, box-shadow 0.2s; }
-.edit-input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+// --- Shared Form Field Styling ---
+.edit-input,
+.bio-textarea,
+.module-search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background-color: var(--input-background-color);
+  border: 1px solid var(--border-color);
+  font-size: 0.95rem;
+  transition: var(--transition-speed);
 
-/* --- Action Buttons --- */
-.action-buttons { display: flex; gap: 12px; flex-shrink: 0; align-items: center; }
-.edit-profile-button, .save-button, .cancel-button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: var(--border-radius-md); font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: 1px solid; font-size: 14px; white-space: nowrap; }
-.edit-profile-button { border-color: var(--border-color); background-color: #ffffff; color: #374151; }
-.edit-profile-button:hover { background-color: var(--background-light); }
-.save-button { border-color: var(--primary-color); background-color: var(--primary-color); color: white; }
-.save-button:hover { background-color: var(--primary-hover); border-color: var(--primary-hover); }
-.cancel-button { border-color: transparent; background-color: transparent; color: var(--text-secondary); }
-.cancel-button:hover { background-color: var(--background-light); }
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(106, 90, 249, 0.2);
+  }
+}
 
-/* --- Bio Section --- */
-.profile-bio-section { margin: 32px 0; }
-.profile-bio-section h2, .study-subjects-section h2 { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; }
-.profile-bio { color: var(--text-secondary); line-height: 1.6; font-size: 16px; max-width: 75ch; }
-.bio-textarea { width: 100%; min-height: 120px; padding: 12px; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-family: inherit; font-size: 16px; resize: vertical; transition: border-color 0.2s, box-shadow 0.2s; }
-.bio-textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
-.empty-state-text { color: var(--text-secondary); font-style: italic; }
+.edit-fields-inline {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
 
+  label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-color-secondary);
+    margin-bottom: 0.35rem;
+  }
+}
 
-/* --- Main Content Grid & Stats --- */
-.content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 32px; margin-top: 32px; }
-.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-.stat-card { border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 20px; text-align: center; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.stat-card:hover { transform: translateY(-4px); box-shadow: var(--card-shadow-hover); }
-.stat-icon { color: var(--primary-color); margin-bottom: 12px; }
-.stat-icon svg { width: 32px; height: 32px; margin: 0 auto; }
-.stat-card .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); margin: 0; }
-.stat-card .stat-label { color: var(--text-secondary); font-size: 14px; margin: 4px 0 0; }
+// --- Section Styling ---
+.profile-bio-section,
+.study-subjects-section {
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+  }
 
-/* --- Modules Section --- */
-.subjects-container { display: flex; flex-wrap: wrap; gap: 12px; }
-.subject-tag { background-color: var(--primary-light); color: var(--text-on-primary-light); padding: 6px 12px; border-radius: 9999px; font-size: 14px; font-weight: 500; }
-.module-search-container { margin-bottom: 16px; }
-.module-search-input { width: 100%; padding: 10px 14px; border-radius: var(--border-radius-md); border: 1px solid var(--border-color); font-size: 14px; transition: border-color 0.2s, box-shadow 0.2s; }
-.module-search-input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
-.module-selection-grid { display: grid; grid-template-columns: 1fr; gap: 12px; border: 1px solid var(--border-color); padding: 16px; border-radius: var(--border-radius-md); background-color: var(--background-light); }
-.module-checkbox-label { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; font-size: 14px; font-weight: 500; color: var(--text-primary); }
-.module-checkbox-label:hover { background-color: #f3f4f6; }
-.module-checkbox-label input[type="checkbox"] { width: 1.15em; height: 1.15em; border-radius: 4px; border: 1px solid var(--border-color); accent-color: var(--primary-color); cursor: pointer; }
+  .profile-bio,
+  .empty-state-text {
+    color: var(--text-color-secondary);
+    line-height: 1.6;
+  }
 
-/* --- Responsive Adjustments --- */
-@media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
-@media (max-width: 768px) { .profile-header { flex-direction: column; align-items: stretch; } .action-buttons { width: 100%; justify-content: flex-start; padding-top: 16px; } }
-@media (max-width: 500px) { .profile-card { padding: 24px 16px; } .profile-identity { flex-direction: column; text-align: center; gap: 16px; } .stats-grid { grid-template-columns: 1fr; } .action-buttons { flex-direction: column; } .edit-profile-button, .save-button, .cancel-button { justify-content: center; width: 100%; } }
+  .bio-textarea {
+    min-height: 120px;
+    resize: vertical;
+  }
+}
 
+// --- Main Content Grid Layout ---
+.content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2.5rem;
+}
+
+// --- Study Subjects Section ---
+.study-subjects-section {
+  .subjects-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+
+    .subject-tag {
+      background-color: var(--input-background-color);
+      color: var(--text-color-primary);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+  }
+
+  .module-search-container {
+    margin-bottom: 1.5rem;
+  }
+
+  .module-selection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+
+    .module-checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: var(--transition-speed);
+
+      &:hover {
+        background-color: var(--input-background-color);
+      }
+
+      input[type="checkbox"] {
+        accent-color: var(--primary-color);
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+}
+
+// --- Stats Section ---
+.stats-section {
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+
+    .stat-card {
+      background-color: var(--card-background-color);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 1.5rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+
+      .stat-icon svg {
+        width: 28px;
+        height: 28px;
+        color: var(--primary-color);
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-color-primary);
+      }
+
+      .stat-label {
+        font-size: 0.8rem;
+        color: var(--text-color-secondary);
+      }
+    }
+  }
+}
+
+// --- Responsive Adjustments ---
+@media (max-width: 900px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+  .stats-section {
+    order: -1; // Move stats above subjects on mobile
+  }
+}
+
+@media (max-width: 768px) {
+  :host {
+    padding: 1rem;
+  }
+  .profile-card {
+    padding: 1.5rem;
+    gap: 2rem;
+  }
+  .profile-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+
+    .profile-identity {
+      flex-direction: column;
+    }
+    .profile-info p {
+      margin-bottom: 1.5rem;
+    }
+  }
+}
+
+/* 🌙 Dark Theme Overrides for this component */
+:host-context(body.dark-theme) {
+  --primary-color: #8a7dfa;
+  --primary-hover-color: #7a6df8;
+  --success-color: #30c552;
+  --success-hover-color: #26a342;
+  --danger-color: #e54857;
+  --danger-hover-color: #d93a49;
+  --text-color-primary: #f0f0f0;
+  --text-color-secondary: #a0a0a0;
+  --background-color: #121212;      /* Match global dark background */
+  --card-background-color: #1e1e1e;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --input-background-color: #2a2a2a;
+  --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* Specific override for the loading overlay background */
+:host-context(body.dark-theme) .loading-overlay {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* Adjust button styles for better contrast in dark mode */
+:host-context(body.dark-theme) button {
+  &.edit-profile-button {
+    background-color: var(--card-background-color);
+    color: var(--text-color-primary);
+
+    &:hover {
+      background-color: var(--input-background-color);
+    }
+  }
+}

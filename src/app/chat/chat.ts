@@ -1,10 +1,11 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ChatMessage, ChatService, Chat as c } from '../services/chat.service';
+import { ChatMessage, ChatService } from '../services/chat.service';
 import { AuthService } from '../services/auth.service';
 import { CommonModule } from '@angular/common';
-import { BehaviorSubject,firstValueFrom } from 'rxjs';
-import { UserService } from '../services/supabase.service';
+import { BehaviorSubject, firstValueFrom } from 'rxjs';
+import { UserApiService } from '../services/user.service';
+
 
 // Interface definitions
 export interface User {
@@ -24,20 +25,21 @@ interface Message {
   timestamp: Date;
   senderid: string;
   content: string;
-  type: 'sent' | 'received';  
+  type: 'sent' | 'received'; 
+  read_status: boolean; 
 }
 
 interface Conversation {
   id: number;
   participant: User;
   lastMessage: string;
-  timestamp: Date;
+  timestamp: Date | null;
   unreadCount: number;
   messages: Message[];
 }
 
-@Component({ //Component function called as decorator, passing the metadata below, along with a reference to the Chat class constructor
-  selector: 'app-chat', //use this component by placing the tag <app-chat></app-chat> in any other component's HTML template.
+@Component({
+  selector: 'app-chat',
   standalone: true,
   imports: [
     CommonModule,       
@@ -46,13 +48,16 @@ interface Conversation {
   templateUrl: './chat.html',
   styleUrls: ['./chat.scss']
 })
-export class Chat implements OnInit {
-  chats: any[] = [];
-  data: any;   
+export class Chat implements OnInit, AfterViewChecked {
+  @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
+  private shouldScrollToBottom = false;
+  private imageErrors = new Set<string>();
 
-  
+  // Loading states
   loading$ = new BehaviorSubject<boolean>(true);
   loading = this.loading$.asObservable();
+  messagesLoading$ = new BehaviorSubject<boolean>(false);
+  messagesLoading = this.messagesLoading$.asObservable();
   error: string = ''; 
   
   searchForm: FormGroup;
@@ -73,11 +78,11 @@ export class Chat implements OnInit {
     profile_picture: "placeholder"
   };
 
-
   constructor(
     private fb: FormBuilder,
     private chatService: ChatService,
     private authService: AuthService,
+    private UserService: UserApiService,
     private cdr: ChangeDetectorRef
   ) {
     this.searchForm = this.fb.group({
@@ -89,76 +94,128 @@ export class Chat implements OnInit {
     });
   }
 
-  async ngOnInit(): Promise<void> {
+  ngAfterViewChecked() {
+    if (this.shouldScrollToBottom) {
+      this.scrollToBottomSmooth();
+      this.shouldScrollToBottom = false;
+    }
+  }
 
+  // Clean up blob URLs when component is destroyed
+  ngOnDestroy(): void {
+    // Revoke any blob URLs to prevent memory leaks
+    this.conversations.forEach(conversation => {
+      const profilePic = conversation.participant.profile_picture;
+      if (profilePic && profilePic.startsWith('blob:')) {
+        URL.revokeObjectURL(profilePic);
+      }
+    });
+  }
+
+  private scrollToBottomSmooth(): void {
     try {
+      if (this.messagesContainer) {
+        const element = this.messagesContainer.nativeElement;
+        element.scrollTo({
+          top: element.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    } catch (err) {
+      console.error('Error scrolling to bottom:', err);
+    }
+  }
+
+  async ngOnInit(): Promise<void> {
+    try {
+      this.loading$.next(true);
+      
       // These run sequentially
       const userid = await this.getCurrentUserId();
       this.currentUser.userid = userid;
 
-      const convos = await this.formatConvos(userid);       
-
-      for (const convo of convos){
-
+      const convos = await this.formatConvos(userid);
+      const user = await firstValueFrom(this.UserService.getUserById(userid));
+      const convosWithoutMessages = [];       
+      const convosWithMessages = [];
+      const partnerID = this.chatService.getPartnerID();  
+    
+      for (const convo of convos) {
         const name = await this.getOtherUserName(convo);
-        if (name === undefined){
+
+        if (name === undefined) {
           continue; //ADD PROPER ERROR HANDLING
-        }else{
+        } else {
           convo.participant.name = name;
         }
         
+        if (partnerID && (partnerID == convo.participant.userid)) { 
+          this.setActiveConversation(convo);
+        }
+        
         const messages = await this.retrieveMessages(convo.id, userid); 
+        const unreadCount = this.handleUnreadCount(messages);
+        convo.unreadCount = unreadCount;
         convo.messages = messages;
-        if (messages.length > 0){
+        if (messages.length > 0) {
           convo.timestamp = messages[messages.length-1].timestamp;
+          convosWithMessages.push(convo);
+        }
+        else{
+          convosWithoutMessages.push(convo);
         }
       }
-      //Sort messages by date
-      convos.sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime());
+      
+      // Sort convos by date
+      convosWithMessages.sort((a, b) => {
+        if (!a.timestamp || !b.timestamp) return 0;
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
 
-      this.conversations = convos;
+      this.conversations = [...convosWithMessages, ...convosWithoutMessages];
       this.filteredConversations = [...this.conversations];
 
-      if (this.conversations.length > 0) {
-        this.setActiveConversation(this.conversations[0]);
-      }
       this.loading$.next(false);
-      this.cdr.detectChanges();
 
-      // These run in parallel
-      await Promise.all([
-        
-      ]);
-
+      // Subscribe to search form changes
       this.searchForm.get('searchTerm')?.valueChanges.subscribe(term => {
         this.filterConversations(term);
       });
     }
-    catch{
+    catch {
       this.error = 'Page failed';
+      this.loading$.next(false);
     }
   }
 
-  private async getCurrentUserId(): Promise<string> {
+  private handleUnreadCount(messages: Message[]): number {
+    let unreadCount = 0;
+    
+    for (const message of messages){
+      if (message.read_status == false && message.senderid != this.currentUser.userid){
+        unreadCount++;
+      }
+    }
+    return unreadCount;
+  }
 
-    try{ 
+  private async getCurrentUserId(): Promise<string> {
+    try { 
       const result = await this.authService.getCurrentUser();
       const user = result.data?.user;      
       if (user) {
-        this.currentUser.userid = user.id || '';
         this.currentUser.name = user.user_metadata?.['name'] || '';
         return user.id || '';
       }
-      return '';   
     }
-    catch{
+    catch {
       this.error = 'Error retrieving current userId';
     }
     return '';
   }
 
   private async formatConvos(userid: string): Promise<Conversation[]> {
-    try{
+    try {
       const result = await firstValueFrom(this.chatService.getChatById(userid));
 
       if (!result) {
@@ -167,10 +224,9 @@ export class Chat implements OnInit {
         return [];
       }
 
-     
       const convos: Conversation[] = [];
      
-      for (const chat of result){
+      for (const chat of result) {
         let user1Id = chat.user1.userid;
         let user2Id = chat.user2.userid;
         const currentId = userid;
@@ -184,6 +240,7 @@ export class Chat implements OnInit {
         }
 
         const otherUserId = isUser1Current ? chat.user2.userid : chat.user1.userid;
+        const otherUserProfilePic = isUser1Current ? chat.user2.profile_picture : chat.user1.profile_picture;
 
         convos.push({
           id: chat.chatid,
@@ -195,51 +252,46 @@ export class Chat implements OnInit {
             yearofstudy: 0,
             bio: '',
             status: '',
-            profile_picture: 'placeholder'
+            profile_picture: otherUserProfilePic || 'placeholder'
           },
           lastMessage: '',
           unreadCount: 0,
-          timestamp: new Date(),
+          timestamp: null,
           messages: []
-        })
+        });
       }      
 
       return convos;
-      
     }
-    catch{
+    catch {
       this.error = 'Error formatting chat data';
       return [];
     }
-    
   }
 
   private async getOtherUserName(convo: Conversation): Promise<string | undefined> {
-    
-    try{
-      //Check validity of UUID
+    try {
+      // Check validity of UUID
       const result = await this.authService.getUserById(convo.participant.userid);
-      if(result){
+      if (result) {
         return result.data?.name;
       } 
-      return ''
+      return '';
     }
-    catch{
+    catch {
       this.error = 'Error retrieving other username';   
-      return ''
+      return '';
     }
   }
 
   private async retrieveMessages(chatid: number, userid: String): Promise<Message[]> {
-
-    try{
+    try {
       const result = await firstValueFrom(this.chatService.getMessagesByChatId(chatid));
       
-      if (result.length > 0){
+      if (result.length > 0) {
         const messages: Message[] = [];
         
-        for (const message of result){
-          
+        for (const message of result) {
           // Parse as UTC (assuming the stored time is in GMT+2)
           const utcDate = new Date(message.sent_datetime + "Z");
           
@@ -249,29 +301,38 @@ export class Chat implements OnInit {
             timestamp: utcDate,
             senderid: message.senderid,
             content: message.message,
-            type: (message.senderid === userid) ? 'sent' : 'received'
-
-          })
+            type: (message.senderid === userid) ? 'sent' : 'received',
+            read_status: message.read_status
+          });
         }
+
+        messages.sort((a, b) => {
+          if (!a.timestamp || !b.timestamp) return 0;
+          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+        });
         
         return messages;
- 
       }
       return [];
     }
-    catch{
+    catch {
       this.error = 'Error retrieving messages';   
       return [];
     }
   }
+
   // TrackBy functions for performance optimization
   trackByConversationId(index: number, conversation: Conversation): number {
-    // Use a combination of index and id to ensure uniqueness
-    return index; // OR return conversation.id + index;
+    return conversation.id;
   }
 
   trackByMessageId(index: number, message: Message): number {
     return message.id;
+  }
+
+  // For skeleton loading items
+  trackByIndex(index: number): number {
+    return index;
   }
 
   // Accessibility helper methods
@@ -305,38 +366,57 @@ export class Chat implements OnInit {
     });
   }
 
-  setActiveConversation(conversation: Conversation): void {
+  async setActiveConversation(conversation: Conversation): Promise<void> {
+    this.messagesLoading$.next(true);
+
     // Mark as read when selecting conversation
     conversation.unreadCount = 0;
-    
     this.activeConversation = conversation;
+
+    //Mark unread messages as read
+    const updatePromises = [];
+    for (let i = conversation.messages.length - 1; i >= 0; i--) {
+      if (conversation.messages[i].read_status == false && conversation.messages[i].senderid != this.currentUser.userid) {
+        const promise = firstValueFrom(this.chatService.updateStatus(conversation.messages[i].id, true))
+        updatePromises.push(promise);
+      } else {
+        break;
+      }
+    }
     
+    if (updatePromises.length > 0) {
+      await Promise.all(updatePromises);
+    }
+    
+    this.messagesLoading$.next(false);
+    
+    // Scroll to bottom when switching conversations
+    this.shouldScrollToBottom = true;
   }
 
-  private async createMessage(chatid: number, messageContent: string): Promise<void>{
-    try{
+  private async createMessage(chatid: number, messageContent: string): Promise<void> {
+    try {
       const newMessage: ChatMessage = {
         messageid: 0,
         chatid: chatid,
         senderid: this.currentUser.userid,
         sent_datetime: new Date(),
-        message: messageContent
-      }
+        message: messageContent,
+        read_status: false
+      };
       
       const result = await firstValueFrom(this.chatService.createMessage(newMessage));
-      //console.log(result);
-      if(!result){
+      if (!result) {
         this.error = "Failed to send message";
         console.log("Failed to send!!!");
       }
     }
-    catch{
+    catch {
       this.error = "Failed to send message";
     }
   }
 
   async sendMessage(): Promise<void> {
-    
     if (this.messageForm.valid && this.activeConversation) {
       const messageContent = this.messageForm.get('message')?.value; 
       const newMessage: Message = {
@@ -345,48 +425,70 @@ export class Chat implements OnInit {
         content: messageContent,
         timestamp: new Date(),
         senderid: this.currentUser.userid,
-        type: 'sent'
+        type: 'sent',
+        read_status: false
       };
       this.messageForm.reset(); // Clear the input field
 
       this.activeConversation.messages.push(newMessage); // Add message to active conversation
+      this.shouldScrollToBottom = true;
 
       await this.createMessage(this.activeConversation.id, messageContent);
       
       // Update last message and timestamp
       this.activeConversation.lastMessage = messageContent;
       this.activeConversation.timestamp = new Date();
-    
     }
   }
 
   formatTime(date: Date): string {
     const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
     
-    if (diffInHours < 24) {
+    // Get midnight of today
+    const todayMidnight = new Date(now);
+    todayMidnight.setHours(0, 0, 0, 0);
+    
+    // Get midnight of yesterday
+    const yesterdayMidnight = new Date(todayMidnight);
+    yesterdayMidnight.setDate(yesterdayMidnight.getDate() - 1);
+    
+    if (date >= todayMidnight) {
       // Today - show time
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (diffInHours < 48) {
+    } else if (date >= yesterdayMidnight) {
       // Yesterday
-      return 'Yesterday';
+      return 'Yesterday at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else {
-      // Show date
+      // Older - show date
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
   }
 
-  initiateCall(isVideo: boolean): void {
-    if (!this.activeConversation) return;
+  handleImageError(event: Event, conversation: any): void {
+    const imgElement = event.target as HTMLImageElement;
+    const imageUrl = conversation.participant.profile_picture;
     
-    const participantName = this.activeConversation.participant.name;
-    alert(`Initiating ${isVideo ? 'video' : 'voice'} call with ${participantName}`);
+    // Add to error tracking
+    this.imageErrors.add(imageUrl);
     
-    // In a real app, you would implement actual calling functionality here
+    // Clean up blob URL if it's a blob
+    if (imageUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(imageUrl);
+    }
+    
+    // Trigger change detection
+    this.cdr.detectChanges();
   }
 
-  showMoreOptions(): void {
-    // Implement more options functionality
-    alert('More options menu would open here');
+  isImageLoadingError(conversation: any): boolean {
+    return this.imageErrors.has(conversation.participant.profile_picture);
+  }
+
+  onImageLoad(event: Event): void {
+    const imgElement = event.target as HTMLImageElement;
+    const imageUrl = imgElement.src;
+    
+    // Remove from error tracking if it was previously marked as failed
+    this.imageErrors.delete(imageUrl);
   }
 }

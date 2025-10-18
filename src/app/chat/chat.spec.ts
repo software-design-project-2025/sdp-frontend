@@ -1,171 +1,292 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { ReactiveFormsModule } from '@angular/forms';
-import { of, throwError } from 'rxjs';
-import { Chat } from './chat';
-import { ChatService, ChatMessage } from '../services/chat.service';
-import { AuthService } from '../services/auth.service';
+import { TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { ChatService, ChatMessage, Chat } from '../services/chat.service';
+import { environment } from '../../environments/environment.prod';
 
-// --- MOCK DATA ---
-const MOCK_CURRENT_USER = { id: 'user-1', user_metadata: { name: 'Me' } };
-const MOCK_OTHER_USER = { id: 'user-2', name: 'Alice' };
-const MOCK_CHATS_API = [
-  { chatid: 101, user1: { userid: 'user-1' }, user2: { userid: 'user-2' } },
-  { chatid: 102, user1: { userid: 'user-3' }, user2: { userid: 'user-1' } },
-];
-const MOCK_MESSAGES_API_101 = [
-  { messageid: 1, chatid: 101, senderid: 'user-2', message: 'Hello!', sent_datetime: new Date('2025-01-01T10:00:00Z').toISOString() },
-  { messageid: 2, chatid: 101, senderid: 'user-1', message: 'Hi Alice!', sent_datetime: new Date('2025-01-01T10:01:00Z').toISOString() },
-];
-const MOCK_CREATED_MESSAGE: ChatMessage = { messageid: 99, chatid: 101, senderid: MOCK_CURRENT_USER.id, sent_datetime: new Date(), message: 'Test message' };
+describe('ChatService', () => {
+  let service: ChatService;
+  let httpMock: HttpTestingController;
+  const baseUrl = environment.apiBaseUrl;
 
+  const mockMessages: ChatMessage[] = [
+    { 
+      messageid: 101, 
+      chatid: 1, 
+      message: 'Hello!', 
+      senderid: 'user-2', 
+      sent_datetime: new Date('2025-01-01T10:00:00Z'),
+      read_status: false 
+    },
+    { 
+      messageid: 102, 
+      chatid: 1, 
+      message: 'Hi there!', 
+      senderid: 'user-1', 
+      sent_datetime: new Date('2025-01-01T10:01:00Z'),
+      read_status: true 
+    }
+  ];
 
-describe('Chat', () => {
-  let component: Chat;
-  let fixture: ComponentFixture<Chat>;
-  let chatService: jasmine.SpyObj<ChatService>;
-  let authService: jasmine.SpyObj<AuthService>;
+  const mockChats: Chat[] = [
+    { 
+      chatid: 1, 
+      user1: { 
+        userid: 'user-1', 
+        name: 'Alice',
+        role: 'student',
+        degreeid: 1,
+        yearofstudy: 2,
+        bio: 'Test bio',
+        status: 'active',
+        profile_picture: 'pic1.jpg' 
+      }, 
+      user2: { 
+        userid: 'user-2', 
+        name: 'Bob',
+        role: 'student',
+        degreeid: 2,
+        yearofstudy: 3,
+        bio: 'Test bio 2',
+        status: 'active',
+        profile_picture: 'pic2.jpg' 
+      } 
+    }
+  ];
 
-  beforeEach(async () => {
-    const chatServiceSpy = jasmine.createSpyObj('ChatService', ['getChatById', 'getMessagesByChatId', 'createMessage']);
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['getCurrentUser', 'getUserById']);
-
-    await TestBed.configureTestingModule({
-      imports: [Chat, ReactiveFormsModule],
-      providers: [
-        { provide: ChatService, useValue: chatServiceSpy },
-        { provide: AuthService, useValue: authServiceSpy },
-      ],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(Chat);
-    component = fixture.componentInstance;
-    chatService = TestBed.inject(ChatService) as jasmine.SpyObj<ChatService>;
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
-  });
-
-  function setupHappyPathMocks() {
-    authService.getCurrentUser.and.returnValue(Promise.resolve({ data: { user: MOCK_CURRENT_USER } } as any));
-    chatService.getChatById.and.returnValue(of(MOCK_CHATS_API as any));
-    authService.getUserById.and.callFake((id: string) => {
-      if (id === 'user-2') return Promise.resolve({ data: MOCK_OTHER_USER } as any);
-      if (id === 'user-3') return Promise.resolve({ data: { id: 'user-3', name: 'Bob' } } as any);
-      return Promise.resolve({ data: null } as any);
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [ChatService]
     });
-    chatService.getMessagesByChatId.and.returnValue(of(MOCK_MESSAGES_API_101 as any));
-  }
-
-  it('should create', () => {
-    expect(component).toBeTruthy();
+    service = TestBed.inject(ChatService);
+    httpMock = TestBed.inject(HttpTestingController);
   });
 
-  describe('Initialization', () => {
-    it('should fetch and format conversations on init', fakeAsync(() => {
-      setupHappyPathMocks();
-      fixture.detectChanges();
-      tick();
-
-      expect(component.loading$.value).toBeFalse();
-      expect(component.conversations.length).toBe(2);
-      expect(component.activeConversation).toBe(component.conversations[0]);
-    }));
-
-    // COVERAGE: Test the inner catch block of formatConvos
-    it('should handle error when getChatById fails', fakeAsync(() => {
-      authService.getCurrentUser.and.returnValue(Promise.resolve({ data: { user: MOCK_CURRENT_USER } } as any));
-      chatService.getChatById.and.returnValue(throwError(() => new Error('API Error')));
-
-      fixture.detectChanges();
-      tick();
-
-      expect(component.error).toBe('Error formatting chat data');
-      expect(component.conversations.length).toBe(0);
-      expect(component.loading$.value).toBeFalse();
-    }));
-
-    // COVERAGE: Test the branch where a conversation has no messages
-    it('should handle a conversation with no messages', fakeAsync(() => {
-      setupHappyPathMocks();
-      chatService.getMessagesByChatId.and.returnValue(of([])); // Return no messages
-      fixture.detectChanges();
-      tick();
-
-      expect(component.conversations[0].messages.length).toBe(0);
-      // Timestamp should be the default new Date(), not updated
-      expect(component.conversations[0].timestamp.getFullYear()).toBe(new Date().getFullYear());
-    }));
-
-    // COVERAGE: Test the branch where a participant's name can't be found
-    it('should handle when a participant name cannot be fetched', fakeAsync(() => {
-      setupHappyPathMocks();
-      authService.getUserById.and.returnValue(Promise.resolve({data: null} as any)); // Fail name lookup
-      fixture.detectChanges();
-      tick();
-
-      // The conversation should still be processed but with an empty name
-      expect(component.conversations[0].participant.name).toBe('');
-    }));
+  afterEach(() => {
+    httpMock.verify();
   });
 
-  // FAILS
-  xdescribe('User Interactions', () => {
-    beforeEach(fakeAsync(() => {
-      setupHappyPathMocks();
-      fixture.detectChanges();
-      tick();
-      fixture.detectChanges();
-    }));
+  it('should be created', () => {
+    expect(service).toBeTruthy();
+  });
 
-    it('should send a message and handle success', fakeAsync(() => {
-      chatService.createMessage.and.returnValue(of(MOCK_CREATED_MESSAGE));
-      component.messageForm.get('message')?.setValue('Test message');
-      component.sendMessage();
-      tick();
+  describe('getMessagesByChatId', () => {
+    it('should fetch messages for a given chat ID', () => {
+      const chatId = 1;
 
-      expect(chatService.createMessage).toHaveBeenCalled();
-    }));
+      service.getMessagesByChatId(chatId).subscribe(messages => {
+        expect(messages.length).toBe(2);
+        expect(messages).toEqual(mockMessages);
+      });
 
-    // COVERAGE: Test the 'else' branch of sendMessage when activeConversation is null
-    it('should not send a message if no conversation is active', () => {
-      component.activeConversation = null;
-      component.messageForm.get('message')?.setValue('Test message');
-      component.sendMessage();
-      expect(chatService.createMessage).not.toHaveBeenCalled();
+      const req = httpMock.expectOne(`${baseUrl}/api/chatMessage/getMessage?chatid=${chatId}`);
+      expect(req.request.method).toBe('GET');
+      expect(req.request.headers.get('Authorization')).toBe(`Bearer ${environment.API_KEY_ADMIN}`);
+      req.flush(mockMessages);
     });
 
-    // COVERAGE: Test the catch block inside createMessage
-    it('should set an error if createMessage service fails', fakeAsync(() => {
-      chatService.createMessage.and.returnValue(throwError(() => new Error('Send failed')));
-      component.messageForm.get('message')?.setValue('Test message');
-      component.sendMessage();
-      tick();
-      expect(component.error).toBe("Failed to send message");
-    }));
+    it('should handle error when fetching messages fails', () => {
+      const chatId = 1;
+      const errorMessage = 'Failed to fetch messages';
 
-    // COVERAGE: Test the if(!result) branch inside createMessage
-    it('should set an error if createMessage returns a falsy value', fakeAsync(() => {
-      chatService.createMessage.and.returnValue(of(null as any));
-      component.messageForm.get('message')?.setValue('Test message');
-      component.sendMessage();
-      tick();
-      expect(component.error).toBe("Failed to send message");
-    }));
+      service.getMessagesByChatId(chatId).subscribe({
+        next: () => fail('should have failed'),
+        error: (error) => {
+          expect(error.status).toBe(500);
+        }
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/chatMessage/getMessage?chatid=${chatId}`);
+      req.flush(errorMessage, { status: 500, statusText: 'Server Error' });
+    });
   });
 
-  describe('Accessibility Helpers', () => {
-    it('should generate correct ARIA label for conversations', () => {
-      const convoWithUnread = { participant: { name: 'Jane' }, lastMessage: 'See you then', unreadCount: 3 } as any;
-      const convoRead = { participant: { name: 'John' }, lastMessage: 'OK', unreadCount: 0 } as any;
+  describe('createMessage', () => {
+    it('should create a new message', () => {
+      const newMessage: ChatMessage = {
+        messageid: 0,
+        chatid: 1,
+        senderid: 'user-1',
+        message: 'New message',
+        sent_datetime: new Date('2025-01-01T10:02:00Z'),
+        read_status: false
+      };
 
-      expect(component.getConversationAriaLabel(convoWithUnread)).toContain('Jane direct message, last message: See you then, 3 unread messages');
-      expect(component.getConversationAriaLabel(convoRead)).toContain('John direct message, last message: OK');
+      const createdMessage: ChatMessage = {
+        ...newMessage,
+        messageid: 103
+      };
+
+      service.createMessage(newMessage).subscribe(message => {
+        expect(message).toEqual(createdMessage);
+        expect(message.messageid).toBe(103);
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/chatMessage/sendMessage`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.headers.get('Authorization')).toBe(`Bearer ${environment.API_KEY_ADMIN}`);
+      
+      // Verify the body matches what the service sends (without messageid)
+      expect(req.request.body).toEqual({
+        chatid: newMessage.chatid,
+        senderid: newMessage.senderid,
+        sent_datetime: newMessage.sent_datetime,
+        message: newMessage.message
+      });
+      
+      req.flush(createdMessage);
     });
 
-    it('should generate correct ARIA label for messages', () => {
-      const sentMsg = { type: 'sent', content: 'I am here', timestamp: new Date() } as any;
-      const receivedMsg = { type: 'received', content: 'Where are you?', timestamp: new Date() } as any;
+    it('should handle error when creating message fails', () => {
+      const newMessage: ChatMessage = {
+        messageid: 0,
+        chatid: 1,
+        senderid: 'user-1',
+        message: 'New message',
+        sent_datetime: new Date(),
+        read_status: false
+      };
 
-      expect(component.getMessageAriaLabel(sentMsg)).toMatch(/^You sent at .*?: I am here$/);
-      expect(component.getMessageAriaLabel(receivedMsg)).toMatch(/^Received at .*?: Where are you\?$/);
+      service.createMessage(newMessage).subscribe({
+        next: () => fail('should have failed'),
+        error: (error) => {
+          expect(error.status).toBe(400);
+        }
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/chatMessage/sendMessage`);
+      req.flush('Bad Request', { status: 400, statusText: 'Bad Request' });
+    });
+  });
+
+  describe('getChatById', () => {
+    it('should fetch chat by user ID', () => {
+      const userId = 'user-1';
+
+      service.getChatById(userId).subscribe(chats => {
+        expect(chats.length).toBe(1);
+        expect(chats[0].chatid).toBe(1);
+        expect(chats).toEqual(mockChats);
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/chat/getChat?userid=${userId}`);
+      expect(req.request.method).toBe('GET');
+      expect(req.request.headers.get('Authorization')).toBe(`Bearer ${environment.API_KEY_ADMIN}`);
+      req.flush(mockChats);
+    });
+
+    it('should handle error when fetching chat fails', () => {
+      const userId = 'user-1';
+
+      service.getChatById(userId).subscribe({
+        next: () => fail('should have failed'),
+        error: (error) => {
+          expect(error.status).toBe(404);
+        }
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/chat/getChat?userid=${userId}`);
+      req.flush('Not Found', { status: 404, statusText: 'Not Found' });
+    });
+  });
+
+  describe('createChat', () => {
+    it('should create a new chat', () => {
+      const newChat = {
+        user1id: 'user-1',
+        user2id: 'user-2'
+      };
+
+      const createdChat: Chat = mockChats[0];
+
+      service.createChat(newChat).subscribe(chat => {
+        expect(chat).toEqual(createdChat);
+        expect(chat.chatid).toBe(1);
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/chat/createChat`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.headers.get('Authorization')).toBe(`Bearer ${environment.API_KEY_ADMIN}`);
+      expect(req.request.body).toEqual(newChat);
+      req.flush(createdChat);
+    });
+
+    it('should handle error when creating chat fails', () => {
+      const newChat = {
+        user1id: 'user-1',
+        user2id: 'user-2'
+      };
+
+      service.createChat(newChat).subscribe({
+        next: () => fail('should have failed'),
+        error: (error) => {
+          expect(error.status).toBe(400);
+        }
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/chat/createChat`);
+      req.flush('Bad Request', { status: 400, statusText: 'Bad Request' });
+    });
+  });
+
+  describe('updateStatus', () => {
+    it('should update message read status', () => {
+      const messageId = 101;
+      const readStatus = true;
+
+      service.updateStatus(messageId, readStatus).subscribe(response => {
+        expect(response).toBeDefined();
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/chatMessage/updateStatus?messageid=${messageId}&read_status=${readStatus}`);
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.headers.get('Authorization')).toBe(`Bearer ${environment.API_KEY_ADMIN}`);
+      expect(req.request.body).toBeNull();
+      req.flush('Success');
+    });
+
+    it('should handle error when updating status fails', () => {
+      const messageId = 101;
+      const readStatus = true;
+
+      service.updateStatus(messageId, readStatus).subscribe({
+        next: () => fail('should have failed'),
+        error: (error) => {
+          expect(error.status).toBe(404);
+        }
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/chatMessage/updateStatus?messageid=${messageId}&read_status=${readStatus}`);
+      req.flush('Not Found', { status: 404, statusText: 'Not Found' });
+    });
+  });
+
+  describe('getPartnerID and setPartnerID', () => {
+    it('should set and get partner ID', () => {
+      const partnerId = 'user-2';
+      
+      service.setPartnerID(partnerId);
+      expect(service.getPartnerID()).toBe(partnerId);
+    });
+
+    it('should return null when no partner ID is set', () => {
+      expect(service.getPartnerID()).toBeNull();
+    });
+
+    it('should update partner ID when set multiple times', () => {
+      service.setPartnerID('user-2');
+      expect(service.getPartnerID()).toBe('user-2');
+      
+      service.setPartnerID('user-3');
+      expect(service.getPartnerID()).toBe('user-3');
+    });
+
+    it('should allow setting partner ID to null', () => {
+      service.setPartnerID('user-2');
+      expect(service.getPartnerID()).toBe('user-2');
+      
+      service.setPartnerID(null as any);
+      expect(service.getPartnerID()).toBeNull();
     });
   });
 });

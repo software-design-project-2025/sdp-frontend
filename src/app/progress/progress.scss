@@ -1,212 +1,405 @@
-/* --- CSS Variable Definitions --- */
+/* ---
+  Progress Tracker Page SCSS
+  Styled to match the profile page for a consistent user experience.
+--- */
+
+// --- 1. Theme Variables & Design Tokens ---
+// Adopted from profile.scss for consistency
 :host {
-  --primary-color: #4f46e5;
-  --primary-hover: #4338ca;
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
-  --border-color: #e5e7eb;
-  --background-light: #f9fafb;
-  --background-page: #f3f4f6;
-  --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
-  --border-radius-lg: 12px;
-  --border-radius-md: 8px;
-  --color-blue: #3b82f6;
-  --color-purple: #8b5cf6;
-  --color-green: #22c55e;
-  --color-orange: #f97316;
-  --color-red: #ef4444;
+  --primary-color: #6a5af9;
+  --primary-hover-color: #5a4af7;
+  --success-color: #28a745;
+  --success-hover-color: #218838;
+  --danger-color: #dc3545;
+  --danger-hover-color: #c82333;
+  --text-color-primary: #212529;
+  --text-color-secondary: #6c757d;
+  --background-color: #f8f9fa;
+  --card-background-color: #ffffff;
+  --border-color: #dee2e6;
+  --input-background-color: #f1f3f5;
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --border-radius: 12px;
+  --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+  --transition-speed: 0.2s ease-in-out;
 }
 
-/* --- Base Styles --- */
-.progress-container {
-  font-family: 'Inter', sans-serif;
-  background-color: var(--background-page);
+// --- 2. Global Page Layout ---
+:host {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  background-color: var(--background-color);
   padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  font-family: var(--font-family);
+  color: var(--text-color-primary);
 }
 
-/* --- Header --- */
+// --- 3. Main Progress Card Container ---
+// This now acts like the .profile-card
+.progress-container {
+  width: 100%;
+  max-width: 1100px; // Slightly wider for progress layout
+  background: var(--card-background-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem; // Consistent spacing between internal sections
+  position: relative; // For the loading overlay
+}
+
+// --- 4. Loading Overlay & Spinner ---
+.loading-overlay {
+  position: absolute; // Contained within the main card
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  border-radius: var(--border-radius); // Match parent card's corners
+
+  .spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// --- 5. Page Header ---
 .progress-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+
+  h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0;
+  }
 }
-.progress-header h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-.log-progress-btn {
+
+// --- 6. Generic Button Styling ---
+button {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: var(--primary-color);
-  color: white;
-  padding: 0.75rem 1.25rem;
-  border: none;
-  border-radius: var(--border-radius-md);
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
-}
-.log-progress-btn:hover { background-color: var(--primary-hover); }
+  transition: var(--transition-speed);
+  font-family: inherit;
 
-/* --- Stat Cards --- */
+  svg {
+    stroke-width: 2.5px;
+  }
+}
+
+.log-progress-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+
+  &:hover {
+    background-color: var(--primary-hover-color);
+  }
+}
+
+// --- 7. Statistics Cards Section ---
 .stat-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
-  margin-bottom: 2rem;
 }
+
 .stat-card {
-  background-color: #ffffff;
+  background-color: var(--card-background-color); // This is now inside the main card
   border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-lg);
+  border-radius: var(--border-radius);
   padding: 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  box-shadow: var(--card-shadow);
-}
-.card-content .card-label { color: var(--text-secondary); margin: 0 0 0.5rem; }
-.card-content .card-value { font-size: 2rem; font-weight: 700; color: var(--text-primary); margin: 0; }
-.card-content .card-change { margin: 0.5rem 0 0; font-weight: 500; }
-.card-content .card-change.record { color: var(--color-green); }
-.card-icon {
-  width: 48px; height: 48px; border-radius: 50%; display: flex;
-  align-items: center; justify-content: center; color: white;
-}
-.stat-card.blue .card-icon { background-color: var(--color-blue); }
-.stat-card.blue .card-change { color: var(--color-blue); }
-.stat-card.purple .card-icon { background-color: var(--color-purple); }
-.stat-card.purple .card-change { color: var(--color-purple); }
-.stat-card.green .card-icon { background-color: var(--color-green); }
-.stat-card.orange .card-icon { background-color: var(--color-orange); }
-.stat-card.orange .card-change { color: var(--color-orange); }
+  transition: var(--transition-speed);
 
-/* --- Main Content & Tabs --- */
-.main-content {
-  background-color: #ffffff;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-lg);
-  box-shadow: var(--card-shadow);
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+
+  .card-label {
+    font-size: 0.9rem;
+    color: var(--text-color-secondary);
+    margin: 0 0 0.5rem 0;
+  }
+  .card-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+  }
+  .card-icon svg {
+    width: 28px;
+    height: 28px;
+    color: var(--primary-color);
+  }
 }
+
+
+// --- 8. Main Content (Tabs, Charts, Tables) ---
 .tabs {
-  display: flex; border-bottom: 1px solid var(--border-color); padding: 0 1.5rem;
-}
-.tabs button {
-  padding: 1rem 0.5rem; margin: 0 1rem -1px 0; font-size: 1rem; font-weight: 600;
-  color: var(--text-secondary); background: none; border: none;
-  border-bottom: 3px solid transparent; cursor: pointer; transition: color 0.2s, border-color 0.2s;
-}
-.tabs button:hover { color: var(--primary-color); }
-.tabs button.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
-.tabs button.disabled-tab { color: #d1d5db; cursor: not-allowed; }
-.tab-content { padding: 2rem; }
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 2rem;
 
-/* --- Overview & Subjects Tab --- */
-.overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
-.chart-container {
-  border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 1.5rem;
-}
-.chart-container.full-width { grid-column: 1 / -1; }
-.chart-container h3, .topics-container h3 { margin: 0 0 1.5rem; font-size: 1.25rem; }
+  button {
+    padding: 0.75rem 0.25rem;
+    margin: 0 1.5rem -1px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color-secondary);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
 
-/* ✅ ADDED: Styles for chart wrapper to control size */
+    &:hover:not(.active) {
+      color: var(--text-color-primary);
+    }
+    &.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+    &.disabled-tab {
+      color: #adb5bd;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.chart-container, .topics-container {
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 1.5rem;
+  }
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
 .chart-wrapper {
   position: relative;
   height: 300px;
+  &.tall { height: 400px; }
+}
+
+// --- 9. Topics Table Styling ---
+.topics-table {
   width: 100%;
-}
-.chart-wrapper.tall {
-  height: 400px;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+
+  th, td {
+    padding: 1rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+  }
+
+  thead th {
+    font-weight: 600;
+    color: var(--text-color-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  tbody tr:hover {
+    background-color: var(--background-color);
+  }
+
+  .status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    &.completed { background-color: rgba(40, 167, 69, 0.1); color: #218838; }
+    &.in-progress { background-color: rgba(255, 193, 7, 0.15); color: #b98900; }
+    &.not-started { background-color: var(--input-background-color); color: var(--text-color-secondary); }
+  }
+
+  .actions-column { text-align: right; }
 }
 
-/* --- Topics Tab --- */
-.topics-table { width: 100%; border-collapse: collapse; }
-.topics-table th, .topics-table td {
-  padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color);
-}
-.topics-table th { font-weight: 600; color: var(--text-secondary); }
-.topics-table .actions-column { width: 150px; text-align: right; }
-.status-badge {
-  padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: 600;
-  font-size: 0.8rem; text-transform: capitalize;
-}
-.status-badge.completed { background-color: #dcfce7; color: #166534; }
-.status-badge.in-progress { background-color: #fef9c3; color: #854d0e; }
-.status-badge.not-started { background-color: #f3f4f6; color: #4b5563; }
-
-/* Inline Editing in Table */
 .inline-edit-input {
-  padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px;
-  font-size: 0.9rem; background-color: var(--background-light);
-}
-.inline-edit-input:focus { outline: 2px solid var(--primary-color); }
-.hours-input { width: 80px; }
-.action-buttons { display: flex; gap: 0.5rem; justify-content: flex-end; }
-.action-btn {
-  padding: 5px 10px; font-size: 0.8rem; font-weight: 600;
-  border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;
-  transition: background-color 0.2s;
-}
-.action-btn.edit { background-color: white; color: var(--text-secondary); }
-.action-btn.edit:hover { background-color: var(--background-light); }
-.action-btn.save { background-color: var(--color-green); color: white; border-color: var(--color-green); }
-.action-btn.cancel { background-color: white; color: var(--text-secondary); }
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background-color: var(--card-background-color);
+  border: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  transition: var(--transition-speed);
 
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(106, 90, 249, 0.2);
+  }
+  &.hours-input { max-width: 80px; }
+}
 
-/* --- Log Progress Modal --- */
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+
+  .action-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    &.edit { background-color: transparent; color: var(--text-color-secondary); border: 1px solid var(--border-color); &:hover { background-color: var(--input-background-color); } }
+    &.save { background-color: var(--success-color); color: white; &:hover { background-color: var(--success-hover-color); } }
+    &.cancel { background-color: transparent; color: var(--text-color-secondary); &:hover { background-color: var(--input-background-color); } }
+  }
+}
+
+// --- 10. Log Progress Modal ---
 .modal-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(17, 24, 39, 0.6); display: flex;
-  justify-content: center; align-items: center; z-index: 1000;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
 }
-.modal-content {
-  background-color: white; border-radius: var(--border-radius-lg);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 500px;
-  max-height: 90vh; overflow-y: auto;
-}
-.modal-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color);
-}
-.modal-header h2 { font-size: 1.25rem; font-weight: 600; margin: 0; }
-.close-btn {
-  background: none; border: none; font-size: 1.5rem; color: var(--text-secondary);
-  cursor: pointer; line-height: 1;
-}
-.modal-form { padding: 1.5rem; }
-.form-row { display: flex; gap: 1rem; }
-.form-row .form-group { flex: 1; }
-.form-group { margin-bottom: 1.25rem; }
-.form-group label {
-  display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary);
-}
-.form-group input, .form-group select, .form-group textarea {
-  width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-md); font-size: 1rem;
-}
-.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-  outline: none; border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
-}
-.modal-footer {
-  display: flex; justify-content: flex-end; gap: 0.75rem;
-  padding: 1rem 1.5rem; border-top: 1px solid var(--border-color);
-}
-.modal-footer .save-btn {
-  background-color: var(--primary-color); color: white; border: none;
-  padding: 0.65rem 1.25rem; border-radius: var(--border-radius-md); font-weight: 500;
-  cursor: pointer; transition: background-color 0.2s;
-}
-.modal-footer .save-btn:hover { background-color: var(--primary-hover); }
-.modal-footer .cancel-btn {
-  background-color: #ffffff; color: var(--text-secondary); border: 1px solid var(--border-color);
-  padding: 0.65rem 1.25rem; border-radius: var(--border-radius-md); font-weight: 500;
-  cursor: pointer; transition: background-color 0.2s;
-}
-.modal-footer .cancel-btn:hover { background-color: var(--background-light); }
 
+.modal-content {
+  background: var(--card-background-color);
+  border-radius: var(--border-radius);
+  width: 100%;
+  max-width: 550px;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+
+  h2 { font-size: 1.25rem; font-weight: 600; margin: 0; }
+  .close-btn { background: none; border: none; font-size: 1.75rem; cursor: pointer; color: var(--text-color-secondary); line-height: 1; padding: 0; &:hover { color: var(--text-color-primary); } }
+}
+
+.modal-form {
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-row { display: flex; gap: 1rem; > .form-group { flex: 1; } }
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+
+  label {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-color-primary);
+  }
+
+  input, select, textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 8px;
+    background-color: var(--input-background-color);
+    border: 1px solid var(--border-color);
+    font-size: 0.95rem;
+    transition: var(--transition-speed);
+    font-family: inherit;
+    &:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(106, 90, 249, 0.2); }
+  }
+  textarea { resize: vertical; min-height: 80px; }
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+
+  .save-btn {
+    background-color: var(--success-color); color: white; border: none;
+    &:hover { background-color: var(--success-hover-color); }
+  }
+
+  .cancel-btn {
+    background-color: transparent; color: var(--text-color-secondary); border: 1px solid var(--border-color);
+    &:hover { background-color: var(--input-background-color); }
+  }
+}
+
+// --- 11. Dark Theme Overrides ---
+:host-context(body.dark-theme) {
+  --primary-color: #8a7dfa;
+  --primary-hover-color: #7a6df8;
+  --success-color: #30c552;
+  --success-hover-color: #26a342;
+  --text-color-primary: #f0f0f0;
+  --text-color-secondary: #a0a0a0;
+  --background-color: #121212;
+  --card-background-color: #1e1e1e;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --input-background-color: #2a2a2a;
+  --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+
+  .loading-overlay {
+    background-color: rgba(30, 30, 30, 0.8);
+  }
+
+  .topics-table tbody tr:hover {
+    background-color: #2a2a2a;
+  }
+
+  .status-badge {
+    &.completed { background-color: rgba(48, 197, 82, 0.15); color: #4ade80; }
+    &.in-progress { background-color: rgba(251, 146, 60, 0.15); color: #fb923c; }
+    &.not-started { background-color: #3a3a3a; color: #a0a0a0; }
+  }
+
+  .action-btn.edit, .action-btn.cancel, .modal-footer .cancel-btn {
+    &:hover { background-color: #3a3a3a; }
+  }
+
+  .modal-overlay {
+    background: rgba(0, 0, 0, 0.7);
+  }
+}

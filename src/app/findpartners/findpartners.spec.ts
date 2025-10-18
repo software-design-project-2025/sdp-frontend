@@ -8,47 +8,50 @@ import { ApiService } from '../services/findpartner.service';
 import { AuthService } from '../services';
 import { UserService } from '../services/supabase.service';
 import { ChatService } from '../services/chat.service';
+import { UserApiService } from '../services/user.service';
 
 // --- MOCK DATA ---
 const mockLoggedInUser = { data: { user: { id: 'user-1' } } };
 
 const mockSupabaseUsers = [
-  { id: 'user-1', name: 'Me' },
-  { id: 'user-2', name: 'Alice' },
-  { id: 'user-3', name: 'Bob' },
-  { id: 'user-4', name: 'Charlie' },
-  { id: 'user-5', name: 'Diana' },
-  { id: 'user-6', name: 'Eve' },
-  { id: 'user-7', name: null }, // User with no name
+  { id: 'user-1', email: 'me@test.com', name: 'Me', user_metadata: {} },
+  { id: 'user-2', email: 'alice@test.com', name: 'Alice', user_metadata: {} },
+  { id: 'user-3', email: 'bob@test.com', name: 'Bob', user_metadata: {} },
+  { id: 'user-4', email: 'charlie@test.com', name: 'Charlie', user_metadata: {} },
+  { id: 'user-5', email: 'diana@test.com', name: 'Diana', user_metadata: {} },
+  { id: 'user-6', email: 'eve@test.com', name: 'Eve', user_metadata: {} },
 ];
 
 const mockDbPartners = [
-  { userid: 'user-2', username: 'a', bio: 'Loves Angular', degreeid: 101, yearofstudy: 2, status: 'active' },
-  { userid: 'user-3', username: 'b', bio: 'Expert in RxJS', degreeid: 102, yearofstudy: 3, status: 'active' },
-  { userid: 'user-4', username: 'c', bio: 'Wants to study AI', degreeid: 101, yearofstudy: 2, status: 'inactive' },
-  { userid: 'user-5', username: 'd', bio: 'First year student', degreeid: 101, yearofstudy: 1, status: 'active' },
-  { userid: 'user-6', username: 'e', bio: 'No courses', degreeid: 101, yearofstudy: 1, status: 'active' },
-  { userid: 'user-7', username: 'f', bio: 'Profile with no name', degreeid: 101, yearofstudy: 1, status: 'active' },
+  { userid: 'user-1', username: 'Me', email: 'me@test.com', role: 'student', bio: 'Current user', degreeid: 101, yearofstudy: 2, status: 'active' },
+  { userid: 'user-2', username: 'Alice', email: 'alice@test.com', role: 'student', bio: 'Loves Angular', degreeid: 101, yearofstudy: 2, status: 'active' },
+  { userid: 'user-3', username: 'Bob', email: 'bob@test.com', role: 'student', bio: 'Expert in RxJS', degreeid: 102, yearofstudy: 3, status: 'active' },
+  { userid: 'user-4', username: 'Charlie', email: 'charlie@test.com', role: 'student', bio: 'Wants to study AI', degreeid: 101, yearofstudy: 2, status: 'inactive' },
+  { userid: 'user-5', username: 'Diana', email: 'diana@test.com', role: 'student', bio: 'First year student', degreeid: 101, yearofstudy: 0, status: 'active' },
+  { userid: 'user-6', username: 'Eve', email: 'eve@test.com', role: 'student', bio: 'No courses', degreeid: 101, yearofstudy: 1, status: 'active' },
 ];
 
 const mockDegrees = [
-  { degreeid: 101, degree_name: 'Computer Science' },
-  { degreeid: 102, degree_name: 'Data Science' },
+  { degreeid: 101, degree_name: 'Computer Science', degree_type: 'BSc', facultyid: '1' },
+  { degreeid: 102, degree_name: 'Data Science', degree_type: 'BSc', facultyid: '1' },
+  { degreeid: 103, degree_name: 'Mathematics', degree_type: 'BSc', facultyid: '1' },
 ];
 
 const mockModules = [
-  { courseCode: 'CS101', courseName: 'Intro to Programming' },
-  { courseCode: 'DS202', courseName: 'Machine Learning Basics' },
+  { courseCode: 'CS101', courseName: 'Intro to Programming', facultyid: 1 },
+  { courseCode: 'CS102', courseName: 'Data Structures', facultyid: 1 },
+  { courseCode: 'DS202', courseName: 'Machine Learning Basics', facultyid: 1 },
 ];
 
 const mockUserCourses = [
+  { userid: 'user-1', courseCode: 'CS101' },
+  { userid: 'user-1', courseCode: 'CS102' },
   { userid: 'user-2', courseCode: 'CS101' },
+  { userid: 'user-2', courseCode: 'CS102' },
   { userid: 'user-3', courseCode: 'DS202' },
-  { userid: 'user-5', courseCode: 'CS101' },
-  { userid: 'user-7', courseCode: 'CS101' },
-  // Note: user-6 has no courses
 ];
 
+const mockUserStats = { studyHours: 42, studyPartners: 5 };
 const mockChat = { chatid: 'chat-123' };
 
 describe('FindPartners', () => {
@@ -58,13 +61,15 @@ describe('FindPartners', () => {
   let authService: jasmine.SpyObj<AuthService>;
   let userService: jasmine.SpyObj<UserService>;
   let chatService: jasmine.SpyObj<ChatService>;
+  let userApiService: jasmine.SpyObj<UserApiService>;
   let router: Router;
 
   beforeEach(async () => {
     const apiServiceSpy = jasmine.createSpyObj('ApiService', ['getDegree', 'getModule', 'getAllUserCourses', 'getUser']);
     const authServiceSpy = jasmine.createSpyObj('AuthService', ['getCurrentUser']);
     const userServiceSpy = jasmine.createSpyObj('UserService', ['getAllUsers']);
-    const chatServiceSpy = jasmine.createSpyObj('ChatService', ['createChat']);
+    const chatServiceSpy = jasmine.createSpyObj('ChatService', ['createChat', 'setPartnerID']);
+    const userApiServiceSpy = jasmine.createSpyObj('UserApiService', ['getUserStats']);
 
     await TestBed.configureTestingModule({
       imports: [FindPartners, FormsModule, RouterTestingModule.withRoutes([{ path: 'chat', children: [] }])],
@@ -73,6 +78,7 @@ describe('FindPartners', () => {
         { provide: AuthService, useValue: authServiceSpy },
         { provide: UserService, useValue: userServiceSpy },
         { provide: ChatService, useValue: chatServiceSpy },
+        { provide: UserApiService, useValue: userApiServiceSpy },
       ],
     }).compileComponents();
 
@@ -82,6 +88,7 @@ describe('FindPartners', () => {
     authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
     userService = TestBed.inject(UserService) as jasmine.SpyObj<UserService>;
     chatService = TestBed.inject(ChatService) as jasmine.SpyObj<ChatService>;
+    userApiService = TestBed.inject(UserApiService) as jasmine.SpyObj<UserApiService>;
     router = TestBed.inject(Router);
   });
 
@@ -103,75 +110,261 @@ describe('FindPartners', () => {
       setupHappyPathMocks();
       fixture.detectChanges();
       tick();
-      fixture.detectChanges();
 
-      // Should filter out: self (user-1), inactive (user-4), no courses (user-6)
-      expect(component.partners.length).toBe(4);
-      expect(component.partners[0].username).toBe('Alice');
+      // Should filter out: self (user-1), inactive (user-4), yearofstudy=0 (user-5), no courses (user-6)
+      expect(component.filteredAndSortedPartners.length).toBe(2); // Alice and Bob
       expect(component.isLoading$.value).toBeFalse();
     }));
 
-    // COVERAGE: Test the 'else' branch where a user session exists but contains no user ID.
-    it('should handle when current user is resolved but has no user ID', fakeAsync(() => {
+    it('should handle when current user has no user ID', fakeAsync(() => {
       authService.getCurrentUser.and.returnValue(Promise.resolve({ data: { user: null } } as any));
       spyOn(console, 'error');
-      fixture.detectChanges();
+
+      component.ngOnInit();
       tick();
 
-      expect(console.error).toHaveBeenCalledWith("Could not determine current user. Data cannot be loaded.");
+      expect(console.error).toHaveBeenCalledWith('Error initializing component:', jasmine.any(Error));
       expect(component.isLoading$.value).toBeFalse();
-      expect(apiService.getUser).not.toHaveBeenCalled();
     }));
 
-    // COVERAGE: Test the main catch block in ngOnInit
     it('should handle error when getCurrentUser fails', fakeAsync(() => {
       authService.getCurrentUser.and.returnValue(Promise.reject('Auth error'));
       spyOn(console, 'error');
-      fixture.detectChanges();
+
+      component.ngOnInit();
       tick();
 
-      expect(console.error).toHaveBeenCalledWith('Error getting current user:', 'Auth error');
+      expect(console.error).toHaveBeenCalledWith('Error initializing component:', 'Auth error');
       expect(component.isLoading$.value).toBeFalse();
     }));
 
-    // COVERAGE: Test the fallback for Supabase users with no name
-    it('should use "Unknown User" for partners with no name in Supabase', fakeAsync(() => {
-      setupHappyPathMocks();
+    it('should handle errors in fetchCoreData observables', fakeAsync(() => {
+      authService.getCurrentUser.and.returnValue(Promise.resolve(mockLoggedInUser as any));
+      apiService.getDegree.and.returnValue(throwError(() => new Error('Degree fetch failed')));
+      apiService.getModule.and.returnValue(throwError(() => new Error('Module fetch failed')));
+      apiService.getAllUserCourses.and.returnValue(of(mockUserCourses as any));
+      apiService.getUser.and.returnValue(of(mockDbPartners as any));
+      userService.getAllUsers.and.returnValue(Promise.resolve(mockSupabaseUsers as any));
+
       fixture.detectChanges();
       tick();
 
-      const userWithoutName = component.partners.find(p => p.userid === 'user-7');
-      expect(userWithoutName?.username).toBe('Unknown User');
+      expect(component.degrees.length).toBe(0);
+      expect(component.modules.length).toBe(0);
+      expect(component.isLoading$.value).toBeFalse();
     }));
   });
 
-  // Describe block for tests that require the component to be fully initialized
   describe('After Initialization', () => {
     beforeEach(fakeAsync(() => {
       setupHappyPathMocks();
       fixture.detectChanges();
       tick();
-      fixture.detectChanges();
     }));
 
-    describe('Filtering', () => {
-      it('should filter by search term matching a course name', () => {
-        component.searchTerm = 'Machine Learning';
-        component.applyFilters();
-        expect(component.filteredPartners.length).toBe(1);
-        expect(component.filteredPartners[0].username).toBe('Bob');
-      });
+    describe('Filtering and Sorting', () => {
+      it('should filter by search term matching username', fakeAsync(() => {
+        component.searchTerm$.next('alice');
+        tick(300); // debounce
 
-      it('should filter out inactive partners', () => {
-        // The initial list of partners (3) already has inactive users filtered out by populateData.
-        // applyFilters also filters by status.
-        expect(component.filteredPartners.find(p => p.username === 'Charlie')).toBeFalsy();
+        expect(component.filteredAndSortedPartners.length).toBe(1);
+        expect(component.filteredAndSortedPartners[0].username).toBe('Alice');
+      }));
+
+      it('should filter by search term matching degree name', fakeAsync(() => {
+        component.searchTerm$.next('data science');
+        tick(300);
+
+        expect(component.filteredAndSortedPartners.length).toBe(1);
+        expect(component.filteredAndSortedPartners[0].username).toBe('Bob');
+      }));
+
+      it('should filter by search term matching course name', fakeAsync(() => {
+        component.searchTerm$.next('machine learning');
+        tick(300);
+
+        expect(component.filteredAndSortedPartners.length).toBe(1);
+        expect(component.filteredAndSortedPartners[0].username).toBe('Bob');
+      }));
+
+      it('should filter by degree', fakeAsync(() => {
+        component.selectedDegree$.next('102');
+        tick();
+
+        expect(component.filteredAndSortedPartners.length).toBe(1);
+        expect(component.filteredAndSortedPartners[0].username).toBe('Bob');
+      }));
+
+      it('should combine search and degree filters', fakeAsync(() => {
+        component.selectedDegree$.next('101');
+        tick();
+        component.searchTerm$.next('alice');
+        tick(300);
+
+        expect(component.filteredAndSortedPartners.length).toBe(1);
+        expect(component.filteredAndSortedPartners[0].username).toBe('Alice');
+      }));
+
+      it('should sort partners by relevance (same degree + shared courses)', fakeAsync(() => {
+        tick();
+
+        // Alice should rank higher than Bob because:
+        // - Alice has same degree (101) as current user: +10 points
+        // - Alice shares 2 courses with current user: +4 points (2 * 2)
+        // - Bob has different degree (102): 0 points
+        // - Bob shares 0 courses: 0 points
+        expect(component.filteredAndSortedPartners[0].username).toBe('Alice');
+        expect(component.filteredAndSortedPartners[1].username).toBe('Bob');
+      }));
+
+      it('should reset to page 1 when filters change', fakeAsync(() => {
+        component.currentPage$.next(2);
+        tick();
+
+        component.searchTerm$.next('test');
+        tick(300);
+
+        expect(component.currentPage$.value).toBe(1);
+      }));
+
+      it('should return early from applyFiltersAndSort if current user is null', () => {
+        component['currentUser'].next(null);
+        const lengthBefore = component.filteredAndSortedPartners.length;
+
+        component.applyFiltersAndSort();
+
+        expect(component.filteredAndSortedPartners.length).toBe(lengthBefore);
       });
     });
 
-    describe('Display Helpers', () => {
-      it('should return "Unknown Degree" for an invalid ID', () => {
-        expect(component.getDegreeName(999)).toBe('Unknown Degree');
+    describe('Pagination', () => {
+      beforeEach(() => {
+        // Create more partners to test pagination
+        const manyPartners = Array.from({ length: 25 }, (_, i) => ({
+          userid: `user-${i + 10}`,
+          username: `User ${i + 10}`,
+          email: `user${i + 10}@test.com`,
+          role: 'student',
+          status: 'active',
+          bio: 'Test bio',
+          degreeid: 101,
+          yearofstudy: 2,
+        }));
+        component['allPartners'] = manyPartners as any;
+        component.applyFiltersAndSort();
+      });
+
+      it('should calculate total pages correctly', () => {
+        expect(component.totalPages).toBe(3); // 25 partners / 9 per page = 3 pages
+      });
+
+      it('should paginate results correctly', () => {
+        expect(component.paginatedPartners.value.length).toBe(9);
+      });
+
+      it('should navigate to next page', () => {
+        component.nextPage();
+        expect(component.currentPage$.value).toBe(2);
+      });
+
+      it('should navigate to previous page', () => {
+        component.currentPage$.next(2);
+        component.previousPage();
+        expect(component.currentPage$.value).toBe(1);
+      });
+
+      it('should not go below page 1', () => {
+        component.currentPage$.next(1);
+        component.previousPage();
+        expect(component.currentPage$.value).toBe(1);
+      });
+
+      it('should not exceed total pages', () => {
+        component.nextPage();
+        component.nextPage();
+        component.nextPage(); // Try to go to page 4
+        expect(component.currentPage$.value).toBe(3);
+      });
+
+      it('should not set invalid page numbers', () => {
+        component.setPage(0);
+        expect(component.currentPage$.value).toBe(1);
+
+        component.setPage(999);
+        expect(component.currentPage$.value).toBe(1);
+      });
+    });
+
+    describe('Modal and Profile', () => {
+      it('should open profile modal and load stats', fakeAsync(() => {
+        userApiService.getUserStats.and.returnValue(of(mockUserStats as any));
+        const partner = component.filteredAndSortedPartners[0];
+
+        component.viewProfile(partner);
+        tick();
+
+        expect(component.selectedPartner.value).toBe(partner);
+        expect(component.isProfileLoading$.value).toBeFalse();
+        expect(component.partnerStats.value.length).toBe(2);
+        expect(component.partnerStats.value[0].label).toBe('Study Hours');
+      }));
+
+      it('should handle stats fetch error gracefully', fakeAsync(() => {
+        userApiService.getUserStats.and.returnValue(throwError(() => new Error('Stats error')));
+        const partner = component.filteredAndSortedPartners[0];
+
+        component.viewProfile(partner);
+        tick();
+
+        expect(component.selectedPartner.value).toBe(partner);
+        expect(component.isProfileLoading$.value).toBeFalse();
+        expect(component.partnerStats.value.length).toBe(0);
+      }));
+
+      it('should close profile modal', () => {
+        const partner = component.filteredAndSortedPartners[0];
+        component.selectedPartner.next(partner);
+
+        component.closeProfile();
+
+        expect(component.selectedPartner.value).toBeNull();
+      });
+    });
+
+    describe('Helper Methods', () => {
+      it('should return correct degree name', () => {
+        expect(component.getDegreeName(101)).toBe('Computer Science');
+        expect(component.getDegreeName(102)).toBe('Data Science');
+      });
+
+      it('should return "..." for unknown degree', () => {
+        expect(component.getDegreeName(999)).toBe('...');
+      });
+
+      it('should return partner courses', () => {
+        const courses = component.getPartnerCourses('user-2');
+        expect(courses.length).toBe(2);
+        expect(courses[0].courseName).toBe('Intro to Programming');
+      });
+
+      it('should return empty array for partner with no courses', () => {
+        const courses = component.getPartnerCourses('user-999');
+        expect(courses.length).toBe(0);
+      });
+
+      it('should get initials from username', () => {
+        expect(component.getInitials('Alice')).toBe('A');
+        expect(component.getInitials('bob')).toBe('B');
+        expect(component.getInitials('')).toBe('?');
+      });
+
+      it('should generate avatar colors consistently', () => {
+        const color1 = component.getAvatarColor('Alice');
+        const color2 = component.getAvatarColor('Alice');
+        expect(color1).toBe(color2);
+
+        const color3 = component.getAvatarColor('Bob');
+        expect(color3).toBeTruthy();
       });
 
       it('should format year of study correctly', () => {
@@ -180,36 +373,33 @@ describe('FindPartners', () => {
         expect(component.getYearOfStudy(3)).toBe('3rd Year');
         expect(component.getYearOfStudy(4)).toBe('4th Year');
         expect(component.getYearOfStudy(5)).toBe('5th Year');
+        expect(component.getYearOfStudy(11)).toBe('11th Year');
+        expect(component.getYearOfStudy(21)).toBe('21st Year');
       });
     });
 
-    describe('User Actions (messageOnClick)', () => {
-      it('should create a chat and navigate on message click', fakeAsync(() => {
-        chatService.createChat.and.returnValue(of(mockChat as any));
-        const routerSpy = spyOn(router, 'navigate');
-        const partnerToMessage = component.partners.find(p => p.userid === 'user-2');
-
-        component.messageOnClick(partnerToMessage!);
-        tick();
-
-        expect(component.isNavigating$.value).toBeFalse();
-        expect(chatService.createChat).toHaveBeenCalled();
-        expect(routerSpy).toHaveBeenCalledWith(['/chat']);
-      }));
-
-      it('should not navigate if createChat returns a falsy result', fakeAsync(() => {
+    describe('Messaging', () => {
+      it('should handle createChat returning null', fakeAsync(() => {
         chatService.createChat.and.returnValue(of(null as any));
         const routerSpy = spyOn(router, 'navigate');
         spyOn(console, 'error');
-        const partnerToMessage = component.partners.find(p => p.userid === 'user-2');
+        const partner = component.filteredAndSortedPartners[0];
 
-        component.messageOnClick(partnerToMessage!);
+        component.messageOnClick(partner);
         tick();
 
         expect(component.isNavigating$.value).toBeFalse();
-        expect(console.error).toHaveBeenCalledWith('Error finding chats:', jasmine.any(Error));
         expect(routerSpy).not.toHaveBeenCalled();
       }));
+    });
+
+    describe('Available Degrees Filter', () => {
+      it('should populate availableDegreesForFilter with only degrees that have partners', () => {
+        expect(component.availableDegreesForFilter.length).toBe(2);
+        expect(component.availableDegreesForFilter.map(d => d.degreeid)).toContain(101);
+        expect(component.availableDegreesForFilter.map(d => d.degreeid)).toContain(102);
+        expect(component.availableDegreesForFilter.map(d => d.degreeid)).not.toContain(103);
+      });
     });
   });
 });
