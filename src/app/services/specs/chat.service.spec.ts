@@ -15,8 +15,8 @@ describe('ChatService', () => {
   ];
 
   const mockMessages: ChatMessage[] = [
-    { messageid: 101, chatid: 1, message: 'Hello!', senderid: 'user-2', sent_datetime: new Date() },
-    { messageid: 102, chatid: 1, message: 'Hi there!', senderid: 'user-1', sent_datetime: new Date() }
+    { messageid: 101, chatid: 1, message: 'Hello!', senderid: 'user-2', sent_datetime: new Date(), read_status: false },
+    { messageid: 102, chatid: 1, message: 'Hi there!', senderid: 'user-1', sent_datetime: new Date(), read_status: false }
   ];
 
   beforeEach(() => {
@@ -76,7 +76,8 @@ describe('ChatService', () => {
         chatid: 1,
         senderid: 'user-1',
         message: 'This is a test message',
-        sent_datetime: new Date()
+        sent_datetime: new Date(),
+        read_status: false
       };
 
       const expectedResponse = { ...newMessage, messageid: 103 }; // What the backend might return
