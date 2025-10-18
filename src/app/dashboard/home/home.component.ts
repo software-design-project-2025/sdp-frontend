@@ -8,7 +8,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { SessionsService } from '../../services/sessions.service';
 import { AuthService } from '../../services/auth.service';
 import { TopicApiService } from '../../services/topic.service';
-import { interval, Subscription } from 'rxjs';
+import { firstValueFrom, interval, Subscription } from 'rxjs';
 import { GroupService, Group, GroupJoinRequest } from '../../services/group.service';
 import { FormsModule, NgForm } from '@angular/forms';
 
@@ -116,6 +116,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     console.log('🏠 HomeComponent initialized');
     await this.loadInitialData();
     this.startAutoRefresh();
+    this.messagesCount = await firstValueFrom(this.groupService.getUnreadCount(this.currentUserId));
   }
 
   ngOnDestroy(): void {
