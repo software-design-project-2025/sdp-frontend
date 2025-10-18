@@ -28,6 +28,7 @@ interface User {
   bio: string;
   degreeid: number;
   yearofstudy: number;
+  profile_picture: string | null;
 }
 interface SupabaseUser { id: string; email: string; name: string; user_metadata: { [key: string]: any }; }
 interface UserCourse { userid: string; courseCode: string; }
@@ -53,6 +54,7 @@ export class FindPartners implements OnInit {
   private router = inject(Router);
 
   // --- COMPONENT STATE ---
+  isButtonDisabled = false; // Initial state for the message button
   isLoading$ = new BehaviorSubject<boolean>(true);
   isNavigating$ = new BehaviorSubject<boolean>(false);
   isProfileLoading$ = new BehaviorSubject<boolean>(false);
@@ -245,7 +247,14 @@ export class FindPartners implements OnInit {
     const codes = new Set(this.userCourses.filter(uc => uc.userid === partnerId).map(uc => uc.courseCode));
     return this.modules.filter(m => codes.has(m.courseCode));
   };
-  getInitials = (username: string): string => username ? username.charAt(0).toUpperCase() : '?';
+  getInitials = (username: string): string => {
+    if (!username?.trim()) { return '?'; }
+    const parts = username.trim().split(/\s+/);
+    if (parts.length > 1) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
+  };
   getAvatarColor = (username: string): string => {
     const colors = ['#6a5af9', '#6f42c1', '#28a745', '#dc3545', '#ffc107', '#17a2b8'];
     const sum = (username || '').split('').reduce((s, c) => s + c.charCodeAt(0), 0);
@@ -255,11 +264,34 @@ export class FindPartners implements OnInit {
     const suffixes = ['th', 'st', 'nd', 'rd'];
     return year + (suffixes[(year - 20) % 10] || suffixes[year] || suffixes[0]) + ' Year';
   };
+
   async messageOnClick(partner: User): Promise<void> {
-    this.chatService.setPartnerID(partner.userid);
-    this.router.navigate(['/chat']);
+    const currentUser = this.currentUser.getValue();
+    if (!currentUser) {
+      console.error("Cannot create chat: current user is not available.");
+      return;
+    }
+
+    this.isButtonDisabled = true;
+    this.isNavigating$.next(true);
+
+    try {
+      const result = await firstValueFrom(this.chatService.createChat({
+        user1: { userid: currentUser.userid },
+        user2: { userid: partner.userid }
+      }));
+
+      if (result) {
+        this.router.navigate(['/chat']);
+        this.chatService.setPartnerID(partner.userid);
+      } else {
+        throw new Error("Chat creation did not return a successful result.");
+      }
+    } catch (error) {
+      console.error("Error creating or navigating to chat:", error);
+    } finally {
+      this.isNavigating$.next(false);
+      this.isButtonDisabled = false;
+    }
   }
 }
-
-
-
