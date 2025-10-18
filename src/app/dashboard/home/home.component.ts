@@ -9,6 +9,10 @@ import { SessionsService } from '../../services/sessions.service';
 import { AuthService } from '../../services/auth.service';
 import { TopicApiService } from '../../services/topic.service';
 import { interval, Subscription } from 'rxjs';
+import { GroupService, Group, GroupJoinRequest } from '../../services/group.service';
+import { FormsModule, NgForm } from '@angular/forms';
+
+import { SessionDetailsModalComponent } from './session-details-modal.component';
 
 interface Session {
   sessionId: number;
@@ -21,21 +25,23 @@ interface Session {
   status: string;
   groupid: number;
 }
-
 interface TopicsResponse {
   userId: string;
   numTopics: number;
 }
-
 interface SessionsResponse {
   userId: string;
   numSessions: number;
 }
-
 interface StudyHoursResponse {
   userId: string;
   totalHours: number;
   exactHours: number;
+}
+
+interface DisplayableGroupJoinRequest extends GroupJoinRequest {
+  uiState?: 'idle' | 'confirming' | 'processing';
+  action?: 'approve' | 'reject';
 }
 
 @Component({
@@ -43,20 +49,32 @@ interface StudyHoursResponse {
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
   standalone: true,
-  imports: [CommonModule, FullCalendarModule, RouterModule]
+  imports: [CommonModule, FullCalendarModule, RouterModule, FormsModule, SessionDetailsModalComponent]
 })
 export class HomeComponent implements OnInit, OnDestroy {
   allEvents: EventInput[] = [];
   currentUserId: string = '';
-  
-  // Statistics data
   studyHours: number = 0;
   sessionsCount: number = 0;
   topicsCount: number = 0;
-  messagesCount: number = 5; // Keeping the static value for messages
-  
+  messagesCount: number = 0;
   private refreshSubscription: Subscription | null = null;
   private readonly AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
+
+  // Properties for Group Feature
+  private groupRefreshSubscription: Subscription | null = null;
+  private readonly GROUP_REFRESH_INTERVAL = 60 * 1000;
+  discoverableGroups: Group[] = [];
+  myJoinRequests: GroupJoinRequest[] = [];
+
+  pendingRequestsForMyGroups: DisplayableGroupJoinRequest[] = [];
+
+  // Session Modal Properties
+  showSessionModal = false;
+  selectedSession: any = null;
+
+  // Group Creation State
+  isGroupCreated = false;
 
   calendarOptions: CalendarOptions = {
     plugins: [dayGridPlugin, interactionPlugin],
@@ -68,6 +86,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     },
     height: 'auto',
     events: [],
+    eventDisplay: 'block',
+    eventTimeFormat: {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    },
     customButtons: {
       refreshBtn: {
         text: 'Refresh',
@@ -75,35 +99,22 @@ export class HomeComponent implements OnInit, OnDestroy {
       }
     },
     eventClick: (info: EventClickArg) => {
-      const event = info.event;
-      const desc = event.extendedProps['description'] || 'No description';
-      const loc = event.extendedProps['location'] || 'No location';
-      const creator = event.extendedProps['creatorId'] || 'Unknown';
-      const isPast = event.extendedProps['isPast'] || false;
-      
-      alert(
-        `Session: ${event.title}\n` +
-        `Start: ${event.start?.toLocaleString()}\n` +
-        `End: ${event.end?.toLocaleString()}\n` +
-        `Location: ${loc}\n` +
-        `Description: ${desc}\n` +
-        `Created by: ${creator}\n` +
-        `Status: ${isPast ? 'Completed ✓' : 'Upcoming'}`
-      );
+      this.showSessionDetails(info.event);
     }
   };
 
   constructor(
     @Inject(SessionsService) private sessionService: SessionsService,
     @Inject(TopicApiService) private topicService: TopicApiService,
+    @Inject(GroupService) private groupService: GroupService,
     private zone: NgZone,
     private authService: AuthService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
   ) {}
 
   async ngOnInit(): Promise<void> {
     console.log('🏠 HomeComponent initialized');
-    await this.loadSessionsForCurrentUser();
+    await this.loadInitialData();
     this.startAutoRefresh();
   }
 
@@ -111,7 +122,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.stopAutoRefresh();
   }
 
-  private async loadSessionsForCurrentUser(): Promise<void> {
+  private async loadInitialData(): Promise<void> {
     try {
       const userResponse = await this.authService.getCurrentUser();
       
@@ -120,6 +131,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         console.log('✅ User found:', this.currentUserId);
         this.loadUpcomingSessions(this.currentUserId);
         this.loadUserStatistics(this.currentUserId);
+        this.loadGroupData(this.currentUserId);
       } else {
         console.log('❌ No user logged in');
         this.handleUserNotLoggedIn();
@@ -130,25 +142,215 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Session Details Methods
+  showSessionDetails(event: any): void {
+    const sessionData = {
+      title: event.title,
+      start: event.start,
+      end: event.end,
+      location: event.extendedProps['location'],
+      description: event.extendedProps['description'],
+      creatorName: this.getCreatorDisplayName(event.extendedProps['creatorId']),
+      isPast: event.extendedProps['isPast']
+    };
+    
+    this.selectedSession = sessionData;
+    this.showSessionModal = true;
+    this.cdr.detectChanges();
+  }
+
+  closeSessionModal(): void {
+    this.showSessionModal = false;
+    this.selectedSession = null;
+    this.cdr.detectChanges();
+  }
+
+  private getCreatorDisplayName(creatorId: string): string {
+    // user lookup
+    return 'Creator';
+  }
+
+  // Group Methods
+  private loadGroupData(userId: string): void {
+    this.loadDiscoverableGroups(userId);
+    this.loadMyJoinRequests(userId);
+    this.loadPendingRequestsForMyGroups(userId);
+  }
+
+  private loadDiscoverableGroups(userId: string): void {
+    this.groupService.discoverGroups(userId).subscribe({
+      next: (groups) => {
+        this.discoverableGroups = groups;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Error fetching discoverable groups:', err)
+    });
+  }
+
+  private loadMyJoinRequests(userId: string): void {
+    this.groupService.getMyRequests(userId).subscribe({
+      next: (requests) => {
+        this.myJoinRequests = requests;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Error fetching my join requests:', err)
+    });
+  }
+
+  private loadPendingRequestsForMyGroups(userId: string): void {
+    this.groupService.getPendingRequestsForCreator(userId).subscribe({
+      next: (requests) => {
+        this.pendingRequestsForMyGroups = requests.map(request => ({
+          ...request,
+          uiState: 'idle' as const
+        }));
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Error fetching pending requests for creator:', err)
+    });
+  }
+  
+  joinGroup(groupId: number): void {
+    if (!this.currentUserId) {
+      alert('You must be logged in to join a group.');
+      return;
+    }
+    this.groupService.requestToJoin(groupId, this.currentUserId).subscribe({
+      next: () => {
+        alert('Your request to join has been sent successfully!');
+        this.loadGroupData(this.currentUserId);
+      },
+      error: (err) => {
+        console.error('Error sending join request:', err);
+        alert('There was an error sending your request. Please try again.');
+      }
+    });
+  }
+
+  createGroup(form: NgForm): void {
+    if (form.invalid || !this.currentUserId) {
+      alert('Please fill out all fields.');
+      return;
+    }
+
+    const groupData = {
+      title: form.value.title,
+      goal: form.value.goal,
+      creatorid: this.currentUserId
+    };
+
+    this.groupService.createGroup(groupData).subscribe({
+      next: (newGroup) => {
+        this.isGroupCreated = true;
+        form.resetForm();
+        
+        setTimeout(() => {
+          this.isGroupCreated = false;
+          this.cdr.detectChanges();
+        }, 3000);
+        
+        this.loadGroupData(this.currentUserId);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error creating group:', err);
+        alert('❌ Failed to create group. Please try again.');
+      }
+    });
+  }
+
+  // Action handlers for incoming requests
+  startAction(event: Event, request: DisplayableGroupJoinRequest): void {
+    const selectElement = event.target as HTMLSelectElement;
+    const action = selectElement.value as 'approve' | 'reject';
+
+    if (!action) return;
+
+    request.uiState = 'confirming';
+    request.action = action;
+    this.cdr.detectChanges();
+  }
+
+  cancelAction(request: DisplayableGroupJoinRequest): void {
+    request.uiState = 'idle';
+    request.action = undefined;
+    this.cdr.detectChanges();
+  }
+
+  confirmAction(request: DisplayableGroupJoinRequest): void {
+    if (!request.action) return;
+
+    request.uiState = 'processing';
+    this.cdr.detectChanges();
+
+    const action$ = request.action === 'approve'
+      ? this.groupService.approveRequest(request.requestId)
+      : this.groupService.rejectRequest(request.requestId);
+
+    action$.subscribe({
+      next: () => {
+        this.pendingRequestsForMyGroups = this.pendingRequestsForMyGroups.filter(
+          req => req.requestId !== request.requestId
+        );
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error(`Error ${request.action}ing request:`, err);
+        request.uiState = 'idle';
+        request.action = undefined;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  // Auto-Refresh & Manual Refresh
+  private startAutoRefresh(): void {
+    this.refreshSubscription = interval(this.AUTO_REFRESH_INTERVAL).subscribe(() => {
+      if (this.currentUserId) {
+        console.log('🔄 Auto-refreshing sessions and statistics...');
+        this.loadUpcomingSessions(this.currentUserId);
+        this.loadUserStatistics(this.currentUserId);
+      }
+    });
+    
+    this.groupRefreshSubscription = interval(this.GROUP_REFRESH_INTERVAL).subscribe(() => {
+      if (this.currentUserId) {
+        console.log('🔄 Auto-refreshing group data...');
+        this.loadGroupData(this.currentUserId);
+      }
+    });
+  }
+
+  private stopAutoRefresh(): void {
+    this.refreshSubscription?.unsubscribe();
+    this.groupRefreshSubscription?.unsubscribe();
+  }
+
+  manualRefresh(): void {
+    console.log('🔄 Manual refresh triggered');
+    if (this.currentUserId) {
+      this.loadUpcomingSessions(this.currentUserId);
+      this.loadUserStatistics(this.currentUserId);
+      this.loadGroupData(this.currentUserId);
+    } else {
+      this.loadInitialData();
+    }
+  }
+
   private loadUpcomingSessions(userId: string): void {
     console.log('📡 Fetching sessions for user:', userId);
-    
     this.sessionService.getUpcomingSessions(userId).subscribe({
       next: (sessions: any[]) => {
         console.log('✅ Raw sessions response:', sessions);
-        
         if (!sessions || !Array.isArray(sessions)) {
           console.error('❌ Invalid sessions data:', sessions);
           this.allEvents = [];
           return;
         }
-
         console.log(`📅 Processing ${sessions.length} sessions`);
-        
         this.zone.run(() => {
           const processedEvents = this.processSessions(sessions);
           console.log('🎯 Processed events:', processedEvents);
-          
           this.allEvents = processedEvents;
           this.updateCalendarEvents(processedEvents);
           this.cdr.detectChanges();
@@ -163,131 +365,69 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private loadUserStatistics(userId: string): void {
     console.log('📊 Loading user statistics for:', userId);
-    
-    // Load study hours using SessionsService
     this.sessionService.getStudyHours(userId).subscribe({
       next: (response: StudyHoursResponse) => {
-        console.log('✅ Study hours response:', response);
-        this.studyHours = response.totalHours;
-        this.cdr.detectChanges();
+        this.studyHours = response.totalHours; this.cdr.detectChanges();
       },
       error: (error) => {
-        console.error('❌ Error fetching study hours:', error);
-        this.studyHours = 0;
-        this.cdr.detectChanges();
+        this.studyHours = 0; this.cdr.detectChanges();
       }
     });
-
-    // Load number of sessions using SessionsService
     this.sessionService.getSessionsCount(userId).subscribe({
       next: (response: SessionsResponse) => {
-        console.log('✅ Sessions count response:', response);
-        this.sessionsCount = response.numSessions;
-        this.cdr.detectChanges();
+        this.sessionsCount = response.numSessions; this.cdr.detectChanges();
       },
       error: (error) => {
-        console.error('❌ Error fetching sessions count:', error);
-        this.sessionsCount = 0;
-        this.cdr.detectChanges();
+        this.sessionsCount = 0; this.cdr.detectChanges();
       }
     });
-
-    // Load number of topics using TopicApiService
     this.topicService.getTopicsCount(userId).subscribe({
       next: (response: TopicsResponse) => {
-        console.log('✅ Topics count response:', response);
-        this.topicsCount = response.numTopics;
-        this.cdr.detectChanges();
+        this.topicsCount = response.numTopics; this.cdr.detectChanges();
       },
       error: (error) => {
-        console.error('❌ Error fetching topics count:', error);
-        this.topicsCount = 0;
-        this.cdr.detectChanges();
+        this.topicsCount = 0; this.cdr.detectChanges();
       }
     });
   }
 
   private updateCalendarEvents(events: EventInput[]): void {
-    this.calendarOptions = {
-      ...this.calendarOptions,
-      events: events
-    };
+    this.calendarOptions = { ...this.calendarOptions, events: events };
   }
 
   private processSessions(sessions: any[]): EventInput[] {
     const now = new Date();
-    console.log('🕒 Current time:', now);
-
     return sessions.map((session, index) => {
       try {
         const startTime = new Date(session.startTime);
         const endTime = new Date(session.endTime);
-        const isPastSession = endTime < now;
-
-        console.log(`   📅 Session "${session.title}":`, {
-          startTime: startTime,
-          endTime: endTime,
-          isPast: isPastSession,
-          validStart: !isNaN(startTime.getTime()),
-          validEnd: !isNaN(endTime.getTime())
-        });
-
         if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-          console.error(`   🚨 Invalid dates for session: ${session.title}`);
           return null;
         }
-
-        const event: EventInput = {
+        const isPastSession = endTime < now;
+        
+        const displayTitle = session.title || 'Untitled Session';
+        
+        return {
           id: session.sessionId?.toString() || `session-${index}`,
-          title: session.title || 'Untitled Session',
+          title: displayTitle,
           start: startTime,
           end: endTime,
-          color: isPastSession ? '#6b7280' : '#003366',
+          color: isPastSession ? '#6b7280' : '#5F4B8B',
           textColor: 'white',
           extendedProps: {
             description: session.description || 'No description available',
-            location: session.location || 'No location',
+            location: session.location || 'No location specified',
+            creatorName: this.getCreatorDisplayName(session.creatorid),
             creatorId: session.creatorid || 'Unknown',
             isPast: isPastSession,
             sessionId: session.sessionId?.toString() || ''
           }
         };
-
-        console.log(`   ✅ Created event:`, event);
-        return event;
-
       } catch (error) {
-        console.error(`   🚨 Error processing session ${session.title}:`, error);
         return null;
       }
     }).filter(event => event !== null) as EventInput[];
-  }
-
-  private startAutoRefresh(): void {
-    this.refreshSubscription = interval(this.AUTO_REFRESH_INTERVAL).subscribe(() => {
-      if (this.currentUserId) {
-        console.log('🔄 Auto-refreshing sessions and statistics...');
-        this.loadUpcomingSessions(this.currentUserId);
-        this.loadUserStatistics(this.currentUserId);
-      }
-    });
-  }
-
-  private stopAutoRefresh(): void {
-    if (this.refreshSubscription) {
-      this.refreshSubscription.unsubscribe();
-      this.refreshSubscription = null;
-    }
-  }
-
-  manualRefresh(): void {
-    console.log('🔄 Manual refresh triggered');
-    if (this.currentUserId) {
-      this.loadUpcomingSessions(this.currentUserId);
-      this.loadUserStatistics(this.currentUserId);
-    } else {
-      this.loadSessionsForCurrentUser();
-    }
   }
 
   private handleUserNotLoggedIn(): void {
@@ -298,6 +438,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.sessionsCount = 0;
     this.topicsCount = 0;
     this.updateCalendarEvents([]);
+    this.discoverableGroups = [];
+    this.myJoinRequests = [];
+    this.pendingRequestsForMyGroups = [];
     this.cdr.detectChanges();
   }
 }
