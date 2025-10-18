@@ -36,8 +36,23 @@
             [attr.aria-current]="activeConversation?.id === conversation.id ? 'true' : null">
             
             <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(conversation)">
+              @if (conversation.participant.profile_picture && 
+                  conversation.participant.profile_picture !== 'placeholder' &&
+                  !isImageLoadingError(conversation)) {
+                <img 
+                  [src]="conversation.participant.profile_picture" 
+                  [alt]="conversation.participant.name + ' profile picture'"
+                  class="profile-avatar-image"
+                  (load)="onImageLoad($event)"
+                  (error)="handleImageError($event, conversation)">
+              }
+              
+              <!-- Always render the initials as fallback, control visibility with CSS -->
               <abbr 
                 class="avatar-initials" 
+                [class.hidden]="conversation.participant.profile_picture && 
+                              conversation.participant.profile_picture !== 'placeholder' &&
+                              !isImageLoadingError(conversation)"
                 [title]="conversation.participant.name"
                 [attr.aria-label]="conversation.participant.name + ' avatar'">
                 {{ conversation.participant.name ? conversation.participant.name.charAt(0).toUpperCase() : 'U' }}
@@ -92,22 +107,36 @@
   </aside>
 
   <section class="chat-main" *ngIf="activeConversation; else noConversationSelected">
-    <header class="chat-header" [class.chat-header-loading]="messagesLoading | async">
-      <section class="contact-info">
-        <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
-          <abbr 
-            class="avatar-initials" 
-            [title]="activeConversation.participant.name"
-            [attr.aria-label]="activeConversation.participant.name + ' avatar'">
-            {{ activeConversation.participant.name ? activeConversation.participant.name.charAt(0).toUpperCase() : 'U' }}
-          </abbr>
-        </figure>
-        <section class="contact-details">
-          <h2>{{ activeConversation.participant.name || 'Unknown User' }}</h2>
+      <header class="chat-header" [class.chat-header-loading]="messagesLoading | async">
+        <section class="contact-info">
+          <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
+            @if (activeConversation.participant.profile_picture && 
+                activeConversation.participant.profile_picture !== 'placeholder' &&
+                !isImageLoadingError(activeConversation)) {
+              <img 
+                [src]="activeConversation.participant.profile_picture" 
+                [alt]="activeConversation.participant.name + ' profile picture'"
+                class="profile-avatar-image"
+                (load)="onImageLoad($event)"
+                (error)="handleImageError($event, activeConversation)">
+            }
+            
+            <!-- Always render the initials as fallback, control visibility with CSS -->
+            <abbr 
+              class="avatar-initials" 
+              [class.hidden]="activeConversation.participant.profile_picture && 
+                            activeConversation.participant.profile_picture !== 'placeholder' &&
+                            !isImageLoadingError(activeConversation)"
+              [title]="activeConversation.participant.name"
+              [attr.aria-label]="activeConversation.participant.name + ' avatar'">
+              {{ activeConversation.participant.name ? activeConversation.participant.name.charAt(0).toUpperCase() : 'U' }}
+            </abbr>
+          </figure>
+          <section class="contact-details">
+            <h2>{{ activeConversation.participant.name || 'Unknown User' }}</h2>
+          </section>
         </section>
-      </section>
-    </header>
-
+      </header>
     <section 
       #messagesContainer
       class="messages-container" 
@@ -175,7 +204,11 @@
 
   <ng-template #noConversationSelected>
     <section class="no-conversation">
-      <p>Select a conversation to start messaging</p>
+      <article class="empty-state">
+        <figure class="empty-state-icon" aria-hidden="true">💬</figure>
+        <h2 class="empty-state-title">Your Messages Await</h2>
+        <p class="empty-state-text">Choose a conversation from the sidebar to dive into the chat</p>
+      </article>
     </section>
   </ng-template>
 </main>

@@ -89,4 +89,6 @@ export class ChatService {
   getPartnerID(): string | null {
     return this.partnerID;
   }
+
+
 }

@@ -1,9 +1,10 @@
 import { Component, OnInit, ChangeDetectorRef, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ChatMessage, ChatService, Chat as c } from '../services/chat.service';
+import { ChatMessage, ChatService } from '../services/chat.service';
 import { AuthService } from '../services/auth.service';
 import { CommonModule } from '@angular/common';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
+import { UserApiService } from '../services/user.service';
 
 
 // Interface definitions
@@ -50,6 +51,7 @@ interface Conversation {
 export class Chat implements OnInit, AfterViewChecked {
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
   private shouldScrollToBottom = false;
+  private imageErrors = new Set<string>();
 
   // Loading states
   loading$ = new BehaviorSubject<boolean>(true);
@@ -80,6 +82,7 @@ export class Chat implements OnInit, AfterViewChecked {
     private fb: FormBuilder,
     private chatService: ChatService,
     private authService: AuthService,
+    private UserService: UserApiService,
     private cdr: ChangeDetectorRef
   ) {
     this.searchForm = this.fb.group({
@@ -96,6 +99,17 @@ export class Chat implements OnInit, AfterViewChecked {
       this.scrollToBottomSmooth();
       this.shouldScrollToBottom = false;
     }
+  }
+
+  // Clean up blob URLs when component is destroyed
+  ngOnDestroy(): void {
+    // Revoke any blob URLs to prevent memory leaks
+    this.conversations.forEach(conversation => {
+      const profilePic = conversation.participant.profile_picture;
+      if (profilePic && profilePic.startsWith('blob:')) {
+        URL.revokeObjectURL(profilePic);
+      }
+    });
   }
 
   private scrollToBottomSmooth(): void {
@@ -121,6 +135,7 @@ export class Chat implements OnInit, AfterViewChecked {
       this.currentUser.userid = userid;
 
       const convos = await this.formatConvos(userid);
+      const user = await firstValueFrom(this.UserService.getUserById(userid));
       const convosWithoutMessages = [];       
       const convosWithMessages = [];
       const partnerID = this.chatService.getPartnerID();  
@@ -225,6 +240,7 @@ export class Chat implements OnInit, AfterViewChecked {
         }
 
         const otherUserId = isUser1Current ? chat.user2.userid : chat.user1.userid;
+        const otherUserProfilePic = isUser1Current ? chat.user2.profile_picture : chat.user1.profile_picture;
 
         convos.push({
           id: chat.chatid,
@@ -236,7 +252,7 @@ export class Chat implements OnInit, AfterViewChecked {
             yearofstudy: 0,
             bio: '',
             status: '',
-            profile_picture: 'placeholder'
+            profile_picture: otherUserProfilePic || 'placeholder'
           },
           lastMessage: '',
           unreadCount: 0,
@@ -446,5 +462,33 @@ export class Chat implements OnInit, AfterViewChecked {
       // Older - show date
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
+  }
+
+  handleImageError(event: Event, conversation: any): void {
+    const imgElement = event.target as HTMLImageElement;
+    const imageUrl = conversation.participant.profile_picture;
+    
+    // Add to error tracking
+    this.imageErrors.add(imageUrl);
+    
+    // Clean up blob URL if it's a blob
+    if (imageUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(imageUrl);
+    }
+    
+    // Trigger change detection
+    this.cdr.detectChanges();
+  }
+
+  isImageLoadingError(conversation: any): boolean {
+    return this.imageErrors.has(conversation.participant.profile_picture);
+  }
+
+  onImageLoad(event: Event): void {
+    const imgElement = event.target as HTMLImageElement;
+    const imageUrl = imgElement.src;
+    
+    // Remove from error tracking if it was previously marked as failed
+    this.imageErrors.delete(imageUrl);
   }
 }
