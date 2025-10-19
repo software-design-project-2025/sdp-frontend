@@ -1,4 +1,10 @@
 <main class="dashboard">
+  <!-- Loading Overlay -->
+  <div *ngIf="isLoading$ | async" class="loading-overlay">
+    <div class="spinner"></div>
+    <p class="loading-text">Loading your dashboard...</p>
+  </div>
+
   <!-- Welcome Section -->
   <section id="welcome-section" class="card">
     <header>
@@ -161,7 +167,18 @@
             <p>{{ group.goal }}</p>
           </header>
           <footer>
-            <button class="btn join-btn" (click)="joinGroup(group.groupid)">Request to Join</button>
+            <button 
+              class="btn join-btn" 
+              [class.sending]="getJoinButtonState(group.groupid) === 'sending'"
+              [class.success]="getJoinButtonState(group.groupid) === 'sent'"
+              [class.error]="getJoinButtonState(group.groupid) === 'error'"
+              [disabled]="getJoinButtonState(group.groupid) !== 'idle'"
+              (click)="joinGroup(group.groupid)">
+              <span *ngIf="getJoinButtonState(group.groupid) === 'idle'">Request to Join</span>
+              <span *ngIf="getJoinButtonState(group.groupid) === 'sending'">Sending Request...</span>
+              <span *ngIf="getJoinButtonState(group.groupid) === 'sent'">✓ Request Sent!</span>
+              <span *ngIf="getJoinButtonState(group.groupid) === 'error'">❌ Try Again</span>
+            </button>
           </footer>
         </article>
       </section>

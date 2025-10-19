@@ -121,6 +121,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: $spacing-base * 2;
+  position: relative;
+  min-height: calc(100vh - #{$nav-height});
 }
 
 // 4. Reusable Components
@@ -343,16 +345,25 @@ body {
       flex-wrap: wrap;
     }
 
+    .fc-toolbar-title {
+      color: var(--text-dark) !important;
+      font-weight: 700 !important;
+      font-size: 1.5rem !important;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
     .fc-button-primary {
-      background-color: $color-primary !important;
-      border-color: $color-primary !important;
-      color: $color-white !important;
+      background-color: #5F4B8B !important;
+      border-color: #5F4B8B !important;
+      color: #fff !important;
       background-image: none !important;
       box-shadow: none !important;
-      border-radius: $border-radius-sm;
+      border-radius: 6px;
       padding: 0.4rem 0.8rem;
       font-size: 0.85rem;
-      transition: $transition-base;
+      transition: background-color 0.3s;
+      font-weight: 600;
 
       &:hover, &:focus {
         background-color: $color-primary-light !important;
@@ -367,11 +378,13 @@ body {
 
     .fc-day-today {
       background-color: #F0F0FF !important;
+      opacity: 0.9;
     }
 
     .fc-event, .fc-daygrid-event {
-      background-color: $color-accent-blue;
-      color: $text-dark;
+      background-color: #ADD8E6;
+      color: #111827;
+      border-color: #ADD8E6;
       border-radius: 4px;
       padding: 0.2rem 0.4rem;
       font-size: 0.75rem;
@@ -384,6 +397,7 @@ body {
     }
   }
 }
+
 
 // Study Groups Layered Design
 #study-groups > header {
@@ -477,6 +491,8 @@ body {
     font-family: inherit;
     font-size: $font-size-base;
     transition: $transition-fast;
+    background-color: $color-white !important;
+    color: $text-dark !important;
 
     &:focus {
       outline: none;
@@ -651,5 +667,123 @@ p {
     color: #374151;
     margin: 0;
     text-align: left !important;
+  }
+}
+
+// Loading Overlay Styles
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.3s ease;
+
+  .spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid $border-color;
+    border-top-color: $color-primary;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .loading-text {
+    margin-top: 1.5rem;
+    font-size: 1rem;
+    color: $text-muted;
+    font-weight: 500;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Enhanced Join Button States
+.btn.join-btn {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  // Default state (purple)
+  background-color: $color-accent-purple;
+  color: $color-white;
+  
+  &:hover:not(:disabled) {
+    background-color: $color-accent-purple-hover;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(160, 106, 214, 0.3);
+  }
+  
+  // Sending state (pulse animation)
+  &.sending {
+    background-color: $color-primary-light;
+    color: $color-white;
+    animation: pulse 1.5s infinite;
+    
+    &:hover {
+      background-color: $color-primary-light;
+      transform: none;
+    }
+  }
+  
+  // Success state (green)
+  &.success {
+    background-color: $status-approved !important;
+    color: $color-white;
+    
+    &:hover {
+      background-color: adjust-color($status-approved, $lightness: -10%) !important;
+      transform: translateY(-2px);
+    }
+  }
+  
+  // Error state (red)
+  &.error {
+    background-color: $status-rejected !important;
+    color: $color-white;
+    
+    &:hover {
+      background-color: adjust-color($status-rejected, $lightness: -10%) !important;
+      transform: translateY(-2px);
+    }
+  }
+  
+  // Disabled state
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+// Enhanced Create Group Button
+.btn.create-group-btn {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &.success {
+    background-color: $status-approved !important;
+    
+    &:hover {
+      background-color: adjust-color($status-approved, $lightness: -10%) !important;
+    }
   }
 }

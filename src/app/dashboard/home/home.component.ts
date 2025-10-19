@@ -8,7 +8,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { SessionsService } from '../../services/sessions.service';
 import { AuthService } from '../../services/auth.service';
 import { TopicApiService } from '../../services/topic.service';
-import { firstValueFrom, interval, Subscription } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, forkJoin, interval, Subscription } from 'rxjs';
 import { GroupService, Group, GroupJoinRequest } from '../../services/group.service';
 import { FormsModule, NgForm } from '@angular/forms';
 
@@ -44,6 +44,9 @@ interface DisplayableGroupJoinRequest extends GroupJoinRequest {
   action?: 'approve' | 'reject';
 }
 
+// Type for button state
+type JoinButtonState = 'idle' | 'sending' | 'sent' | 'error';
+
 @Component({
   selector: 'app-home',
   templateUrl: './home.component.html',
@@ -52,6 +55,9 @@ interface DisplayableGroupJoinRequest extends GroupJoinRequest {
   imports: [CommonModule, FullCalendarModule, RouterModule, FormsModule, SessionDetailsModalComponent]
 })
 export class HomeComponent implements OnInit, OnDestroy {
+  // Loading state
+  isLoading$ = new BehaviorSubject<boolean>(true);
+
   allEvents: EventInput[] = [];
   currentUserId: string = '';
   studyHours: number = 0;
@@ -66,8 +72,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   private readonly GROUP_REFRESH_INTERVAL = 60 * 1000;
   discoverableGroups: Group[] = [];
   myJoinRequests: GroupJoinRequest[] = [];
-
   pendingRequestsForMyGroups: DisplayableGroupJoinRequest[] = [];
+
+  // UI state for "Request to Join" buttons
+  discoverGroupUiState = new Map<number, JoinButtonState>();
 
   // Session Modal Properties
   showSessionModal = false;
@@ -116,23 +124,34 @@ export class HomeComponent implements OnInit, OnDestroy {
     console.log('🏠 HomeComponent initialized');
     await this.loadInitialData();
     this.startAutoRefresh();
-    this.messagesCount = await firstValueFrom(this.groupService.getUnreadCount(this.currentUserId));
   }
 
   ngOnDestroy(): void {
     this.stopAutoRefresh();
   }
 
+  // handle loading state and parallel fetching
   private async loadInitialData(): Promise<void> {
+    this.isLoading$.next(true);
     try {
       const userResponse = await this.authService.getCurrentUser();
       
       if (userResponse.data?.user) {
         this.currentUserId = userResponse.data.user.id;
         console.log('✅ User found:', this.currentUserId);
-        this.loadUpcomingSessions(this.currentUserId);
-        this.loadUserStatistics(this.currentUserId);
-        this.loadGroupData(this.currentUserId);
+
+        // Fetch all data in parallel
+        const [sessions, stats, groupData, msgCount] = await Promise.all([
+          firstValueFrom(this.sessionService.getUpcomingSessions(this.currentUserId)),
+          this.loadUserStatistics(this.currentUserId),
+          this.loadGroupData(this.currentUserId),
+          firstValueFrom(this.groupService.getUnreadCount(this.currentUserId))
+        ]);
+
+        // Process data after all fetches are complete
+        this.processAndLoadSessions(sessions);
+        this.messagesCount = msgCount;
+        
       } else {
         console.log('❌ No user logged in');
         this.handleUserNotLoggedIn();
@@ -140,6 +159,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     } catch (error: any) {
       console.error('🚨 Error getting current user:', error);
       this.handleUserNotLoggedIn();
+    } finally {
+      this.isLoading$.next(false);
     }
   }
 
@@ -171,67 +192,105 @@ export class HomeComponent implements OnInit, OnDestroy {
     return 'Creator';
   }
 
+  // Helper to get button state
+  getJoinButtonState(groupId: number): JoinButtonState {
+    return this.discoverGroupUiState.get(groupId) || 'idle';
+  }
+
   // Group Methods
-  private loadGroupData(userId: string): void {
-    this.loadDiscoverableGroups(userId);
-    this.loadMyJoinRequests(userId);
-    this.loadPendingRequestsForMyGroups(userId);
+  private async loadGroupData(userId: string): Promise<void> {
+    await Promise.all([
+      this.loadDiscoverableGroups(userId),
+      this.loadMyJoinRequests(userId),
+      this.loadPendingRequestsForMyGroups(userId)
+    ]);
   }
 
-  private loadDiscoverableGroups(userId: string): void {
-    this.groupService.discoverGroups(userId).subscribe({
-      next: (groups) => {
-        this.discoverableGroups = groups;
-        this.cdr.detectChanges();
-      },
-      error: (err) => console.error('Error fetching discoverable groups:', err)
-    });
+  // set button states
+  private async loadDiscoverableGroups(userId: string): Promise<void> {
+    try {
+      const groups = await firstValueFrom(this.groupService.discoverGroups(userId));
+      this.discoverableGroups = groups;
+      // Initialize UI states for buttons
+      groups.forEach(group => {
+        if (!this.discoverGroupUiState.has(group.groupid)) {
+          this.discoverGroupUiState.set(group.groupid, 'idle');
+        }
+      });
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('Error fetching discoverable groups:', err);
+    }
   }
 
-  private loadMyJoinRequests(userId: string): void {
-    this.groupService.getMyRequests(userId).subscribe({
-      next: (requests) => {
-        this.myJoinRequests = requests;
-        this.cdr.detectChanges();
-      },
-      error: (err) => console.error('Error fetching my join requests:', err)
-    });
+  private async loadMyJoinRequests(userId: string): Promise<void> {
+    try {
+      this.myJoinRequests = await firstValueFrom(this.groupService.getMyRequests(userId));
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('Error fetching my join requests:', err);
+    }
   }
 
-  private loadPendingRequestsForMyGroups(userId: string): void {
-    this.groupService.getPendingRequestsForCreator(userId).subscribe({
-      next: (requests) => {
-        this.pendingRequestsForMyGroups = requests.map(request => ({
-          ...request,
-          uiState: 'idle' as const
-        }));
-        this.cdr.detectChanges();
-      },
-      error: (err) => console.error('Error fetching pending requests for creator:', err)
-    });
+  private async loadPendingRequestsForMyGroups(userId: string): Promise<void> {
+    try {
+      const requests = await firstValueFrom(this.groupService.getPendingRequestsForCreator(userId));
+      this.pendingRequestsForMyGroups = requests.map(request => ({
+        ...request,
+        uiState: 'idle' as const
+      }));
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('Error fetching pending requests for creator:', err);
+    }
   }
   
   joinGroup(groupId: number): void {
-    if (!this.currentUserId) {
-      alert('You must be logged in to join a group.');
-      return;
+    if (!this.currentUserId || this.getJoinButtonState(groupId) !== 'idle') {
+      return; // Do nothing if not logged in or already sending
     }
+
+    // Set sending state
+    this.discoverGroupUiState.set(groupId, 'sending');
+    this.cdr.detectChanges();
+
     this.groupService.requestToJoin(groupId, this.currentUserId).subscribe({
       next: () => {
-        alert('Your request to join has been sent successfully!');
+        // Success - show green "sent" state
+        this.discoverGroupUiState.set(groupId, 'sent');
+        this.cdr.detectChanges();
+        
+        // Refresh group data
         this.loadGroupData(this.currentUserId);
+
+        // Reset button to idle state after 3 seconds
+        setTimeout(() => {
+          if (this.getJoinButtonState(groupId) === 'sent') {
+            this.discoverGroupUiState.set(groupId, 'idle');
+            this.cdr.detectChanges();
+          }
+        }, 3000);
       },
       error: (err) => {
         console.error('Error sending join request:', err);
-        alert('There was an error sending your request. Please try again.');
+        // Show error state
+        this.discoverGroupUiState.set(groupId, 'error');
+        this.cdr.detectChanges();
+
+        // Reset button to idle state after 3 seconds
+        setTimeout(() => {
+          if (this.getJoinButtonState(groupId) === 'error') {
+            this.discoverGroupUiState.set(groupId, 'idle');
+            this.cdr.detectChanges();
+          }
+        }, 3000);
       }
     });
   }
 
   createGroup(form: NgForm): void {
     if (form.invalid || !this.currentUserId) {
-      alert('Please fill out all fields.');
-      return;
+      return; //
     }
 
     const groupData = {
@@ -245,6 +304,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.isGroupCreated = true;
         form.resetForm();
         
+        // Reset success state after 3 seconds
         setTimeout(() => {
           this.isGroupCreated = false;
           this.cdr.detectChanges();
@@ -255,7 +315,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Error creating group:', err);
-        alert('❌ Failed to create group. Please try again.');
       }
     });
   }
@@ -309,7 +368,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.refreshSubscription = interval(this.AUTO_REFRESH_INTERVAL).subscribe(() => {
       if (this.currentUserId) {
         console.log('🔄 Auto-refreshing sessions and statistics...');
-        this.loadUpcomingSessions(this.currentUserId);
+        // Refetched and processed
+        firstValueFrom(this.sessionService.getUpcomingSessions(this.currentUserId))
+          .then(sessions => this.processAndLoadSessions(sessions));
         this.loadUserStatistics(this.currentUserId);
       }
     });
@@ -330,7 +391,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   manualRefresh(): void {
     console.log('🔄 Manual refresh triggered');
     if (this.currentUserId) {
-      this.loadUpcomingSessions(this.currentUserId);
+      firstValueFrom(this.sessionService.getUpcomingSessions(this.currentUserId))
+        .then(sessions => this.processAndLoadSessions(sessions));
       this.loadUserStatistics(this.currentUserId);
       this.loadGroupData(this.currentUserId);
     } else {
@@ -338,58 +400,54 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Split into fetch and process
   private loadUpcomingSessions(userId: string): void {
-    console.log('📡 Fetching sessions for user:', userId);
-    this.sessionService.getUpcomingSessions(userId).subscribe({
-      next: (sessions: any[]) => {
-        console.log('✅ Raw sessions response:', sessions);
-        if (!sessions || !Array.isArray(sessions)) {
-          console.error('❌ Invalid sessions data:', sessions);
-          this.allEvents = [];
-          return;
-        }
-        console.log(`📅 Processing ${sessions.length} sessions`);
-        this.zone.run(() => {
-          const processedEvents = this.processSessions(sessions);
-          console.log('🎯 Processed events:', processedEvents);
-          this.allEvents = processedEvents;
-          this.updateCalendarEvents(processedEvents);
-          this.cdr.detectChanges();
-        });
-      },
-      error: (error: any) => {
+    // just a wrapper for the new async logic
+    firstValueFrom(this.sessionService.getUpcomingSessions(userId))
+      .then(sessions => this.processAndLoadSessions(sessions))
+      .catch(error => {
         console.error('❌ Error fetching sessions:', error);
         this.handleUserNotLoggedIn();
-      }
+      });
+  }
+
+  // Separated processing logic
+  private processAndLoadSessions(sessions: any[]): void {
+    console.log('✅ Raw sessions response:', sessions);
+    if (!sessions || !Array.isArray(sessions)) {
+      console.error('❌ Invalid sessions data:', sessions);
+      this.allEvents = [];
+      return;
+    }
+    console.log(`📅 Processing ${sessions.length} sessions`);
+    this.zone.run(() => {
+      const processedEvents = this.processSessions(sessions);
+      console.log('🎯 Processed events:', processedEvents);
+      this.allEvents = processedEvents;
+      this.updateCalendarEvents(processedEvents);
+      this.cdr.detectChanges();
     });
   }
 
-  private loadUserStatistics(userId: string): void {
+  private async loadUserStatistics(userId: string): Promise<void> {
     console.log('📊 Loading user statistics for:', userId);
-    this.sessionService.getStudyHours(userId).subscribe({
-      next: (response: StudyHoursResponse) => {
-        this.studyHours = response.totalHours; this.cdr.detectChanges();
-      },
-      error: (error) => {
-        this.studyHours = 0; this.cdr.detectChanges();
-      }
-    });
-    this.sessionService.getSessionsCount(userId).subscribe({
-      next: (response: SessionsResponse) => {
-        this.sessionsCount = response.numSessions; this.cdr.detectChanges();
-      },
-      error: (error) => {
-        this.sessionsCount = 0; this.cdr.detectChanges();
-      }
-    });
-    this.topicService.getTopicsCount(userId).subscribe({
-      next: (response: TopicsResponse) => {
-        this.topicsCount = response.numTopics; this.cdr.detectChanges();
-      },
-      error: (error) => {
-        this.topicsCount = 0; this.cdr.detectChanges();
-      }
-    });
+    try {
+      const { hours, sessions, topics } = await firstValueFrom(forkJoin({
+        hours: this.sessionService.getStudyHours(userId),
+        sessions: this.sessionService.getSessionsCount(userId),
+        topics: this.topicService.getTopicsCount(userId)
+      }));
+      
+      this.studyHours = hours.totalHours;
+      this.sessionsCount = sessions.numSessions;
+      this.topicsCount = topics.numTopics;
+    } catch (error) {
+      console.error('Error loading one or more stats', error);
+      this.studyHours = 0;
+      this.sessionsCount = 0;
+      this.topicsCount = 0;
+    }
+    this.cdr.detectChanges();
   }
 
   private updateCalendarEvents(events: EventInput[]): void {
