@@ -3,20 +3,26 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { ChatMessage, ChatService } from '../services/chat.service';
 import { AuthService } from '../services/auth.service';
 import { CommonModule } from '@angular/common';
-import { BehaviorSubject, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, forkJoin } from 'rxjs';
 import { UserApiService } from '../services/user.service';
+import { DocApiService, NewChatDoc, Document as ChatDocument } from '../services/doc.service';
 
-
-// Interface definitions
+// --- INTERFACE DEFINITIONS ---
 export interface User {
   userid: string;
-  name: string,
-  role: String;
+  name: string;
+  role: string;
   degreeid: number;
   yearofstudy: number;
   bio: string;
-  status: String;
+  status: string;
   profile_picture: string;
+}
+
+interface MessageDocument {
+  id: number;
+  originalFilename: string;
+  downloading?: boolean;
 }
 
 interface Message {
@@ -25,8 +31,9 @@ interface Message {
   timestamp: Date;
   senderid: string;
   content: string;
-  type: 'sent' | 'received'; 
-  read_status: boolean; 
+  document: MessageDocument | null;
+  type: 'sent' | 'received';
+  read_status: boolean;
 }
 
 interface Conversation {
@@ -41,41 +48,31 @@ interface Conversation {
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [
-    CommonModule,       
-    ReactiveFormsModule  
-  ],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './chat.html',
   styleUrls: ['./chat.scss']
 })
 export class Chat implements OnInit, AfterViewChecked {
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
+  @ViewChild('fileInput') private fileInput!: ElementRef<HTMLInputElement>;
   private shouldScrollToBottom = false;
   private imageErrors = new Set<string>();
 
-  // Loading states
+  // State Management
   loading$ = new BehaviorSubject<boolean>(true);
-  loading = this.loading$.asObservable();
   messagesLoading$ = new BehaviorSubject<boolean>(false);
-  messagesLoading = this.messagesLoading$.asObservable();
-  error: string = ''; 
-  
+  error: string = '';
+
   searchForm: FormGroup;
   messageForm: FormGroup;
-  
+
   conversations: Conversation[] = [];
   filteredConversations: Conversation[] = [];
   activeConversation: Conversation | null = null;
-  
+
   currentUser: User = {
-    userid: '',
-    name: '',
-    role: '',
-    degreeid: 0,
-    yearofstudy: 0,
-    bio: '',
-    status: '',
-    profile_picture: "placeholder"
+    userid: '', name: '', role: '', degreeid: 0, yearofstudy: 0,
+    bio: '', status: '', profile_picture: "placeholder"
   };
 
   constructor(
@@ -83,30 +80,28 @@ export class Chat implements OnInit, AfterViewChecked {
     private chatService: ChatService,
     private authService: AuthService,
     private UserService: UserApiService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private docApiService: DocApiService
   ) {
-    this.searchForm = this.fb.group({
-      searchTerm: ['']
-    });
-
-    this.messageForm = this.fb.group({
-      message: ['', Validators.required]
-    });
+    this.searchForm = this.fb.group({ searchTerm: [''] });
+    this.messageForm = this.fb.group({ message: ['', Validators.required] });
   }
 
-  ngAfterViewChecked() {
+  ngOnInit(): void {
+    this.initializeChat();
+  }
+
+  ngAfterViewChecked(): void {
     if (this.shouldScrollToBottom) {
       this.scrollToBottomSmooth();
       this.shouldScrollToBottom = false;
     }
   }
 
-  // Clean up blob URLs when component is destroyed
   ngOnDestroy(): void {
-    // Revoke any blob URLs to prevent memory leaks
     this.conversations.forEach(conversation => {
       const profilePic = conversation.participant.profile_picture;
-      if (profilePic && profilePic.startsWith('blob:')) {
+      if (profilePic?.startsWith('blob:')) {
         URL.revokeObjectURL(profilePic);
       }
     });
@@ -116,100 +111,203 @@ export class Chat implements OnInit, AfterViewChecked {
     try {
       if (this.messagesContainer) {
         const element = this.messagesContainer.nativeElement;
-        element.scrollTo({
-          top: element.scrollHeight,
-          behavior: 'smooth'
-        });
+        element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
       }
-    } catch (err) {
-      console.error('Error scrolling to bottom:', err);
-    }
+    } catch (err) { console.error('Error scrolling to bottom:', err); }
   }
 
-  async ngOnInit(): Promise<void> {
+  async initializeChat(): Promise<void> {
+    this.loading$.next(true);
     try {
-      this.loading$.next(true);
-      
-      // These run sequentially
       const userid = await this.getCurrentUserId();
+      if (!userid) throw new Error("Could not authenticate user.");
       this.currentUser.userid = userid;
 
       const convos = await this.formatConvos(userid);
-      const user = await firstValueFrom(this.UserService.getUserById(userid));
-      const convosWithoutMessages = [];       
-      const convosWithMessages = [];
-      const partnerID = this.chatService.getPartnerID();  
-    
+      const partnerID = this.chatService.getPartnerID();
+
       for (const convo of convos) {
         const name = await this.getOtherUserName(convo);
+        convo.participant.name = name || 'Unknown User';
 
-        if (name === undefined) {
-          continue; //ADD PROPER ERROR HANDLING
-        } else {
-          convo.participant.name = name;
-        }
-        
-        if (partnerID && (partnerID == convo.participant.userid)) { 
+        if (partnerID && partnerID === convo.participant.userid) {
           this.setActiveConversation(convo);
         }
-        
-        const messages = await this.retrieveMessages(convo.id, userid); 
-        const unreadCount = this.handleUnreadCount(messages);
-        convo.unreadCount = unreadCount;
+
+        const messages = await this.retrieveMessages(convo.id, userid);
         convo.messages = messages;
+        convo.unreadCount = this.handleUnreadCount(messages);
+
         if (messages.length > 0) {
-          convo.timestamp = messages[messages.length-1].timestamp;
-          convosWithMessages.push(convo);
-        }
-        else{
-          convosWithoutMessages.push(convo);
+          const lastMsg = messages[messages.length - 1];
+          convo.timestamp = lastMsg.timestamp;
+          convo.lastMessage = lastMsg.document ? lastMsg.document.originalFilename : lastMsg.content;
         }
       }
-      
-      // Sort convos by date
-      convosWithMessages.sort((a, b) => {
-        if (!a.timestamp || !b.timestamp) return 0;
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-      });
 
-      this.conversations = [...convosWithMessages, ...convosWithoutMessages];
+      convos.sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0));
+
+      this.conversations = convos;
       this.filteredConversations = [...this.conversations];
 
-      this.loading$.next(false);
+      this.searchForm.get('searchTerm')?.valueChanges.subscribe(term => this.filterConversations(term));
 
-      // Subscribe to search form changes
-      this.searchForm.get('searchTerm')?.valueChanges.subscribe(term => {
-        this.filterConversations(term);
-      });
-    }
-    catch {
-      this.error = 'Page failed';
+    } catch (err) {
+      this.error = 'Failed to initialize chat page.';
+      console.error(err);
+    } finally {
       this.loading$.next(false);
     }
   }
 
-  private handleUnreadCount(messages: Message[]): number {
-    let unreadCount = 0;
-    
-    for (const message of messages){
-      if (message.read_status == false && message.senderid != this.currentUser.userid){
-        unreadCount++;
-      }
+  private async retrieveMessages(chatid: number, userid: string): Promise<Message[]> {
+    try {
+      const [textMessagesResult, docMessagesResult] = await Promise.all([
+        firstValueFrom(this.chatService.getMessagesByChatId(chatid)),
+        firstValueFrom(this.docApiService.getDocsByChatId(chatid))
+      ]);
+
+      const allMessages: Message[] = [];
+
+      textMessagesResult?.forEach(msg => {
+        allMessages.push({
+          id: msg.messageid, chatid: msg.chatid, timestamp: new Date(msg.sent_datetime + "Z"),
+          senderid: msg.senderid, content: msg.message, document: null,
+          type: msg.senderid === userid ? 'sent' : 'received', read_status: msg.read_status
+        });
+      });
+
+      docMessagesResult?.forEach(docMsg => {
+        const [docIdStr, ...filenameParts] = (docMsg.doc || '').split(':');
+        const docId = parseInt(docIdStr, 10);
+        const originalFilename = filenameParts.join(':');
+
+        if (!isNaN(docId) && originalFilename) {
+          allMessages.push({
+            id: docMsg.cdID, chatid: docMsg.chatID, timestamp: new Date(docMsg.sentDateTime),
+            senderid: docMsg.senderID, content: '',
+            document: { id: docId, originalFilename },
+            type: docMsg.senderID === userid ? 'sent' : 'received', read_status: true
+          });
+        }
+      });
+
+      return allMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    } catch (err) {
+      this.error = 'Error retrieving messages';
+      return [];
     }
-    return unreadCount;
+  }
+
+  async setActiveConversation(conversation: Conversation): Promise<void> {
+    if (this.activeConversation?.id === conversation.id) return;
+
+    this.messagesLoading$.next(true);
+    this.activeConversation = conversation;
+    this.cdr.detectChanges(); // Update view immediately
+
+    const unreadMessages = conversation.messages.filter(msg => !msg.read_status && msg.senderid !== this.currentUser.userid);
+    if (unreadMessages.length > 0) {
+      conversation.unreadCount = 0;
+      const updatePromises = unreadMessages.map(msg => firstValueFrom(this.chatService.updateStatus(msg.id, true)));
+      await Promise.all(updatePromises);
+    }
+
+    this.messagesLoading$.next(false);
+    this.shouldScrollToBottom = true;
+  }
+
+  async sendMessage(): Promise<void> {
+    if (!this.messageForm.valid || !this.activeConversation) return;
+
+    const messageContent = this.messageForm.get('message')?.value;
+    const activeConvo = this.activeConversation;
+    this.messageForm.reset();
+
+    const newMessage: Message = {
+      id: Date.now(), chatid: activeConvo.id, content: messageContent, document: null,
+      timestamp: new Date(), senderid: this.currentUser.userid, type: 'sent', read_status: false
+    };
+
+    activeConvo.messages.push(newMessage);
+    activeConvo.lastMessage = messageContent;
+    activeConvo.timestamp = newMessage.timestamp;
+    this.shouldScrollToBottom = true;
+    this.cdr.detectChanges();
+
+    await this.createMessage(activeConvo.id, messageContent);
+  }
+
+  triggerFileUpload(): void {
+    this.fileInput.nativeElement.click();
+  }
+
+  async onFileSelectedAndUpload(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length || !this.activeConversation) return;
+
+    const file = input.files[0];
+    const activeConvo = this.activeConversation;
+    input.value = '';
+
+    try {
+      const uploadedDoc: ChatDocument = await firstValueFrom(this.docApiService.uploadDocument(file, this.currentUser.userid));
+
+      const newChatDocData: NewChatDoc = {
+        senderID: this.currentUser.userid,
+        chatID: activeConvo.id,
+        doc: `${uploadedDoc.id}:${uploadedDoc.originalFilename}`
+      };
+      await firstValueFrom(this.docApiService.createChatDoc(newChatDocData));
+
+      const docMessage: Message = {
+        id: Date.now(), chatid: activeConvo.id, timestamp: new Date(), senderid: this.currentUser.userid,
+        content: '', document: { id: uploadedDoc.id, originalFilename: uploadedDoc.originalFilename },
+        type: 'sent', read_status: false
+      };
+      activeConvo.messages.push(docMessage);
+      activeConvo.lastMessage = uploadedDoc.originalFilename;
+      activeConvo.timestamp = docMessage.timestamp;
+      this.shouldScrollToBottom = true;
+      this.cdr.detectChanges();
+    } catch (err) {
+      this.error = 'Failed to upload and send document.';
+      console.error(err);
+    }
+  }
+
+  async downloadDocument(doc: MessageDocument): Promise<void> {
+    if (doc.downloading) return;
+    doc.downloading = true;
+    this.cdr.detectChanges();
+
+    try {
+      const response = await firstValueFrom(this.docApiService.getDocumentDownloadUrl(doc.id));
+      window.open(response.downloadUrl, '_blank');
+    } catch (err) {
+      this.error = 'Could not get download link.';
+      console.error(err);
+    } finally {
+      doc.downloading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  // --- Helper and Utility Methods ---
+  private handleUnreadCount(messages: Message[]): number {
+    return messages.filter(msg => !msg.read_status && msg.senderid !== this.currentUser.userid).length;
   }
 
   private async getCurrentUserId(): Promise<string> {
-    try { 
+    try {
       const result = await this.authService.getCurrentUser();
-      const user = result.data?.user;      
+      const user = result.data?.user;
       if (user) {
-        this.currentUser.name = user.user_metadata?.['name'] || '';
-        return user.id || '';
+        this.currentUser.name = user.user_metadata?.['name'] || 'You';
+        return user.id;
       }
-    }
-    catch {
-      this.error = 'Error retrieving current userId';
+    } catch (err) {
+      this.error = 'Error retrieving current user ID.';
     }
     return '';
   }
@@ -217,131 +315,43 @@ export class Chat implements OnInit, AfterViewChecked {
   private async formatConvos(userid: string): Promise<Conversation[]> {
     try {
       const result = await firstValueFrom(this.chatService.getChatById(userid));
+      if (!result) return [];
 
-      if (!result) {
-        this.error = 'No chat found';
-        console.log("could not get chat");
-        return [];
-      }
-
-      const convos: Conversation[] = [];
-     
-      for (const chat of result) {
-        let user1Id = chat.user1.userid;
-        let user2Id = chat.user2.userid;
-        const currentId = userid;
-
-        const isUser1Current = user1Id === currentId;
-        const isUser2Current = user2Id === currentId;
-
-        if (!isUser1Current && !isUser2Current) {
-          this.error = 'You are not part of this conversation';
-          continue;
-        }
-
-        const otherUserId = isUser1Current ? chat.user2.userid : chat.user1.userid;
-        const otherUserProfilePic = isUser1Current ? chat.user2.profile_picture : chat.user1.profile_picture;
-
-        convos.push({
-          id: chat.chatid,
-          participant: {
-            userid: otherUserId,
-            name: '',
-            role: '',
-            degreeid: 0,
-            yearofstudy: 0,
-            bio: '',
-            status: '',
-            profile_picture: otherUserProfilePic || 'placeholder'
-          },
-          lastMessage: '',
-          unreadCount: 0,
-          timestamp: null,
-          messages: []
-        });
-      }      
-
-      return convos;
-    }
-    catch {
-      this.error = 'Error formatting chat data';
+      return result.map(chat => ({
+        id: chat.chatid,
+        participant: {
+          userid: chat.user1.userid === userid ? chat.user2.userid : chat.user1.userid,
+          name: '', role: '', degreeid: 0, yearofstudy: 0, bio: '', status: '',
+          profile_picture: chat.user1.userid === userid ? chat.user2.profile_picture : chat.user1.profile_picture
+        },
+        lastMessage: '', unreadCount: 0, timestamp: null, messages: []
+      }));
+    } catch (err) {
+      this.error = 'Error formatting chat data.';
       return [];
     }
   }
 
   private async getOtherUserName(convo: Conversation): Promise<string | undefined> {
     try {
-      // Check validity of UUID
       const result = await this.authService.getUserById(convo.participant.userid);
-      if (result) {
-        return result.data?.name;
-      } 
-      return '';
-    }
-    catch {
-      this.error = 'Error retrieving other username';   
-      return '';
+      return result?.data?.name;
+    } catch (err) {
+      this.error = `Error retrieving username for ${convo.participant.userid}.`;
+      return undefined;
     }
   }
 
-  private async retrieveMessages(chatid: number, userid: String): Promise<Message[]> {
+  private async createMessage(chatid: number, messageContent: string): Promise<void> {
     try {
-      const result = await firstValueFrom(this.chatService.getMessagesByChatId(chatid));
-      
-      if (result.length > 0) {
-        const messages: Message[] = [];
-        
-        for (const message of result) {
-          // Parse as UTC (assuming the stored time is in GMT+2)
-          const utcDate = new Date(message.sent_datetime + "Z");
-          
-          messages.push({
-            id: message.messageid,
-            chatid: message.chatid,
-            timestamp: utcDate,
-            senderid: message.senderid,
-            content: message.message,
-            type: (message.senderid === userid) ? 'sent' : 'received',
-            read_status: message.read_status
-          });
-        }
-
-        messages.sort((a, b) => {
-          if (!a.timestamp || !b.timestamp) return 0;
-          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
-        });
-        
-        return messages;
-      }
-      return [];
+      const newMessage: ChatMessage = {
+        messageid: 0, chatid, senderid: this.currentUser.userid,
+        sent_datetime: new Date(), message: messageContent, read_status: false
+      };
+      await firstValueFrom(this.chatService.createMessage(newMessage));
+    } catch (err) {
+      this.error = 'Failed to send message.';
     }
-    catch {
-      this.error = 'Error retrieving messages';   
-      return [];
-    }
-  }
-
-  // TrackBy functions for performance optimization
-  trackByConversationId(index: number, conversation: Conversation): number {
-    return conversation.id;
-  }
-
-  trackByMessageId(index: number, message: Message): number {
-    return message.id;
-  }
-
-  // For skeleton loading items
-  trackByIndex(index: number): number {
-    return index;
-  }
-
-  // Accessibility helper methods
-  getConversationAriaLabel(conversation: Conversation): string {
-    const unreadText = conversation.unreadCount > 0 
-      ? `, ${conversation.unreadCount} unread messages` 
-      : '';
-    
-    return `${conversation.participant.name} direct message, last message: ${conversation.lastMessage}${unreadText}`;
   }
 
   getAvatarAriaLabel(conversation: Conversation): string {
@@ -354,129 +364,36 @@ export class Chat implements OnInit, AfterViewChecked {
     return `${typeText} at ${timeText}: ${message.content}`;
   }
 
+  getConversationAriaLabel(conversation: Conversation): string {
+    const unreadText = conversation.unreadCount > 0
+      ? `, ${conversation.unreadCount} unread messages`
+      : '';
+
+    return `${conversation.participant.name} direct message, last message: ${conversation.lastMessage}${unreadText}`;
+  }
+
   filterConversations(searchTerm: string): void {
-    if (!searchTerm) {
-      this.filteredConversations = [...this.conversations];
-      return;
-    }
-
     const term = searchTerm.toLowerCase();
-    this.filteredConversations = this.conversations.filter(conversation => {
-      return conversation.participant.name.toLowerCase().includes(term);
-    });
-  }
-
-  async setActiveConversation(conversation: Conversation): Promise<void> {
-    this.messagesLoading$.next(true);
-
-    // Mark as read when selecting conversation
-    conversation.unreadCount = 0;
-    this.activeConversation = conversation;
-
-    //Mark unread messages as read
-    const updatePromises = [];
-    for (let i = conversation.messages.length - 1; i >= 0; i--) {
-      if (conversation.messages[i].read_status == false && conversation.messages[i].senderid != this.currentUser.userid) {
-        const promise = firstValueFrom(this.chatService.updateStatus(conversation.messages[i].id, true))
-        updatePromises.push(promise);
-      } else {
-        break;
-      }
-    }
-    
-    if (updatePromises.length > 0) {
-      await Promise.all(updatePromises);
-    }
-    
-    this.messagesLoading$.next(false);
-    
-    // Scroll to bottom when switching conversations
-    this.shouldScrollToBottom = true;
-  }
-
-  private async createMessage(chatid: number, messageContent: string): Promise<void> {
-    try {
-      const newMessage: ChatMessage = {
-        messageid: 0,
-        chatid: chatid,
-        senderid: this.currentUser.userid,
-        sent_datetime: new Date(),
-        message: messageContent,
-        read_status: false
-      };
-      
-      const result = await firstValueFrom(this.chatService.createMessage(newMessage));
-      if (!result) {
-        this.error = "Failed to send message";
-        console.log("Failed to send!!!");
-      }
-    }
-    catch {
-      this.error = "Failed to send message";
-    }
-  }
-
-  async sendMessage(): Promise<void> {
-    if (this.messageForm.valid && this.activeConversation) {
-      const messageContent = this.messageForm.get('message')?.value; 
-      const newMessage: Message = {
-        id: 0, // Auto increment set in Spring
-        chatid: this.activeConversation.id,
-        content: messageContent,
-        timestamp: new Date(),
-        senderid: this.currentUser.userid,
-        type: 'sent',
-        read_status: false
-      };
-      this.messageForm.reset(); // Clear the input field
-
-      this.activeConversation.messages.push(newMessage); // Add message to active conversation
-      this.shouldScrollToBottom = true;
-
-      await this.createMessage(this.activeConversation.id, messageContent);
-      
-      // Update last message and timestamp
-      this.activeConversation.lastMessage = messageContent;
-      this.activeConversation.timestamp = new Date();
-    }
+    this.filteredConversations = this.conversations.filter(convo =>
+      convo.participant.name.toLowerCase().includes(term)
+    );
   }
 
   formatTime(date: Date): string {
     const now = new Date();
-    
-    // Get midnight of today
-    const todayMidnight = new Date(now);
-    todayMidnight.setHours(0, 0, 0, 0);
-    
-    // Get midnight of yesterday
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterdayMidnight = new Date(todayMidnight);
     yesterdayMidnight.setDate(yesterdayMidnight.getDate() - 1);
-    
-    if (date >= todayMidnight) {
-      // Today - show time
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (date >= yesterdayMidnight) {
-      // Yesterday
-      return 'Yesterday at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else {
-      // Older - show date
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    }
+
+    if (date >= todayMidnight) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (date >= yesterdayMidnight) return 'Yesterday';
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   }
 
   handleImageError(event: Event, conversation: any): void {
-    const imgElement = event.target as HTMLImageElement;
     const imageUrl = conversation.participant.profile_picture;
-    
-    // Add to error tracking
     this.imageErrors.add(imageUrl);
-    
-    // Clean up blob URL if it's a blob
-    if (imageUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(imageUrl);
-    }
-    
-    // Trigger change detection
+    if (imageUrl?.startsWith('blob:')) URL.revokeObjectURL(imageUrl);
     this.cdr.detectChanges();
   }
 
@@ -486,9 +403,11 @@ export class Chat implements OnInit, AfterViewChecked {
 
   onImageLoad(event: Event): void {
     const imgElement = event.target as HTMLImageElement;
-    const imageUrl = imgElement.src;
-    
-    // Remove from error tracking if it was previously marked as failed
-    this.imageErrors.delete(imageUrl);
+    this.imageErrors.delete(imgElement.src);
   }
+
+  // TrackBy functions for performance
+  trackByConversationId = (index: number, conversation: Conversation): number => conversation.id;
+  trackByMessageId = (index: number, message: Message): number => message.id;
+  trackByIndex = (index: number): number => index;
 }
