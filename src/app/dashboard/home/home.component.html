@@ -1,4 +1,10 @@
 <main class="dashboard">
+  <!-- Loading Overlay -->
+  <div *ngIf="isLoading$ | async" class="loading-overlay">
+    <div class="spinner"></div>
+    <p class="loading-text">Loading your dashboard...</p>
+  </div>
+
   <!-- Welcome Section -->
   <section id="welcome-section" class="card">
     <header>
@@ -12,32 +18,32 @@
     <article class="stat-card hours">
       <header class="icon">⏱</header>
       <p>
-        <strong>{{ studyHours }}h</strong><br />
         <small>Study Hours</small>
+        <strong>{{ studyHours }}h</strong><br />
       </p>
     </article>
 
     <article class="stat-card groups">
       <header class="icon">👥</header>
       <p>
-        <strong>{{ sessionsCount }}</strong><br />
         <small>Sessions Log</small>
+        <strong>{{ sessionsCount }}</strong><br />
       </p>
     </article>
 
     <article class="stat-card topics">
       <header class="icon">📘</header>
       <p>
-        <strong>{{ topicsCount }}</strong><br />
         <small>Covered Topics</small>
+        <strong>{{ topicsCount }}</strong><br />
       </p>
     </article>
 
     <article class="stat-card messages">
       <header class="icon">💬</header>
       <p>
-        <strong>{{ messagesCount }}</strong><br />
         <small>Messages</small>
+        <strong>{{ messagesCount }}</strong><br />
       </p>
     </article>
   </section>
@@ -50,28 +56,142 @@
     <full-calendar [options]="calendarOptions"></full-calendar>
   </section>
 
-  <!-- New Study Groups -->
-  <section id="new-groups" class="card">
-    <header>
-      <h2>New Study Groups</h2>
+  <!-- Main Study Groups Section -->
+  <section id="study-groups" class="card">
+    <header class="card-header-action">
+      <h2>Study Groups</h2>
     </header>
-    <article class="group-item">
+    
+    <section id="create-group" class="group-subsection">
       <header>
-        <h3>Advanced Mathematics</h3>
-        <p>Join fellow students tackling calculus and beyond</p>
+        <h3>Create a New Group</h3>
+        <p>Start a new collaboration with your peers.</p>
       </header>
-      <footer>
-        <button class="join-btn">Join Group</button>
-      </footer>
-    </article>
-    <article class="group-item">
+      <form class="subsection-content create-group-form" #groupForm="ngForm" (ngSubmit)="createGroup(groupForm)" (reset)="groupForm.reset()">
+        <input
+          type="text"
+          placeholder="Group Title (e.g., Web Dev Final Project)"
+          name="title"
+          ngModel
+          required />
+        <textarea
+          placeholder="Group Goal (e.g., To ace the final exam...)"
+          name="goal"
+          rows="3"
+          ngModel
+          required></textarea>
+        <button
+          type="submit"
+          class="btn create-group-btn"
+          [disabled]="groupForm.invalid"
+          [class.success]="isGroupCreated">
+          <span *ngIf="!isGroupCreated">Create Group</span>
+          <span *ngIf="isGroupCreated">✓ Group Created Successfully!</span>
+        </button>
+      </form>
+    </section>
+
+    <section id="group-alerts" class="group-subsection" *ngIf="myJoinRequests && myJoinRequests.length > 0">
       <header>
-        <h3>Computer Science Fundamentals</h3>
-        <p>Perfect for beginners and intermediate learners</p>
+        <h3>My Group Requests</h3>
+        <p>Here are the latest updates on your requests to join groups.</p>
       </header>
-      <footer>
-        <button class="join-btn">Join Group</button>
-      </footer>
-    </article>
+      <section class="scrollable-list">
+        <article *ngFor="let request of myJoinRequests" class="group-item alert-item">
+          <header>
+            <h3>Request to join: {{ request.groupTitle }}</h3>
+            <p>Status: <strong class="status-badge" [ngClass]="'status-' + request.status">{{ request.status }}</strong></p>
+          </header>
+          <footer *ngIf="request.status === 'approved' || request.status === 'rejected' || request.status === 'pending'">
+            <p *ngIf="request.status === 'pending'" class="alert-text">Your request is being reviewed.</p>
+            <p *ngIf="request.status === 'rejected'" class="alert-text">Your request was not approved.</p>
+            <button *ngIf="request.status === 'approved'" class="btn join-btn">Start Messaging</button>
+          </footer>
+        </article>
+      </section>
+    </section>
+
+    <section id="creator-alerts" class="group-subsection" aria-labelledby="incoming-requests-heading">
+      <header>
+        <h3 id="incoming-requests-heading">Incoming Join Requests</h3>
+        <p>Users are requesting to join groups you created.</p>
+      </header>
+      
+      <section class="scrollable-list">
+        <article *ngFor="let request of pendingRequestsForMyGroups" class="group-item creator-alert">
+          <header class="request-info">
+            <h3>{{ request.userName }} wants to join: <strong>{{ request.groupTitle }}</strong></h3>
+          </header>
+          
+          <footer class="request-actions">
+            <!-- Default state - dropdown -->
+            <section *ngIf="!request.uiState || request.uiState === 'idle'" class="action-selection">
+              <select class="action-dropdown" (change)="startAction($event, request)">
+                <option value="" disabled selected>Action</option>
+                <option value="approve">Approve</option>
+                <option value="reject">Reject</option>
+              </select>
+            </section>
+
+            <!-- Confirmation state - buttons -->
+            <section *ngIf="request.uiState === 'confirming'" class="action-confirmation">
+              <p class="confirmation-prompt">Confirm {{ request.action }}?</p>
+              <menu class="confirmation-menu">
+                <li><button class="btn-confirm" (click)="confirmAction(request)">Yes</button></li>
+                <li><button class="btn-cancel" (click)="cancelAction(request)">Cancel</button></li>
+              </menu>
+            </section>
+
+            <!-- Processing state -->
+            <section *ngIf="request.uiState === 'processing'" class="action-processing">
+              <p class="processing-message">Processing...</p>
+            </section>
+          </footer>
+        </article>
+        
+        <article *ngIf="!pendingRequestsForMyGroups || pendingRequestsForMyGroups.length === 0" class="empty-state">
+          <p>No incoming requests right now.</p>
+        </article>
+      </section>
+    </section>
+
+    <section id="discover-groups" class="group-subsection">
+      <header>
+        <h3>Discover New Study Groups</h3>
+        <p>Find and join study groups to collaborate with your peers.</p>
+      </header>
+      <section class="scrollable-list" *ngIf="discoverableGroups && discoverableGroups.length > 0; else noGroups">
+        <article *ngFor="let group of discoverableGroups" class="group-item">
+          <header class="group-info">
+            <h3>{{ group.title }}</h3>
+            <p>{{ group.goal }}</p>
+          </header>
+          <footer>
+            <button 
+              class="btn join-btn" 
+              [class.sending]="getJoinButtonState(group.groupid) === 'sending'"
+              [class.success]="getJoinButtonState(group.groupid) === 'sent'"
+              [class.error]="getJoinButtonState(group.groupid) === 'error'"
+              [disabled]="getJoinButtonState(group.groupid) !== 'idle'"
+              (click)="joinGroup(group.groupid)">
+              <span *ngIf="getJoinButtonState(group.groupid) === 'idle'">Request to Join</span>
+              <span *ngIf="getJoinButtonState(group.groupid) === 'sending'">Sending Request...</span>
+              <span *ngIf="getJoinButtonState(group.groupid) === 'sent'">✓ Request Sent!</span>
+              <span *ngIf="getJoinButtonState(group.groupid) === 'error'">❌ Try Again</span>
+            </button>
+          </footer>
+        </article>
+      </section>
+      <ng-template #noGroups>
+        <p class="empty-state">No new groups available to join right now. Check back later!</p>
+      </ng-template>
+    </section>
   </section>
+
+  <!-- Session Details Modal -->
+  <app-session-details-modal
+    *ngIf="showSessionModal"
+    [session]="selectedSession"
+    (close)="closeSessionModal()">
+  </app-session-details-modal>
 </main>
