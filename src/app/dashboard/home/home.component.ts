@@ -12,7 +12,6 @@ import { BehaviorSubject, firstValueFrom, forkJoin, interval, Subscription } fro
 import { GroupService, Group, GroupJoinRequest } from '../../services/group.service';
 import { FormsModule, NgForm } from '@angular/forms';
 
-// This import is necessary for the modal
 import { SessionDetailsModalComponent } from './session-details-modal.component';
 
 interface Session {
