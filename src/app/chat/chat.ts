@@ -1,11 +1,10 @@
 import { Component, OnInit, ChangeDetectorRef, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ChatMessage, ChatService } from '../services/chat.service';
+import { ChatMessage, GroupMessage, ChatService } from '../services/chat.service';
 import { AuthService } from '../services/auth.service';
 import { CommonModule } from '@angular/common';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { UserApiService } from '../services/user.service';
-
 
 // Interface definitions
 export interface User {
@@ -29,6 +28,14 @@ interface Message {
   read_status: boolean; 
 }
 
+interface ExtendedGroupMessage extends GroupMessage {
+  type: 'sent' | 'received';
+  sender?: User; // Optional user object for sender details
+  timestamp: Date;
+  content: string;
+  id: number;
+}
+
 interface Conversation {
   id: number;
   participant: User;
@@ -36,6 +43,16 @@ interface Conversation {
   timestamp: Date | null;
   unreadCount: number;
   messages: Message[];
+}
+
+interface GroupConversation {
+  id: number;
+  name: string;
+  participants: User[];
+  lastMessage: string;
+  timestamp: Date | null;
+  unreadCount: number;
+  messages: ExtendedGroupMessage[];
 }
 
 @Component({
@@ -64,8 +81,8 @@ export class Chat implements OnInit, AfterViewChecked {
   messageForm: FormGroup;
   
   conversations: Conversation[] = [];
-  filteredConversations: Conversation[] = [];
-  activeConversation: Conversation | null = null;
+  filteredConversations: (Conversation | GroupConversation)[] = [];
+  activeConversation: Conversation | GroupConversation | null = null;
   
   currentUser: User = {
     userid: '',
@@ -101,13 +118,13 @@ export class Chat implements OnInit, AfterViewChecked {
     }
   }
 
-  // Clean up blob URLs when component is destroyed
   ngOnDestroy(): void {
-    // Revoke any blob URLs to prevent memory leaks
     this.conversations.forEach(conversation => {
-      const profilePic = conversation.participant.profile_picture;
-      if (profilePic && profilePic.startsWith('blob:')) {
-        URL.revokeObjectURL(profilePic);
+      if (!this.isGroupConversation(conversation)) {
+        const profilePic = conversation.participant.profile_picture;
+        if (profilePic && profilePic.startsWith('blob:')) {
+          URL.revokeObjectURL(profilePic);
+        }
       }
     });
   }
@@ -130,21 +147,21 @@ export class Chat implements OnInit, AfterViewChecked {
     try {
       this.loading$.next(true);
       
-      // These run sequentially
       const userid = await this.getCurrentUserId();
       this.currentUser.userid = userid;
 
       const convos = await this.formatConvos(userid);
-      const user = await firstValueFrom(this.UserService.getUserById(userid));
+      const groupConvos = await this.retrieveGroupConvos(userid);
+      const partnerID = this.chatService.getPartnerID();  
+
       const convosWithoutMessages = [];       
       const convosWithMessages = [];
-      const partnerID = this.chatService.getPartnerID();  
-    
+      
       for (const convo of convos) {
         const name = await this.getOtherUserName(convo);
 
         if (name === undefined) {
-          continue; //ADD PROPER ERROR HANDLING
+          continue;
         } else {
           convo.participant.name = name;
         }
@@ -165,19 +182,51 @@ export class Chat implements OnInit, AfterViewChecked {
           convosWithoutMessages.push(convo);
         }
       }
-      
-      // Sort convos by date
-      convosWithMessages.sort((a, b) => {
-        if (!a.timestamp || !b.timestamp) return 0;
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-      });
 
-      this.conversations = [...convosWithMessages, ...convosWithoutMessages];
-      this.filteredConversations = [...this.conversations];
+      // Process group conversations
+      const groupConvosWithMessages = [];
+      const groupConvosWithoutMessages = [];
+
+      for (const groupConvo of groupConvos) {
+        // Retrieve group messages
+        const groupMessages = await this.retrieveGroupMessages(groupConvo.id, groupConvo.participants);
+        groupConvo.messages = groupMessages;
+        groupConvo.unreadCount = 0; // Implement read status for groups later if needed
+        
+        if (groupMessages.length > 0) {
+          groupConvo.timestamp = groupMessages[groupMessages.length - 1].timestamp;
+          groupConvo.lastMessage = groupMessages[groupMessages.length - 1].content;
+          groupConvosWithMessages.push(groupConvo);
+        } else {
+          groupConvo.timestamp = null;
+          groupConvo.lastMessage = '';
+          groupConvosWithoutMessages.push(groupConvo);
+        }
+      }
+      
+  // Combine all conversations with messages and sort them together
+  const allConversationsWithMessages = [
+    ...convosWithMessages.map(convo => ({ ...convo, type: 'individual' as const })),
+    ...groupConvosWithMessages.map(convo => ({ ...convo, type: 'group' as const }))
+  ].sort((a, b) => {
+    if (!a.timestamp || !b.timestamp) return 0;
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
+
+  // Combine all conversations without messages
+  const allConversationsWithoutMessages = [
+    ...convosWithoutMessages.map(convo => ({ ...convo, type: 'individual' as const })),
+    ...groupConvosWithoutMessages.map(convo => ({ ...convo, type: 'group' as const }))
+  ];
+
+  // Store individual conversations separately
+  this.conversations = [...convosWithMessages, ...convosWithoutMessages];
+
+  // Combine sorted conversations with messages and conversations without messages
+  this.filteredConversations = [...allConversationsWithMessages, ...allConversationsWithoutMessages];
 
       this.loading$.next(false);
 
-      // Subscribe to search form changes
       this.searchForm.get('searchTerm')?.valueChanges.subscribe(term => {
         this.filterConversations(term);
       });
@@ -220,7 +269,6 @@ export class Chat implements OnInit, AfterViewChecked {
 
       if (!result) {
         this.error = 'No chat found';
-        console.log("could not get chat");
         return [];
       }
 
@@ -269,9 +317,144 @@ export class Chat implements OnInit, AfterViewChecked {
     }
   }
 
+  private async retrieveGroupConvos(userid: string): Promise<GroupConversation[]> {
+    try {
+      const result = await firstValueFrom(this.chatService.getGroups(userid));
+
+      if (!result) {
+        this.error = 'No group chat found';
+        return [];
+      }
+
+      const groupConvos: GroupConversation[] = []; 
+
+      const groupPromises = result.map(async (group) => {
+        const groupConvo: GroupConversation = {
+          id: group.groupid,
+          name: group.title,
+          participants: [],
+          lastMessage: '',
+          timestamp: null,
+          unreadCount: 0,
+          messages: []
+        };
+
+        await this.getGroupData(groupConvo);
+        return groupConvo;
+      });
+
+      const populatedGroupConvos = await Promise.all(groupPromises);
+      return populatedGroupConvos;
+    } catch (error) {
+      this.error = 'Error formatting group chat data';
+      console.error('Error in retrieveGroupConvos:', error);
+      return [];      
+    }
+  }
+
+  private async getGroupData(groupConvo: GroupConversation): Promise<void> {
+    try {
+      const members = await firstValueFrom(this.chatService.getGroupMembers(groupConvo.id));
+      if (!members || members.length === 0) {
+        this.error = 'Could not find group members';
+        groupConvo.participants = [];
+      }
+
+      const users: User[] = await Promise.all(
+        members.map(async (member) => {
+          try {
+            const [supabaseData, postgresData] = await Promise.all([
+              this.authService.getUserById(member.userid),
+              firstValueFrom(this.UserService.getUserById(member.userid))
+            ]);
+
+            if (!supabaseData) {
+              console.log(`Could not find user in Supabase: ${member.userid}`);
+            }
+
+            if (!postgresData) {
+              console.log(`Could not find user in Postgres: ${member.userid}`);
+            }
+
+            return {
+              userid: member.userid,
+              name: supabaseData?.data?.name || '',
+              role: postgresData[0]?.role || '',
+              degreeid: postgresData[0]?.degreeid || '',
+              yearofstudy: postgresData[0]?.yearofstudy || 0,
+              bio: postgresData[0]?.bio || '',
+              status: postgresData[0]?.status || '',
+              profile_picture: postgresData[0]?.profile_picture || ''
+            } as User;
+          } catch (memberError) {
+            console.error(`Error processing member ${member.userid}:`, memberError);
+            return {
+              userid: member.userid,
+              name: '',
+              role: '',
+              degreeid: 0,
+              yearofstudy: 0,
+              bio: '',
+              status: 'error',
+              profile_picture: ''
+            } as User;
+          }
+        })
+      );
+
+      groupConvo.participants = users;
+      
+    } catch (error) {
+      this.error = 'Error getting group chat members';
+      console.error('Error getting group chat members for group:', groupConvo.id, error);
+      groupConvo.participants = [];
+    }
+  }
+
+  private async retrieveGroupMessages(groupid: number, participants: User[]): Promise<ExtendedGroupMessage[]> {
+    try {
+      const result = await firstValueFrom(this.chatService.getGroupMessages(groupid));
+      
+      if (result.length > 0) {
+        const messages: ExtendedGroupMessage[] = [];
+        
+        for (const message of result) {
+          const utcDate = new Date(message.sent_datetime + "Z");
+          
+          // Find sender in participants
+          const sender = participants.find(p => p.userid === message.senderid);
+          
+          messages.push({
+            id: message.messageid,
+            messageid: message.messageid,
+            groupid: message.groupid,
+            sent_datetime: message.sent_datetime,
+            timestamp: utcDate,
+            senderid: message.senderid,
+            content: message.message,
+            message: message.message,
+            type: (message.senderid === this.currentUser.userid) ? 'sent' : 'received',
+            sender: sender
+          });
+        }
+
+        messages.sort((a, b) => {
+          if (!a.timestamp || !b.timestamp) return 0;
+          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+        });
+        
+        return messages;
+      }
+      return [];
+    }
+    catch {
+      this.error = 'Error retrieving group messages';   
+      return [];
+    }
+  }
+
   private async getOtherUserName(convo: Conversation): Promise<string | undefined> {
     try {
-      // Check validity of UUID
       const result = await this.authService.getUserById(convo.participant.userid);
       if (result) {
         return result.data?.name;
@@ -292,7 +475,6 @@ export class Chat implements OnInit, AfterViewChecked {
         const messages: Message[] = [];
         
         for (const message of result) {
-          // Parse as UTC (assuming the stored time is in GMT+2)
           const utcDate = new Date(message.sent_datetime + "Z");
           
           messages.push({
@@ -321,76 +503,127 @@ export class Chat implements OnInit, AfterViewChecked {
     }
   }
 
-  // TrackBy functions for performance optimization
-  trackByConversationId(index: number, conversation: Conversation): number {
+  trackByConversationId(index: number, conversation: Conversation | GroupConversation): number {
     return conversation.id;
   }
 
-  trackByMessageId(index: number, message: Message): number {
+  isGroupConversation(convo: any): convo is GroupConversation {
+    return 'participants' in convo && Array.isArray(convo.participants);
+  }
+
+  trackByMessageId(index: number, message: Message | ExtendedGroupMessage): number {
     return message.id;
   }
 
-  // For skeleton loading items
   trackByIndex(index: number): number {
     return index;
   }
 
-  // Accessibility helper methods
-  getConversationAriaLabel(conversation: Conversation): string {
+  getConversationAriaLabel(conversation: Conversation | GroupConversation): string {
     const unreadText = conversation.unreadCount > 0 
       ? `, ${conversation.unreadCount} unread messages` 
       : '';
-    
-    return `${conversation.participant.name} direct message, last message: ${conversation.lastMessage}${unreadText}`;
+
+    if (this.isGroupConversation(conversation)) {
+      return `${conversation.name} group chat, last message: ${conversation.lastMessage}${unreadText}`;
+    } else {
+      return `${conversation.participant.name} direct message, last message: ${conversation.lastMessage}${unreadText}`;
+    }
   }
 
-  getAvatarAriaLabel(conversation: Conversation): string {
-    return `${conversation.participant.name} avatar`;
+  getAvatarAriaLabel(conversation: Conversation | GroupConversation): string {
+    if (this.isGroupConversation(conversation)) {
+      return `${conversation.name} group avatar`;
+    } else {
+      return `${conversation.participant.name} avatar`;
+    }
   }
 
-  getMessageAriaLabel(message: Message): string {
+  getMessageAriaLabel(message: Message | ExtendedGroupMessage): string {
     const timeText = this.formatTime(message.timestamp);
     const typeText = message.type === 'sent' ? 'You sent' : 'Received';
+    
+    if (this.isGroupMessage(message) && message.sender) {
+      return `${message.sender.name} sent at ${timeText}: ${message.content}`;
+    }
+    
     return `${typeText} at ${timeText}: ${message.content}`;
+  }
+
+  isGroupMessage(message: any): message is ExtendedGroupMessage {
+    return 'groupid' in message;
   }
 
   filterConversations(searchTerm: string): void {
     if (!searchTerm) {
-      this.filteredConversations = [...this.conversations];
+      this.filteredConversations = [...this.conversations, ...this.getGroupConversations()];
       return;
     }
 
     const term = searchTerm.toLowerCase();
-    this.filteredConversations = this.conversations.filter(conversation => {
+    const filteredOneOnOne = this.conversations.filter(conversation => {
       return conversation.participant.name.toLowerCase().includes(term);
     });
+    
+    const filteredGroups = this.getGroupConversations().filter(conversation => {
+      return conversation.name.toLowerCase().includes(term);
+    });
+    
+    this.filteredConversations = [...filteredOneOnOne, ...filteredGroups];
   }
 
-  async setActiveConversation(conversation: Conversation): Promise<void> {
+  private getGroupConversations(): GroupConversation[] {
+    return this.filteredConversations.filter(convo => 
+      this.isGroupConversation(convo)
+    ) as GroupConversation[];
+  }
+
+  getConversationDisplayName(conversation: Conversation | GroupConversation): string {
+    if (this.isGroupConversation(conversation)) {
+      return conversation.name;
+    } else {
+      return conversation.participant.name || 'Unknown User';
+    }
+  }
+
+  getAvatarInitials(conversation: Conversation | GroupConversation): string {
+    if (this.isGroupConversation(conversation)) {
+      return conversation.name ? conversation.name.charAt(0).toUpperCase() : 'G';
+    } else {
+      return conversation.participant.name ? conversation.participant.name.charAt(0).toUpperCase() : 'U';
+    }
+  }
+
+  getSenderInitials(user: User): string {
+    return user.name ? user.name.charAt(0).toUpperCase() : 'U';
+  }
+
+  async setActiveConversation(conversation: Conversation | GroupConversation): Promise<void> {
     this.messagesLoading$.next(true);
 
-    // Mark as read when selecting conversation
-    conversation.unreadCount = 0;
-    this.activeConversation = conversation;
+    if (this.isGroupConversation(conversation)) {
+      conversation.unreadCount = 0;
+      this.activeConversation = conversation;
+    } else {
+      conversation.unreadCount = 0;
+      this.activeConversation = conversation;
 
-    //Mark unread messages as read
-    const updatePromises = [];
-    for (let i = conversation.messages.length - 1; i >= 0; i--) {
-      if (conversation.messages[i].read_status == false && conversation.messages[i].senderid != this.currentUser.userid) {
-        const promise = firstValueFrom(this.chatService.updateStatus(conversation.messages[i].id, true))
-        updatePromises.push(promise);
-      } else {
-        break;
+      const updatePromises = [];
+      for (let i = conversation.messages.length - 1; i >= 0; i--) {
+        if (conversation.messages[i].read_status == false && conversation.messages[i].senderid != this.currentUser.userid) {
+          const promise = firstValueFrom(this.chatService.updateStatus(conversation.messages[i].id, true))
+          updatePromises.push(promise);
+        } else {
+          break;
+        }
+      }
+      
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
       }
     }
     
-    if (updatePromises.length > 0) {
-      await Promise.all(updatePromises);
-    }
-    
     this.messagesLoading$.next(false);
-    
-    // Scroll to bottom when switching conversations
     this.shouldScrollToBottom = true;
   }
 
@@ -408,7 +641,6 @@ export class Chat implements OnInit, AfterViewChecked {
       const result = await firstValueFrom(this.chatService.createMessage(newMessage));
       if (!result) {
         this.error = "Failed to send message";
-        console.log("Failed to send!!!");
       }
     }
     catch {
@@ -416,11 +648,31 @@ export class Chat implements OnInit, AfterViewChecked {
     }
   }
 
+  private async createGroupMessage(groupid: number, messageContent: string): Promise<void> {
+    try {
+      const newMessage: GroupMessage = {
+        messageid: 0,
+        groupid: groupid,
+        senderid: this.currentUser.userid,
+        sent_datetime: new Date(),
+        message: messageContent
+      };
+      
+      const result = await firstValueFrom(this.chatService.createGroupMessage(newMessage));
+      if (!result) {
+        this.error = "Failed to send group message";
+      }
+    }
+    catch {
+      this.error = "Failed to send group message";
+    }
+  }
+
   async sendMessage(): Promise<void> {
-    if (this.messageForm.valid && this.activeConversation) {
+    if (this.messageForm.valid && this.activeConversation && !this.isGroupConversation(this.activeConversation)) {
       const messageContent = this.messageForm.get('message')?.value; 
       const newMessage: Message = {
-        id: 0, // Auto increment set in Spring
+        id: 0,
         chatid: this.activeConversation.id,
         content: messageContent,
         timestamp: new Date(),
@@ -428,14 +680,46 @@ export class Chat implements OnInit, AfterViewChecked {
         type: 'sent',
         read_status: false
       };
-      this.messageForm.reset(); // Clear the input field
+      this.messageForm.reset();
 
-      this.activeConversation.messages.push(newMessage); // Add message to active conversation
+      this.activeConversation.messages.push(newMessage);
       this.shouldScrollToBottom = true;
 
       await this.createMessage(this.activeConversation.id, messageContent);
       
-      // Update last message and timestamp
+      this.activeConversation.lastMessage = messageContent;
+      this.activeConversation.timestamp = new Date();
+    }
+  }
+
+  async sendGroupMessage(): Promise<void> {
+    if (this.messageForm.valid && this.activeConversation && this.isGroupConversation(this.activeConversation)) {
+      const messageContent = this.messageForm.get('message')?.value;
+      
+      // Create the new message object
+      const newMessage: ExtendedGroupMessage = {
+        id: 0, // Temporary ID, will be replaced by the actual ID from the server
+        messageid: 0,
+        groupid: this.activeConversation.id,
+        senderid: this.currentUser.userid,
+        sent_datetime: new Date(),
+        message: messageContent,
+        content: messageContent,
+        timestamp: new Date(),
+        type: 'sent',
+        sender: this.currentUser
+      };
+
+      this.messageForm.reset();
+
+      // Add the message to the active conversation
+      this.activeConversation.messages.push(newMessage);
+      this.shouldScrollToBottom = true;
+
+      // Send to the server
+      await this.createGroupMessage(this.activeConversation.id, messageContent);
+      
+      // Update conversation metadata
       this.activeConversation.lastMessage = messageContent;
       this.activeConversation.timestamp = new Date();
     }
@@ -444,51 +728,64 @@ export class Chat implements OnInit, AfterViewChecked {
   formatTime(date: Date): string {
     const now = new Date();
     
-    // Get midnight of today
     const todayMidnight = new Date(now);
     todayMidnight.setHours(0, 0, 0, 0);
     
-    // Get midnight of yesterday
     const yesterdayMidnight = new Date(todayMidnight);
     yesterdayMidnight.setDate(yesterdayMidnight.getDate() - 1);
     
     if (date >= todayMidnight) {
-      // Today - show time
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else if (date >= yesterdayMidnight) {
-      // Yesterday
       return 'Yesterday at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else {
-      // Older - show date
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
   }
 
-  handleImageError(event: Event, conversation: any): void {
+  handleImageError(event: Event, conversation: Conversation | GroupConversation): void {
+    if (!this.isGroupConversation(conversation)) {
+      const imgElement = event.target as HTMLImageElement;
+      const imageUrl = conversation.participant.profile_picture;
+      
+      this.imageErrors.add(imageUrl);
+      
+      if (imageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(imageUrl);
+      }
+      
+      this.cdr.detectChanges();
+    }
+  }
+
+  handleSenderImageError(event: Event, user: User): void {
     const imgElement = event.target as HTMLImageElement;
-    const imageUrl = conversation.participant.profile_picture;
+    const imageUrl = user.profile_picture;
     
-    // Add to error tracking
     this.imageErrors.add(imageUrl);
     
-    // Clean up blob URL if it's a blob
     if (imageUrl.startsWith('blob:')) {
       URL.revokeObjectURL(imageUrl);
     }
     
-    // Trigger change detection
     this.cdr.detectChanges();
   }
 
-  isImageLoadingError(conversation: any): boolean {
+  isImageLoadingError(conversation: Conversation | GroupConversation): boolean {
+    if (this.isGroupConversation(conversation)) {
+      return false;
+    }
     return this.imageErrors.has(conversation.participant.profile_picture);
+  }
+
+  isSenderImageLoadingError(user: User): boolean {
+    return this.imageErrors.has(user.profile_picture);
   }
 
   onImageLoad(event: Event): void {
     const imgElement = event.target as HTMLImageElement;
     const imageUrl = imgElement.src;
     
-    // Remove from error tracking if it was previously marked as failed
     this.imageErrors.delete(imageUrl);
   }
 }

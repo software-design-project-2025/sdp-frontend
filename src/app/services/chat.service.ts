@@ -20,6 +20,27 @@ export interface ChatMessage {
   read_status: boolean;
 }
 
+export interface Group {
+  groupid: number;
+  title: string;
+  goal: string;
+  active: boolean;
+  creatorid: string;
+}
+
+export interface GroupMembers {
+  groupid: number;
+  userid: string;
+}
+
+export interface GroupMessage {
+  messageid: number;
+  groupid: number;
+  sent_datetime: Date;
+  senderid: string;
+  message: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -90,5 +111,40 @@ export class ChatService {
     return this.partnerID;
   }
 
+  getGroups(userid: string): Observable<Group[]> {
+    return this.http.get<Group[]>(
+      `${environment.apiBaseUrl}/api/auth/groups/getGroups?userid=${userid}`,
+      {headers: this.getHeaders()}
+    )
+  }
+
+  getGroupMembers(groupid: number): Observable<GroupMembers[]> {
+    return this.http.get<GroupMembers[]>(
+      `${environment.apiBaseUrl}/api/groupmembers/findmembers?groupid=${groupid}`,
+      {headers: this.getHeaders()}
+    )
+  }
+
+  getGroupMessages(groupid: number): Observable<GroupMessage[]> {
+    return this.http.get<GroupMessage[]>(
+      `${environment.apiBaseUrl}/api/groupMessage/getGroupMessage?groupid=${groupid}`,
+      {headers: this.getHeaders()}
+    )    
+  }
+
+  createGroupMessage(messageData: GroupMessage): Observable<GroupMessage> {
+    
+    return this.http.post<GroupMessage>(
+      `${environment.apiBaseUrl}/api/groupMessage/sendGroupMessage`,
+      {
+        //messageid: messageData.messageid,
+        groupid: messageData.groupid,
+        senderid: messageData.senderid,
+        sent_datetime: messageData.sent_datetime,
+        message: messageData.message        
+      }, 
+      { headers: this.getHeaders() } 
+    );
+  }
 
 }

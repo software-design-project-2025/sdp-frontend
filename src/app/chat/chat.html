@@ -36,9 +36,10 @@
             [attr.aria-current]="activeConversation?.id === conversation.id ? 'true' : null">
             
             <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(conversation)">
-              @if (conversation.participant.profile_picture && 
-                  conversation.participant.profile_picture !== 'placeholder' &&
-                  !isImageLoadingError(conversation)) {
+              @if (!isGroupConversation(conversation) && 
+                   conversation.participant.profile_picture && 
+                   conversation.participant.profile_picture !== 'placeholder' &&
+                   !isImageLoadingError(conversation)) {
                 <img 
                   [src]="conversation.participant.profile_picture" 
                   [alt]="conversation.participant.name + ' profile picture'"
@@ -47,23 +48,27 @@
                   (error)="handleImageError($event, conversation)">
               }
               
-              <!-- Always render the initials as fallback, control visibility with CSS -->
               <abbr 
                 class="avatar-initials" 
-                [class.hidden]="conversation.participant.profile_picture && 
+                [class.hidden]="!isGroupConversation(conversation) && 
+                              conversation.participant.profile_picture && 
                               conversation.participant.profile_picture !== 'placeholder' &&
                               !isImageLoadingError(conversation)"
-                [title]="conversation.participant.name"
-                [attr.aria-label]="conversation.participant.name + ' avatar'">
-                {{ conversation.participant.name ? conversation.participant.name.charAt(0).toUpperCase() : 'U' }}
+                [title]="getConversationDisplayName(conversation)"
+                [attr.aria-label]="getAvatarAriaLabel(conversation)">
+                {{ getAvatarInitials(conversation) }}
               </abbr>
+              
+              <output *ngIf="isGroupConversation(conversation)" class="group-badge" aria-label="Group conversation">
+                👥
+              </output>
             </figure>
                         
             <section class="conversation-content">
               <header class="conversation-header">
-                <h3>{{ conversation.participant.name || 'Unknown User' }}</h3>
-                <time *ngIf="conversation.timestamp" [attr.datetime]="conversation.timestamp.toISOString()">
-                  {{ formatTime(conversation.timestamp) }}
+                <h3>{{ getConversationDisplayName(conversation) }}</h3>
+                <time *ngIf="conversation.timestamp" [attr.datetime]="conversation.timestamp?.toISOString()">
+                  {{ conversation.timestamp ? formatTime(conversation.timestamp) : '' }}
                 </time>
                 <output 
                   *ngIf="conversation.unreadCount > 0" 
@@ -72,7 +77,9 @@
                   {{ conversation.unreadCount }}
                 </output>
               </header>
-              <p class="last-message">{{ conversation.messages[conversation.messages.length-1]?.content || 'Start a conversation' }}</p>
+              <p class="last-message">
+                {{ conversation.messages[conversation.messages.length-1]?.content || 'Start a conversation' }}
+              </p>
             </section>
           </article>
         </li>
@@ -107,40 +114,53 @@
   </aside>
 
   <section class="chat-main" *ngIf="activeConversation; else noConversationSelected">
-      <header class="chat-header" [class.chat-header-loading]="messagesLoading | async">
-        <section class="contact-info">
-          <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
-            @if (activeConversation.participant.profile_picture && 
-                activeConversation.participant.profile_picture !== 'placeholder' &&
-                !isImageLoadingError(activeConversation)) {
-              <img 
-                [src]="activeConversation.participant.profile_picture" 
-                [alt]="activeConversation.participant.name + ' profile picture'"
-                class="profile-avatar-image"
-                (load)="onImageLoad($event)"
-                (error)="handleImageError($event, activeConversation)">
-            }
+    <header class="chat-header" [class.chat-header-loading]="messagesLoading | async">
+      <section class="contact-info">
+        <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
+          @if (!isGroupConversation(activeConversation) && 
+               activeConversation.participant.profile_picture && 
+               activeConversation.participant.profile_picture !== 'placeholder' &&
+               !isImageLoadingError(activeConversation)) {
+            <img 
+              [src]="activeConversation.participant.profile_picture" 
+              [alt]="activeConversation.participant.name + ' profile picture'"
+              class="profile-avatar-image"
+              (load)="onImageLoad($event)"
+              (error)="handleImageError($event, activeConversation)">
+          }
+          
+          <abbr 
+            class="avatar-initials" 
+            [class.hidden]="!isGroupConversation(activeConversation) && 
+                          activeConversation.participant.profile_picture && 
+                          activeConversation.participant.profile_picture !== 'placeholder' &&
+                          !isImageLoadingError(activeConversation)"
+            [title]="getConversationDisplayName(activeConversation)"
+            [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
+            {{ getAvatarInitials(activeConversation) }}
+          </abbr>
+          
+          <output *ngIf="isGroupConversation(activeConversation)" class="group-badge" aria-label="Group conversation">
+            👥
+          </output>
+        </figure>
+        <section class="contact-details">
+          <h2>{{ getConversationDisplayName(activeConversation) }}</h2>
+          <p *ngIf="isGroupConversation(activeConversation)" class="group-info">
+            Group • {{ activeConversation.participants.length }} members
+          </p>
+          <p *ngIf="!isGroupConversation(activeConversation)" class="status">
             
-            <!-- Always render the initials as fallback, control visibility with CSS -->
-            <abbr 
-              class="avatar-initials" 
-              [class.hidden]="activeConversation.participant.profile_picture && 
-                            activeConversation.participant.profile_picture !== 'placeholder' &&
-                            !isImageLoadingError(activeConversation)"
-              [title]="activeConversation.participant.name"
-              [attr.aria-label]="activeConversation.participant.name + ' avatar'">
-              {{ activeConversation.participant.name ? activeConversation.participant.name.charAt(0).toUpperCase() : 'U' }}
-            </abbr>
-          </figure>
-          <section class="contact-details">
-            <h2>{{ activeConversation.participant.name || 'Unknown User' }}</h2>
-          </section>
+          </p>
         </section>
-      </header>
+      </section>
+    </header>
+
     <section 
       #messagesContainer
       class="messages-container" 
       [class.messages-loading]="messagesLoading | async"
+      [class.group-messages]="isGroupConversation(activeConversation)"
       aria-label="Chat messages">
       
       <article *ngIf="(messagesLoading | async); else loadedMessages" class="message-container">
@@ -158,18 +178,42 @@
       </article>
       
       <ng-template #loadedMessages>
-        <article 
-          *ngFor="let message of activeConversation.messages; trackBy: trackByMessageId" 
-          class="message"
-          [class.sent]="message.type === 'sent'"
-          [class.received]="message.type === 'received'"
-          [attr.aria-label]="getMessageAriaLabel(message)">
-          
-          <p>{{ message.content }}</p>
-          <time [attr.datetime]="message.timestamp.toISOString()">
-            {{ formatTime(message.timestamp) }}
-          </time>
-        </article>
+        <!-- Group messages with sender info -->
+        <ng-container *ngIf="isGroupConversation(activeConversation)">
+          <article 
+            *ngFor="let message of activeConversation.messages; trackBy: trackByMessageId" 
+            class="group-message"
+            [class.sent]="message.type === 'sent'"
+            [class.received]="message.type === 'received'"
+            [attr.aria-label]="getMessageAriaLabel(message)">
+            
+            <section class="message-content">
+              <header class="message-sender">
+                {{ message.type === 'sent' ? 'You' : (message.sender?.name || 'Unknown') }}
+              </header>
+              <p>{{ message.content }}</p>
+              <time [attr.datetime]="message.timestamp.toISOString()">
+                {{ formatTime(message.timestamp) }}
+              </time>
+            </section>
+          </article>
+        </ng-container>
+        
+        <!-- One-on-one messages -->
+        <ng-container *ngIf="!isGroupConversation(activeConversation)">
+          <article 
+            *ngFor="let message of activeConversation.messages; trackBy: trackByMessageId" 
+            class="message"
+            [class.sent]="message.type === 'sent'"
+            [class.received]="message.type === 'received'"
+            [attr.aria-label]="getMessageAriaLabel(message)">
+            
+            <p>{{ message.content }}</p>
+            <time [attr.datetime]="message.timestamp.toISOString()">
+              {{ formatTime(message.timestamp) }}
+            </time>
+          </article>
+        </ng-container>
         
         <p *ngIf="activeConversation.messages.length === 0" class="no-messages">
           No messages yet. Start the conversation!
@@ -180,7 +224,7 @@
     <footer class="message-input-section" [class.message-input-loading]="messagesLoading | async">
       <form 
         [formGroup]="messageForm" 
-        (ngSubmit)="sendMessage()" 
+        (ngSubmit)="isGroupConversation(activeConversation) ? sendGroupMessage() : sendMessage()" 
         class="message-form"
         aria-label="Send message">
         <label for="message-input" class="sr-only">Type your message</label>

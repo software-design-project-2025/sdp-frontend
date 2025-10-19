@@ -24,7 +24,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   color: $text-primary;
   height: 100vh;
   overflow: hidden;
-  display: block; // Ensures :host takes up space
+  display: block;
 }
 
 // Screen reader only class for accessibility
@@ -174,14 +174,14 @@ $shadow-light: rgba(0, 0, 0, 0.1);
 
             h3 {
               grid-column: 1;
-              grid-row: 1 / 3; // Span both rows so it doesn't shift
+              grid-row: 1 / 3;
               font-size: 16px;
               font-weight: 600;
               color: $text-primary;
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
-              align-self: center; // Vertically center the name
+              align-self: center;
             }
 
             time {
@@ -204,7 +204,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
               min-width: 18px;
               height: 18px;
               text-align: center;
-              line-height: 16px; // Better vertical centering
+              line-height: 16px;
               justify-self: end;
               display: flex;
               align-items: center;
@@ -273,6 +273,12 @@ $shadow-light: rgba(0, 0, 0, 0.1);
           font-size: 14px;
           color: $online-color;
         }
+
+        .group-info {
+          font-size: 14px;
+          color: $text-secondary;
+          margin: 0;
+        }
       }
     }
 
@@ -313,8 +319,110 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding-bottom: 100px; // This is crucial for the input section
+    padding-bottom: 100px;
 
+    &.group-messages {
+      gap: 20px;
+    }
+
+    .group-placeholder {
+      text-align: center;
+      color: $text-muted;
+      padding: 40px 20px;
+      
+      p {
+        margin-bottom: 8px;
+        
+        &:first-child {
+          font-size: 16px;
+          font-weight: 500;
+          color: $text-primary;
+        }
+      }
+    }
+
+    // Group message styles
+    .group-message {
+      display: flex;
+      width: 100%;
+
+      &.sent {
+        justify-content: flex-end;
+
+        .message-content {
+          align-items: flex-end;
+          
+          .message-sender {
+            text-align: right;
+            color: $primary-color;
+          }
+
+          p {
+            background-color: $message-sent;
+            color: white;
+            border-bottom-right-radius: 4px;
+          }
+
+          time {
+            text-align: right;
+          }
+        }
+      }
+
+      &.received {
+        justify-content: flex-start;
+
+        .message-content {
+          align-items: flex-start;
+          
+          .message-sender {
+            text-align: left;
+            color: $text-primary;
+          }
+
+          p {
+            background-color: $message-received;
+            color: $text-primary;
+            border-bottom-left-radius: 4px;
+          }
+
+          time {
+            text-align: left;
+          }
+        }
+      }
+
+      .message-content {
+        display: flex;
+        flex-direction: column;
+        max-width: 60%;
+        gap: 4px;
+
+        .message-sender {
+          font-size: 13px;
+          font-weight: 600;
+          padding: 0 4px;
+          margin-bottom: 2px;
+        }
+
+        p {
+          padding: 12px 16px;
+          border-radius: 18px;
+          font-size: 14px;
+          line-height: 1.4;
+          margin: 0;
+          word-wrap: break-word;
+        }
+
+        time {
+          font-size: 11px;
+          color: $text-muted;
+          padding: 0 4px;
+        }
+      }
+    }
+
+    // Regular one-on-one message styles
     .message {
       max-width: 70%;
       word-wrap: break-word;
@@ -326,14 +434,14 @@ $shadow-light: rgba(0, 0, 0, 0.1);
         border-radius: 18px;
         font-size: 14px;
         line-height: 1.4;
-        margin-bottom: 0; // Remove bottom margin
+        margin-bottom: 0;
       }
 
       time {
         font-size: 11px;
         color: $text-muted;
         display: block;
-        margin-top: 4px; // Add space between message and timestamp
+        margin-top: 4px;
       }
 
       &.sent {
@@ -376,7 +484,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   .message-input-section {
     position: fixed;
     bottom: 0;
-    left: 400px; // Match sidebar width
+    left: 400px;
     right: 0;
     padding: 20px 24px;
     border-top: 1px solid $border-color;
@@ -456,11 +564,11 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     height: 50vh;
     
     .message-input-section {
-      left: 0; // Full width on mobile
+      left: 0;
     }
     
     .messages-container {
-      padding-bottom: 100px; // Maintain padding for mobile
+      padding-bottom: 100px;
     }
   }
 }
@@ -482,6 +590,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     background: $text-secondary;
   }
 }
+
 // Skeleton loading animation
 @keyframes skeleton-shimmer {
   0% {
@@ -565,7 +674,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 
-// Loading states for conversation list - FIXED
+// Loading states for conversation list
 .conversations-loading {
   .conversation-item {
     pointer-events: none;
@@ -611,7 +720,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 }
 
-// Loading state for chat header - FIXED
+// Loading state for chat header
 .chat-header-loading {
   .contact-info {
     .avatar {
@@ -704,5 +813,20 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     &.hidden {
       display: none;
     }
+  }
+
+  .group-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: $primary-color;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    border: 2px solid white;
   }
 }
