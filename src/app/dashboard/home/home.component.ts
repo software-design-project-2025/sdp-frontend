@@ -12,6 +12,7 @@ import { BehaviorSubject, firstValueFrom, forkJoin, interval, Subscription } fro
 import { GroupService, Group, GroupJoinRequest } from '../../services/group.service';
 import { FormsModule, NgForm } from '@angular/forms';
 
+// This import is necessary for the modal
 import { SessionDetailsModalComponent } from './session-details-modal.component';
 
 interface Session {
@@ -68,8 +69,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   private readonly AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
 
   // Properties for Group Feature
+  private userNameCache = new Map<string, string>();
   private groupRefreshSubscription: Subscription | null = null;
-  private readonly GROUP_REFRESH_INTERVAL = 60 * 1000;
+  // Set to 30 minutes per your request
+  private readonly GROUP_REFRESH_INTERVAL = 30 * 60 * 1000;
   discoverableGroups: Group[] = [];
   myJoinRequests: GroupJoinRequest[] = [];
   pendingRequestsForMyGroups: DisplayableGroupJoinRequest[] = [];
@@ -130,6 +133,38 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.stopAutoRefresh();
   }
 
+  // Caching function to get user names
+  private async getUserName(userId: string): Promise<string> {
+      // 1. Return 'Unknown' if no ID is provided
+      if (!userId) {
+          return 'Unknown User';
+      }
+
+      // 2. Check cache first
+      if (this.userNameCache.has(userId)) {
+          return this.userNameCache.get(userId)!;
+      }
+
+      // 3. If not in cache, fetch from AuthService
+      try {
+          const { data, error } = await this.authService.getUserById(userId);
+          
+          if (error || !data) {
+              throw error || new Error('User not found');
+          }
+
+          const userName = data.name || 'Unknown User';
+          this.userNameCache.set(userId, userName); // 4. Save to cache
+          return userName;
+
+      } catch (error) {
+          console.error(`Error fetching user name for ${userId}:`, error);
+          const fallbackName = 'Unknown User';
+          this.userNameCache.set(userId, fallbackName); // Cache fallback to prevent re-fetching
+          return fallbackName;
+      }
+  }
+
   // handle loading state and parallel fetching
   private async loadInitialData(): Promise<void> {
     this.isLoading$.next(true);
@@ -164,16 +199,20 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Session Details Methods
-  showSessionDetails(event: any): void {
+  // Session Details Methods (now async to fetch name)
+  async showSessionDetails(event: any): Promise<void> {
+    const creatorId = event.extendedProps['creatorId'];
+    // This will fetch the name from cache or Supabase
+    const creatorName = await this.getUserName(creatorId);
+
     const sessionData = {
-      title: event.title,
-      start: event.start,
-      end: event.end,
-      location: event.extendedProps['location'],
-      description: event.extendedProps['description'],
-      creatorName: this.getCreatorDisplayName(event.extendedProps['creatorId']),
-      isPast: event.extendedProps['isPast']
+        title: event.title,
+        start: event.start,
+        end: event.end,
+        location: event.extendedProps['location'],
+        description: event.extendedProps['description'],
+        creatorName: creatorName, // <-- Use the fetched name
+        isPast: event.extendedProps['isPast']
     };
     
     this.selectedSession = sessionData;
@@ -185,11 +224,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.showSessionModal = false;
     this.selectedSession = null;
     this.cdr.detectChanges();
-  }
-
-  private getCreatorDisplayName(creatorId: string): string {
-    // user lookup
-    return 'Creator';
   }
 
   // Helper to get button state
@@ -232,16 +266,28 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Updated to fetch and map real user names
   private async loadPendingRequestsForMyGroups(userId: string): Promise<void> {
     try {
-      const requests = await firstValueFrom(this.groupService.getPendingRequestsForCreator(userId));
-      this.pendingRequestsForMyGroups = requests.map(request => ({
-        ...request,
-        uiState: 'idle' as const
-      }));
-      this.cdr.detectChanges();
+        const requests = await firstValueFrom(this.groupService.getPendingRequestsForCreator(userId));
+        
+        // Asynchronously fetch all user names for the requests
+        this.pendingRequestsForMyGroups = await Promise.all(
+            requests.map(async (request) => {
+                // This fetches the REAL name from Supabase via authService
+                const fetchedUserName = await this.getUserName(request.userId);
+                return {
+                    ...request,
+                    // This overwrites the 'userName' (which was 'bio') with the correct name
+                    userName: fetchedUserName,
+                    uiState: 'idle' as const
+                };
+            })
+        );
+        
+        this.cdr.detectChanges();
     } catch (err) {
-      console.error('Error fetching pending requests for creator:', err);
+        console.error('Error fetching pending requests for creator:', err);
     }
   }
   
@@ -454,6 +500,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.calendarOptions = { ...this.calendarOptions, events: events };
   }
 
+  // Corrected to remove the call to the deleted function
   private processSessions(sessions: any[]): EventInput[] {
     const now = new Date();
     return sessions.map((session, index) => {
@@ -477,7 +524,7 @@ export class HomeComponent implements OnInit, OnDestroy {
           extendedProps: {
             description: session.description || 'No description available',
             location: session.location || 'No location specified',
-            creatorName: this.getCreatorDisplayName(session.creatorid),
+            // creatorName is no longer needed here, it's fetched on click
             creatorId: session.creatorid || 'Unknown',
             isPast: isPastSession,
             sessionId: session.sessionId?.toString() || ''

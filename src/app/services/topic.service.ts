@@ -20,7 +20,7 @@ export interface Topic {
 export class TopicApiService {
   constructor(private http: HttpClient) { }
 
-  private url = `${environment.apiBaseUrl}`;
+  private url = environment.apiBaseUrl;
 
   private getHeaders(): HttpHeaders {
     return new HttpHeaders({

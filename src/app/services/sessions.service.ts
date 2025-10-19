@@ -60,7 +60,7 @@ export class SessionsService {
     return of(this.mockSessions);
   }
 
-  private apiUrl = 'http://localhost:8080/api/auth';
+  private apiUrl = environment.apiBaseUrl;
 
     private getHeaders(): HttpHeaders {
         return new HttpHeaders({
@@ -73,10 +73,10 @@ export class SessionsService {
     getUpcomingSessions(userId: string): Observable<Session[]> {
     const params = new HttpParams().set('userId', userId);
     
-    console.log('🔍 [SessionService] Calling:', `${this.apiUrl}/sessions/upcoming`);
+    console.log('🔍 [SessionService] Calling:', `${this.apiUrl}/api/auth/sessions/upcoming`);
     console.log('🔍 [SessionService] With userId:', userId);
     
-    return this.http.get<Session[]>(`${this.apiUrl}/sessions/upcoming`, {
+    return this.http.get<Session[]>(`${this.apiUrl}/api/auth/sessions/upcoming`, {
         params,
         headers: this.getHeaders()
     });
@@ -87,7 +87,7 @@ export class SessionsService {
     
     console.log('🔍 [SessionService] Getting study hours for user:', userId);
     
-    return this.http.get<any>(`${this.apiUrl}/sessions/study-hours`, {
+    return this.http.get<any>(`${this.apiUrl}/api/auth/sessions/study-hours`, {
       params,
       headers: this.getHeaders()
     });
@@ -98,7 +98,7 @@ export class SessionsService {
     
     console.log('🔍 [SessionService] Getting sessions count for user:', userId);
     
-    return this.http.get<any>(`${this.apiUrl}/sessions/num-sessions`, {
+    return this.http.get<any>(`${this.apiUrl}/api/auth/sessions/num-sessions`, {
       params,
       headers: this.getHeaders()
     });
