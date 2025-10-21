@@ -14,8 +14,6 @@ import { FormsModule, NgForm } from '@angular/forms';
 
 import { SessionDetailsModalComponent } from './session-details-modal.component';
 
-// Use the shared model for consistency
-
 interface Session {
   sessionId: number;
   title: string;
@@ -27,17 +25,14 @@ interface Session {
   status: string;
   groupid: number;
 }
-
 interface TopicsResponse {
   userId: string;
   numTopics: number;
 }
-
 interface SessionsResponse {
   userId: string;
   numSessions: number;
 }
-
 interface StudyHoursResponse {
   userId: string;
   totalHours: number;
@@ -65,8 +60,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   allEvents: EventInput[] = [];
   currentUserId: string = '';
-
-  // Statistics data
   studyHours: number = 0;
   sessionsCount: number = 0;
   topicsCount: number = 0;
@@ -114,24 +107,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       }
     },
     eventClick: (info: EventClickArg) => {
-      this.showSessionDetails(info.event);
-      const event = info.event;
-      const desc = event.extendedProps['description'] || 'No description';
-      const loc = event.extendedProps['location'] || 'No location';
-      const creator = event.extendedProps['creatorId'] || 'Unknown';
-      const isPast = event.extendedProps['isPast'] || false;
-
-      // Using a modern, non-blocking UI for details is preferable to alert()
-      // For this fix, we'll keep alert() as it was in the original code.
-      alert(
-        `Session: ${event.title}\n` +
-        `Start: ${event.start?.toLocaleString()}\n` +
-        `End: ${event.end?.toLocaleString()}\n` +
-        `Location: ${loc}\n` +
-        `Description: ${desc}\n` +
-        `Created by: ${creator}\n` +
-        `Status: ${isPast ? 'Completed ✓' : 'Upcoming'}`
-      );
       this.showSessionDetails(info.event);
     }
   };
@@ -486,7 +461,6 @@ export class HomeComponent implements OnInit, OnDestroy {
         const startTime = new Date(session.startTime);
         const endTime = new Date(session.endTime);
         if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-          console.error(`   🚨 Invalid dates for session: ${session.title}`);
           return null;
         }
         const isPastSession = endTime < now;
@@ -503,16 +477,16 @@ export class HomeComponent implements OnInit, OnDestroy {
           extendedProps: {
             description: session.description || 'No description available',
             location: session.location || 'No location specified',
+            creatorName: this.getCreatorDisplayName(session.creatorid),
             creatorId: session.creatorid || 'Unknown',
             isPast: isPastSession,
             sessionId: session.sessionId?.toString() || ''
           }
         };
       } catch (error) {
-        console.error(`   🚨 Error processing session ${session.title}:`, error);
         return null;
       }
-    }).filter((event): event is EventInput => event !== null); // Type guard to filter out nulls
+    }).filter(event => event !== null) as EventInput[];
   }
 
   private handleUserNotLoggedIn(): void {
