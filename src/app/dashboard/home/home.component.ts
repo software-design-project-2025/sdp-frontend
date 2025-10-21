@@ -1,6 +1,6 @@
 import { Component, OnInit, NgZone, OnDestroy, Inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router'; // ADD Router import
 import { FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, EventClickArg, EventInput } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -57,6 +57,9 @@ type JoinButtonState = 'idle' | 'sending' | 'sent' | 'error';
 export class HomeComponent implements OnInit, OnDestroy {
   // Loading state
   isLoading$ = new BehaviorSubject<boolean>(true);
+  
+  // ADD: Navigation loading state
+  isNavigating$ = new BehaviorSubject<boolean>(false);
 
   allEvents: EventInput[] = [];
   currentUserId: string = '';
@@ -68,8 +71,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   private readonly AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
 
   // Properties for Group Feature
+  private userNameCache = new Map<string, string>();
   private groupRefreshSubscription: Subscription | null = null;
-  private readonly GROUP_REFRESH_INTERVAL = 60 * 1000;
+  // Set to 30 minutes per your request
+  private readonly GROUP_REFRESH_INTERVAL = 30 * 60 * 1000;
   discoverableGroups: Group[] = [];
   myJoinRequests: GroupJoinRequest[] = [];
   pendingRequestsForMyGroups: DisplayableGroupJoinRequest[] = [];
@@ -118,6 +123,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     private zone: NgZone,
     private authService: AuthService,
     private cdr: ChangeDetectorRef,
+    private router: Router // ADD Router injection
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -130,12 +136,63 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.stopAutoRefresh();
   }
 
+  // ADD: Start Messaging Function (similar to your teammate's messageOnClick)
+  async startMessaging(groupId: number): Promise<void> {
+    this.isNavigating$.next(true);
+    
+    try {
+      // Simulate a small delay for better UX
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Navigate to chats page with the group ID as a parameter
+      this.router.navigate(['/chat'], { 
+        queryParams: { groupId: groupId } 
+      });
+      
+    } catch (error) {
+      console.error('Error navigating to chats:', error);
+      this.isNavigating$.next(false);
+    }
+  }
+
+  // Caching function to get user names
+  private async getUserName(userId: string): Promise<string> {
+      // 1. Return 'Unknown' if no ID is provided
+      if (!userId) {
+          return 'Unknown User';
+      }
+
+      // 2. Check cache first
+      if (this.userNameCache.has(userId)) {
+          return this.userNameCache.get(userId)!;
+      }
+
+      // 3. If not in cache, fetch from AuthService
+      try {
+          const { data, error } = await this.authService.getUserById(userId);
+          
+          if (error || !data) {
+              throw error || new Error('User not found');
+          }
+
+          const userName = data.name || 'Unknown User';
+          this.userNameCache.set(userId, userName); // 4. Save to cache
+          return userName;
+
+      } catch (error) {
+          console.error(`Error fetching user name for ${userId}:`, error);
+          const fallbackName = 'Unknown User';
+          this.userNameCache.set(userId, fallbackName); // Cache fallback to prevent re-fetching
+          return fallbackName;
+      }
+  }
+
   // handle loading state and parallel fetching
   private async loadInitialData(): Promise<void> {
     this.isLoading$.next(true);
     try {
       const userResponse = await this.authService.getCurrentUser();
-
+      
       if (userResponse.data?.user) {
         this.currentUserId = userResponse.data.user.id;
         console.log('✅ User found:', this.currentUserId);
@@ -151,7 +208,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         // Process data after all fetches are complete
         this.processAndLoadSessions(sessions);
         this.messagesCount = msgCount;
-
+        
       } else {
         console.log('❌ No user logged in');
         this.handleUserNotLoggedIn();
@@ -164,18 +221,22 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Session Details Methods
-  showSessionDetails(event: any): void {
-    const sessionData = {
-      title: event.title,
-      start: event.start,
-      end: event.end,
-      location: event.extendedProps['location'],
-      description: event.extendedProps['description'],
-      creatorName: this.getCreatorDisplayName(event.extendedProps['creatorId']),
-      isPast: event.extendedProps['isPast']
-    };
+  // Session Details Methods (now async to fetch name)
+  async showSessionDetails(event: any): Promise<void> {
+    const creatorId = event.extendedProps['creatorId'];
+    // This will fetch the name from cache or Supabase
+    const creatorName = await this.getUserName(creatorId);
 
+    const sessionData = {
+        title: event.title,
+        start: event.start,
+        end: event.end,
+        location: event.extendedProps['location'],
+        description: event.extendedProps['description'],
+        creatorName: creatorName, // <-- Use the fetched name
+        isPast: event.extendedProps['isPast']
+    };
+    
     this.selectedSession = sessionData;
     this.showSessionModal = true;
     this.cdr.detectChanges();
@@ -185,11 +246,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.showSessionModal = false;
     this.selectedSession = null;
     this.cdr.detectChanges();
-  }
-
-  private getCreatorDisplayName(creatorId: string): string {
-    // user lookup
-    return 'Creator';
   }
 
   // Helper to get button state
@@ -232,19 +288,31 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Updated to fetch and map real user names
   private async loadPendingRequestsForMyGroups(userId: string): Promise<void> {
     try {
-      const requests = await firstValueFrom(this.groupService.getPendingRequestsForCreator(userId));
-      this.pendingRequestsForMyGroups = requests.map(request => ({
-        ...request,
-        uiState: 'idle' as const
-      }));
-      this.cdr.detectChanges();
+        const requests = await firstValueFrom(this.groupService.getPendingRequestsForCreator(userId));
+        
+        // Asynchronously fetch all user names for the requests
+        this.pendingRequestsForMyGroups = await Promise.all(
+            requests.map(async (request) => {
+                // This fetches the REAL name from Supabase via authService
+                const fetchedUserName = await this.getUserName(request.userId);
+                return {
+                    ...request,
+                    // This overwrites the 'userName' (which was 'bio') with the correct name
+                    userName: fetchedUserName,
+                    uiState: 'idle' as const
+                };
+            })
+        );
+        
+        this.cdr.detectChanges();
     } catch (err) {
-      console.error('Error fetching pending requests for creator:', err);
+        console.error('Error fetching pending requests for creator:', err);
     }
   }
-
+  
   joinGroup(groupId: number): void {
     if (!this.currentUserId || this.getJoinButtonState(groupId) !== 'idle') {
       return; // Do nothing if not logged in or already sending
@@ -259,7 +327,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         // Success - show green "sent" state
         this.discoverGroupUiState.set(groupId, 'sent');
         this.cdr.detectChanges();
-
+        
         // Refresh group data
         this.loadGroupData(this.currentUserId);
 
@@ -303,13 +371,13 @@ export class HomeComponent implements OnInit, OnDestroy {
       next: (newGroup) => {
         this.isGroupCreated = true;
         form.resetForm();
-
+        
         // Reset success state after 3 seconds
         setTimeout(() => {
           this.isGroupCreated = false;
           this.cdr.detectChanges();
         }, 3000);
-
+        
         this.loadGroupData(this.currentUserId);
         this.cdr.detectChanges();
       },
@@ -374,7 +442,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.loadUserStatistics(this.currentUserId);
       }
     });
-
+    
     this.groupRefreshSubscription = interval(this.GROUP_REFRESH_INTERVAL).subscribe(() => {
       if (this.currentUserId) {
         console.log('🔄 Auto-refreshing group data...');
@@ -434,10 +502,10 @@ export class HomeComponent implements OnInit, OnDestroy {
     try {
       const { hours, sessions, topics } = await firstValueFrom(forkJoin({
         hours: this.sessionService.getStudyHours(userId),
-        sessions: this.sessionService.getSessionCount(userId),
+        sessions: this.sessionService.getSessionsCount(userId),
         topics: this.topicService.getTopicsCount(userId)
       }));
-
+      
       this.studyHours = hours.totalHours;
       this.sessionsCount = sessions.numSessions;
       this.topicsCount = topics.numTopics;
@@ -454,6 +522,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.calendarOptions = { ...this.calendarOptions, events: events };
   }
 
+  // Corrected to remove the call to the deleted function
   private processSessions(sessions: any[]): EventInput[] {
     const now = new Date();
     return sessions.map((session, index) => {
@@ -464,9 +533,9 @@ export class HomeComponent implements OnInit, OnDestroy {
           return null;
         }
         const isPastSession = endTime < now;
-
+        
         const displayTitle = session.title || 'Untitled Session';
-
+        
         return {
           id: session.sessionId?.toString() || `session-${index}`,
           title: displayTitle,
@@ -477,7 +546,7 @@ export class HomeComponent implements OnInit, OnDestroy {
           extendedProps: {
             description: session.description || 'No description available',
             location: session.location || 'No location specified',
-            creatorName: this.getCreatorDisplayName(session.creatorid),
+            // creatorName is no longer needed here, it's fetched on click
             creatorId: session.creatorid || 'Unknown',
             isPast: isPastSession,
             sessionId: session.sessionId?.toString() || ''
