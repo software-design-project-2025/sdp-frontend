@@ -5,6 +5,7 @@ import { AuthService } from '../services/auth.service';
 import { CommonModule } from '@angular/common';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { UserApiService } from '../services/user.service';
+import { DocApiService, NewChatDoc } from '../services/doc.service';
 
 // Interface definitions
 export interface User {
@@ -24,6 +25,7 @@ interface Message {
   timestamp: Date;
   senderid: string;
   content: string;
+  document: MessageDocument | null;
   type: 'sent' | 'received'; 
   read_status: boolean; 
 }
@@ -33,6 +35,7 @@ interface ExtendedGroupMessage extends GroupMessage {
   sender?: User; // Optional user object for sender details
   timestamp: Date;
   content: string;
+  document: MessageDocument | null;
   id: number;
 }
 
@@ -55,6 +58,12 @@ interface GroupConversation {
   messages: ExtendedGroupMessage[];
 }
 
+interface MessageDocument {
+  id: number;
+  originalFilename: string;
+  downloading?: boolean;
+}
+
 @Component({
   selector: 'app-chat',
   standalone: true,
@@ -67,6 +76,7 @@ interface GroupConversation {
 })
 export class Chat implements OnInit, AfterViewChecked {
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
+  @ViewChild('fileInput') private fileInput!: ElementRef<HTMLInputElement>;
   private shouldScrollToBottom = false;
   private imageErrors = new Set<string>();
 
@@ -100,14 +110,15 @@ export class Chat implements OnInit, AfterViewChecked {
     private chatService: ChatService,
     private authService: AuthService,
     private UserService: UserApiService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private docApiService: DocApiService
   ) {
     this.searchForm = this.fb.group({
       searchTerm: ['']
     });
 
     this.messageForm = this.fb.group({
-      message: ['', Validators.required]
+      message: ['']
     });
   }
 
@@ -175,7 +186,9 @@ export class Chat implements OnInit, AfterViewChecked {
         convo.unreadCount = unreadCount;
         convo.messages = messages;
         if (messages.length > 0) {
-          convo.timestamp = messages[messages.length-1].timestamp;
+          const lastMsg = messages[messages.length - 1];
+          convo.timestamp = lastMsg.timestamp;
+          convo.lastMessage = lastMsg.document ? `📄 ${lastMsg.document.originalFilename}` : lastMsg.content;
           convosWithMessages.push(convo);
         }
         else{
@@ -194,8 +207,9 @@ export class Chat implements OnInit, AfterViewChecked {
         groupConvo.unreadCount = 0; // Implement read status for groups later if needed
         
         if (groupMessages.length > 0) {
-          groupConvo.timestamp = groupMessages[groupMessages.length - 1].timestamp;
-          groupConvo.lastMessage = groupMessages[groupMessages.length - 1].content;
+          const lastMsg = groupMessages[groupMessages.length - 1];
+          groupConvo.timestamp = lastMsg.timestamp;
+          groupConvo.lastMessage = lastMsg.document ? `📄 ${lastMsg.document.originalFilename}` : lastMsg.content;
           groupConvosWithMessages.push(groupConvo);
         } else {
           groupConvo.timestamp = null;
@@ -289,7 +303,6 @@ export class Chat implements OnInit, AfterViewChecked {
 
         const otherUserId = isUser1Current ? chat.user2.userid : chat.user1.userid;
         const otherUserProfilePic = isUser1Current ? chat.user2.profile_picture : chat.user1.profile_picture;
-
         convos.push({
           id: chat.chatid,
           participant: {
@@ -432,7 +445,9 @@ export class Chat implements OnInit, AfterViewChecked {
             timestamp: utcDate,
             senderid: message.senderid,
             content: message.message,
+            document: null, 
             message: message.message,
+
             type: (message.senderid === this.currentUser.userid) ? 'sent' : 'received',
             sender: sender
           });
@@ -469,36 +484,68 @@ export class Chat implements OnInit, AfterViewChecked {
 
   private async retrieveMessages(chatid: number, userid: String): Promise<Message[]> {
     try {
-      const result = await firstValueFrom(this.chatService.getMessagesByChatId(chatid));
-      
-      if (result.length > 0) {
-        const messages: Message[] = [];
-        
-        for (const message of result) {
+     // Fetch text messages and document messages in parallel
+      const [textMessagesResult, docMessagesResult] = await Promise.all([
+        firstValueFrom(this.chatService.getMessagesByChatId(chatid)),
+        firstValueFrom(this.docApiService.getDocsByChatId(chatid))
+      ]);
+
+      const allMessages: Message[] = [];
+
+      // Process text messages
+      if (textMessagesResult) {
+        for (const message of textMessagesResult) {
           const utcDate = new Date(message.sent_datetime + "Z");
-          
-          messages.push({
+          allMessages.push({
             id: message.messageid,
             chatid: message.chatid,
             timestamp: utcDate,
             senderid: message.senderid,
             content: message.message,
+            document: null, 
             type: (message.senderid === userid) ? 'sent' : 'received',
             read_status: message.read_status
           });
         }
-
-        messages.sort((a, b) => {
-          if (!a.timestamp || !b.timestamp) return 0;
-          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
-        });
-        
-        return messages;
       }
-      return [];
-    }
-    catch {
-      this.error = 'Error retrieving messages';   
+
+      // Process document messages
+      if (docMessagesResult) {
+        for (const docMsg of docMessagesResult) {
+          const [docIdStr, ...filenameParts] = (docMsg.doc || '').split(':');
+          const docId = parseInt(docIdStr, 10);
+          const originalFilename = filenameParts.join(':');
+
+          if (!isNaN(docId) && originalFilename) {
+            const timestamp = new Date(docMsg.sentDateTime);
+            allMessages.push({
+              id: docMsg.cdID, // Use the unique chat_doc ID
+              chatid: docMsg.chatID,
+              timestamp: timestamp,
+              senderid: docMsg.senderID,
+              content: '',
+              document: {
+                id: docId,
+                originalFilename: originalFilename
+              },
+              type: (docMsg.senderID === userid) ? 'sent' : 'received',
+              read_status: true // Assume docs are always "read"
+            });
+          }
+        }
+      }
+
+      // Sort all messages (text and docs) chronologically
+      allMessages.sort((a, b) => {
+        if (!a.timestamp || !b.timestamp) return 0;
+        return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+      });
+      
+      return allMessages;
+
+    } catch (err) {
+      this.error = 'Error retrieving messages'; 
+      console.error("Error in retrieveMessages:", err);
       return [];
     }
   }
@@ -542,6 +589,11 @@ export class Chat implements OnInit, AfterViewChecked {
   getMessageAriaLabel(message: Message | ExtendedGroupMessage): string {
     const timeText = this.formatTime(message.timestamp);
     const typeText = message.type === 'sent' ? 'You sent' : 'Received';
+
+    if (message.document) {
+      const senderName = (this.isGroupMessage(message) && message.sender) ? message.sender.name : typeText;
+      return `${senderName} at ${timeText}: document named ${message.document.originalFilename}`;
+    }
     
     if (this.isGroupMessage(message) && message.sender) {
       return `${message.sender.name} sent at ${timeText}: ${message.content}`;
@@ -677,6 +729,7 @@ export class Chat implements OnInit, AfterViewChecked {
         content: messageContent,
         timestamp: new Date(),
         senderid: this.currentUser.userid,
+        document: null,
         type: 'sent',
         read_status: false
       };
@@ -705,6 +758,7 @@ export class Chat implements OnInit, AfterViewChecked {
         sent_datetime: new Date(),
         message: messageContent,
         content: messageContent,
+        document: null,
         timestamp: new Date(),
         type: 'sent',
         sender: this.currentUser
@@ -787,5 +841,108 @@ export class Chat implements OnInit, AfterViewChecked {
     const imageUrl = imgElement.src;
     
     this.imageErrors.delete(imageUrl);
+  }
+
+  triggerFileUpload(): void {
+    if (this.messagesLoading || !this.activeConversation) return;
+    this.fileInput.nativeElement.click();
+  }
+
+  async onFileSelectedAndUpload(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length || !this.activeConversation) return;
+
+    const file = input.files[0];
+    const activeConvo = this.activeConversation;
+    input.value = '';
+
+    try {
+      const uploadedDoc = await firstValueFrom(
+        this.docApiService.uploadDocument(file, this.currentUser.userid)
+      );
+      const docString = `${uploadedDoc.id}:${uploadedDoc.originalFilename}`;
+
+      if (this.isGroupConversation(activeConvo)) {
+        // TODO: Call createGroupChatDoc when available in your service
+        this.error = "File upload for groups is not supported yet.";
+        return;
+      } else {
+        const newChatDocData: NewChatDoc = {
+          senderID: this.currentUser.userid,
+          chatID: activeConvo.id,
+          doc: docString
+        };
+        await firstValueFrom(this.docApiService.createChatDoc(newChatDocData));
+      }
+
+      const docMessage: Message | ExtendedGroupMessage = {
+        id: Date.now(),
+        chatid: activeConvo.id, // For individual
+        groupid: activeConvo.id, // For group
+        timestamp: new Date(),
+        senderid: this.currentUser.userid,
+        content: '',
+        document: { id: uploadedDoc.id, originalFilename: uploadedDoc.originalFilename },
+        type: 'sent',
+        read_status: false,
+        // Group-specific properties
+        message: '',
+        sent_datetime: new Date(),
+        messageid: Date.now(),
+        sender: this.currentUser
+      };
+      activeConvo.messages.push(docMessage as any);
+
+      activeConvo.lastMessage = `📄 ${uploadedDoc.originalFilename}`;
+      activeConvo.timestamp = docMessage.timestamp;
+      this.shouldScrollToBottom = true;
+      this.cdr.detectChanges();
+
+    } catch (err) {
+      this.error = 'Failed to upload and send document.';
+      console.error(err);
+    }
+  }
+
+  async downloadDocument(doc: MessageDocument): Promise<void> {
+      if (doc.downloading) return; // Prevent multiple clicks
+      console.log(doc);
+      doc.downloading = true;
+      this.cdr.detectChanges(); // Show loading spinner
+
+      // 1. Open a new, blank tab immediately upon click. This is the key.
+      const newTab = window.open('', '_blank');
+      if (!newTab) {
+        this.error = 'Pop-up was blocked. Please allow pop-ups for this site.';
+        doc.downloading = false;
+        this.cdr.detectChanges();
+        return;
+      }
+      // Give the user feedback in the new tab while waiting for the URL.
+      newTab.document.write('Fetching your download link, please wait...');
+
+      try {
+        const response = await firstValueFrom(
+          this.docApiService.getDocumentDownloadUrl(doc.id)
+        );
+        
+        // 2. If the URL is received, update the new tab's location to start the download.
+        if (response && response.downloadUrl) {
+          newTab.location.href = response.downloadUrl;
+        } else {
+          // Handle cases where the API call succeeds but returns no URL.
+          newTab.document.write('Failed to get download link. Please try again.');
+          setTimeout(() => newTab.close(), 3000); // Close the error tab after a delay
+        }
+
+      } catch (err) {
+        this.error = 'Could not get download link.';
+        // Inform the user in the new tab that something went wrong.
+        newTab.document.write('Error: Could not get download link. You can close this tab.');
+        console.error(err);
+      } finally {
+        doc.downloading = false;
+        this.cdr.detectChanges(); // Hide loading spinner
+      }
   }
 }

@@ -78,7 +78,7 @@
                 </output>
               </header>
               <p class="last-message">
-                {{ conversation.messages[conversation.messages.length-1]?.content || 'Start a conversation' }}
+                {{ conversation.lastMessage || 'Start a conversation' }}
               </p>
             </section>
           </article>
@@ -178,7 +178,6 @@
       </article>
       
       <ng-template #loadedMessages>
-        <!-- Group messages with sender info -->
         <ng-container *ngIf="isGroupConversation(activeConversation)">
           <article 
             *ngFor="let message of activeConversation.messages; trackBy: trackByMessageId" 
@@ -191,7 +190,23 @@
               <header class="message-sender">
                 {{ message.type === 'sent' ? 'You' : (message.sender?.name || 'Unknown') }}
               </header>
-              <p>{{ message.content }}</p>
+
+              <ng-container *ngIf="message.document as doc; else groupTextMessage">
+                <button 
+                  type="button" 
+                  class="message-body message-document"
+                  (click)="downloadDocument(doc)"
+                  [disabled]="doc.downloading"
+                  [attr.aria-label]="'Download ' + doc.originalFilename">
+                  <i class="doc-icon">📄</i>
+                  <i class="doc-name">{{ doc.originalFilename }}</i>
+                  <i *ngIf="doc.downloading" class="download-spinner" aria-label="downloading"></i>
+                </button>
+              </ng-container>
+              <ng-template #groupTextMessage>
+                <p class="message-body">{{ message.content }}</p>
+              </ng-template>
+
               <time [attr.datetime]="message.timestamp.toISOString()">
                 {{ formatTime(message.timestamp) }}
               </time>
@@ -199,7 +214,6 @@
           </article>
         </ng-container>
         
-        <!-- One-on-one messages -->
         <ng-container *ngIf="!isGroupConversation(activeConversation)">
           <article 
             *ngFor="let message of activeConversation.messages; trackBy: trackByMessageId" 
@@ -208,7 +222,22 @@
             [class.received]="message.type === 'received'"
             [attr.aria-label]="getMessageAriaLabel(message)">
             
-            <p>{{ message.content }}</p>
+              <ng-container *ngIf="message.document as doc; else textMessage">
+                <button 
+                  type="button" 
+                  class="message-body message-document"
+                  (click)="downloadDocument(doc)"
+                  [disabled]="doc.downloading"
+                  [attr.aria-label]="'Download ' + doc.originalFilename">
+                  <i class="doc-icon">📄</i>
+                  <i class="doc-name">{{ doc.originalFilename }}</i>
+                  <i *ngIf="doc.downloading" class="download-spinner" aria-label="downloading"></i>
+                </button>
+              </ng-container>
+              <ng-template #textMessage>
+                <p class="message-body">{{ message.content }}</p>
+              </ng-template>
+
             <time [attr.datetime]="message.timestamp.toISOString()">
               {{ formatTime(message.timestamp) }}
             </time>
