@@ -5,6 +5,12 @@
     <p class="loading-text">Loading your dashboard...</p>
   </div>
 
+  <!-- Navigation Loading Overlay -->
+  <div *ngIf="isNavigating$ | async" class="loading-overlay">
+    <div class="spinner"></div>
+    <p class="loading-text">Redirecting to chats...</p>
+  </div>
+
   <!-- Welcome Section -->
   <section id="welcome-section" class="card">
     <header>
@@ -105,7 +111,14 @@
           <footer *ngIf="request.status === 'approved' || request.status === 'rejected' || request.status === 'pending'">
             <p *ngIf="request.status === 'pending'" class="alert-text">Your request is being reviewed.</p>
             <p *ngIf="request.status === 'rejected'" class="alert-text">Your request was not approved.</p>
-            <button *ngIf="request.status === 'approved'" class="btn join-btn">Start Messaging</button>
+            <button 
+              *ngIf="request.status === 'approved'" 
+              class="btn join-btn"
+              (click)="startMessaging(request.groupId)"
+              [disabled]="isNavigating$ | async">
+              <span *ngIf="!(isNavigating$ | async)">Start Messaging</span>
+              <span *ngIf="isNavigating$ | async">Redirecting...</span>
+            </button>
           </footer>
         </article>
       </section>

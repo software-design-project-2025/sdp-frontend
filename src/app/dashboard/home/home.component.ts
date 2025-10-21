@@ -1,6 +1,6 @@
 import { Component, OnInit, NgZone, OnDestroy, Inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router'; // ADD Router import
 import { FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, EventClickArg, EventInput } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -58,6 +58,9 @@ type JoinButtonState = 'idle' | 'sending' | 'sent' | 'error';
 export class HomeComponent implements OnInit, OnDestroy {
   // Loading state
   isLoading$ = new BehaviorSubject<boolean>(true);
+  
+  // ADD: Navigation loading state
+  isNavigating$ = new BehaviorSubject<boolean>(false);
 
   allEvents: EventInput[] = [];
   currentUserId: string = '';
@@ -121,6 +124,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     private zone: NgZone,
     private authService: AuthService,
     private cdr: ChangeDetectorRef,
+    private router: Router // ADD Router injection
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -131,6 +135,25 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopAutoRefresh();
+  }
+
+  // ADD: Start Messaging Function (similar to your teammate's messageOnClick)
+  async startMessaging(groupId: number): Promise<void> {
+    this.isNavigating$.next(true);
+    
+    try {
+      // Simulate a small delay for better UX
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Navigate to chats page with the group ID as a parameter
+      this.router.navigate(['/chat'], { 
+        queryParams: { groupId: groupId } 
+      });
+      
+    } catch (error) {
+      console.error('Error navigating to chats:', error);
+      this.isNavigating$.next(false);
+    }
   }
 
   // Caching function to get user names
