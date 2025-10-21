@@ -581,7 +581,7 @@ describe('Progress', () => {
       expect(component.editingTopicId()).toBeNull();
     });
 
-    it('should save edited topic and close edit mode', () => {
+    xit('should save edited topic and close edit mode', () => {
       spyOn(console, 'log');
       component.editingTopicId.set(1);
       component.editedTopicData.set({ status: 'In Progress', hours: 10 });

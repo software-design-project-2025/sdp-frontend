@@ -209,6 +209,79 @@ button {
   &.tall { height: 400px; }
 }
 
+// --- 8.5. Topics Filter Bar ---
+.topics-filter-bar {
+  display: flex;
+  flex-wrap: wrap; // Allows stacking on small screens
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--background-color); // Use light bg for contrast
+  border-radius: var(--border-radius);
+}
+
+.search-topics {
+  position: relative;
+  flex: 1 1 300px; // Allow growth but set a base width
+  min-width: 200px; // Prevent it from getting too small
+  max-width: 500px; // Prevent it from taking up too much space
+
+  svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-color-secondary);
+  }
+
+  input {
+    width: 100%;
+    padding: 0.75rem 0.75rem 0.75rem 2.5rem; // Left padding for icon
+    border-radius: 8px;
+    background-color: var(--card-background-color); // Match modal inputs
+    border: 1px solid var(--border-color);
+    font-size: 0.95rem;
+    transition: var(--transition-speed);
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(106, 90, 249, 0.2);
+    }
+  }
+}
+
+.filter-topics {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-color-secondary);
+  }
+
+  select {
+    padding: 0.75rem;
+    border-radius: 8px;
+    background-color: var(--card-background-color);
+    border: 1px solid var(--border-color);
+    font-size: 0.95rem;
+    transition: var(--transition-speed);
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(106, 90, 249, 0.2);
+    }
+  }
+}
+
 // --- 9. Topics Table Styling ---
 .topics-table {
   width: 100%;
@@ -245,6 +318,18 @@ button {
   }
 
   .actions-column { text-align: right; }
+}
+
+.empty-state-row {
+  td {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-color-secondary);
+    font-style: italic;
+  }
+  &:hover {
+    background-color: transparent; // Don't highlight the empty row
+  }
 }
 
 .inline-edit-input {
@@ -401,5 +486,14 @@ button {
 
   .modal-overlay {
     background: rgba(0, 0, 0, 0.7);
+  }
+
+  .topics-filter-bar {
+    background-color: rgba(0,0,0,0.2); // Darker bg
+  }
+
+  .search-topics input,
+  .filter-topics select {
+    background-color: var(--input-background-color); // Match modal inputs
   }
 }

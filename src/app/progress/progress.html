@@ -1,14 +1,11 @@
-<!-- Main container for the progress tracker page -->
 <div class="progress-container">
 
-  <!-- ✅ ADDED: Loading Overlay -->
   @if (isLoading()) {
     <div class="loading-overlay">
       <div class="spinner"></div>
     </div>
   }
 
-  <!-- Header: Title and Log Progress Button -->
   <header class="progress-header">
     <h1>Progress Tracker</h1>
     <button class="log-progress-btn" (click)="openLogProgressModal()">
@@ -17,33 +14,26 @@
     </button>
   </header>
 
-  <!-- Stat Cards Section -->
   <section class="stat-cards-grid">
     @for (card of statCards(); track card.label) {
       <div class="stat-card" [class]="card.colorClass">
         <div class="card-content">
           <p class="card-label">{{ card.label }}</p>
           <h2 class="card-value">{{ card.value }}</h2>
-          <!-- ✅ REMOVED: Percentage change logic as requested -->
         </div>
         <div class="card-icon" [innerHTML]="card.icon"></div>
       </div>
     }
   </section>
 
-  <!-- Main Content Section with Tabs -->
   <main class="main-content">
-    <!-- Tab Navigation -->
     <nav class="tabs">
       <button [class.active]="activeTab() === 'overview'" (click)="selectTab('overview')">Overview</button>
       <button [class.active]="activeTab() === 'subjects'" (click)="selectTab('subjects')">Subjects</button>
       <button [class.active]="activeTab() === 'topics'" (click)="selectTab('topics')">Topics</button>
-      <button class="disabled-tab">Achievements</button>
     </nav>
 
-    <!-- Tab Content -->
     <div class="tab-content">
-      <!-- Overview Tab -->
       @if (activeTab() === 'overview') {
         <div class="overview-grid">
           <div class="chart-container">
@@ -61,7 +51,6 @@
         </div>
       }
 
-      <!-- Subjects Tab -->
       @if (activeTab() === 'subjects') {
         <div class="chart-container full-width">
           <h3>Subject Performance</h3>
@@ -71,10 +60,31 @@
         </div>
       }
 
-      <!-- Topics Tab -->
       @if (activeTab() === 'topics') {
         <div class="topics-container">
           <h3>Recent Topics</h3>
+
+          <div class="topics-filter-bar">
+            <div class="search-topics">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text"
+                     placeholder="Search topics and subjects..."
+                     [ngModel]="topicSearchTerm()"
+                     (input)="topicSearchTerm.set($any($event.target).value)">
+            </div>
+            <div class="filter-topics">
+              <label for="statusFilter">Status:</label>
+              <select id="statusFilter"
+                      [ngModel]="topicStatusFilter()"
+                      (change)="topicStatusFilter.set($any($event.target).value)">
+                <option value="all">All Statuses</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Not Started">Not Started</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
+          </div>
+
           <table class="topics-table">
             <thead>
             <tr>
@@ -87,13 +97,15 @@
             </tr>
             </thead>
             <tbody>
-              @for (topic of topics(); track topic.topicid) {
+              @for (topic of filteredTopics(); track topic.topicid) {
                 <tr>
                   <td>{{ topic.title }}</td>
                   <td>{{ getSubjectName(topic.course_code) }}</td>
                   <td>
                     @if (editingTopicId() === topic.topicid && editedTopicData()) {
-                      <select class="inline-edit-input" [(ngModel)]="editedTopicData()!.status">
+                      <select class="inline-edit-input"
+                              [ngModel]="editedTopicData()!.status"
+                              (ngModelChange)="onEditStatusChange($event)">
                         <option value="Not Started">Not Started</option>
                         <option value="In Progress">In Progress</option>
                         <option value="Completed">Completed</option>
@@ -104,12 +116,14 @@
                   </td>
                   <td>
                     @if (editingTopicId() === topic.topicid && editedTopicData()) {
-                      <input type="number" class="inline-edit-input hours-input" [(ngModel)]="editedTopicData()!.hours" min="0" step="0.5">
+                      <input type="number" class="inline-edit-input hours-input"
+                             [ngModel]="editedTopicData()!.hours"
+                             (ngModelChange)="onEditHoursChange($event)"
+                             min="0" step="1">
                     } @else {
                       {{ topic.hours }}
                     }
                   </td>
-                  <!-- ✅ FIXED: Now only shows the date if the topic status is 'Completed'. -->
                   <td>{{ topic.status === 'Completed' ? (topic.end_date | date:'mediumDate') : '-' }}</td>
                   <td class="actions-column">
                     @if (editingTopicId() === topic.topicid) {
@@ -125,6 +139,13 @@
                   </td>
                 </tr>
               }
+              @if (filteredTopics().length === 0) {
+                <tr class="empty-state-row">
+                  <td colspan="6">
+                    <p>No topics match your filters.</p>
+                  </td>
+                </tr>
+              }
             </tbody>
           </table>
         </div>
@@ -133,7 +154,6 @@
   </main>
 </div>
 
-<!-- Log Progress Modal -->
 @if (isLogProgressModalOpen()) {
   <div class="modal-overlay" (click)="closeLogProgressModal()">
     <div class="modal-content" (click)="$event.stopPropagation()">
@@ -149,7 +169,6 @@
         <div class="form-row">
           <div class="form-group">
             <label for="topicSubject">Subject</label>
-            <!-- ✅ FIX: Changed ngModel to newTopic().course_code -->
             <select id="topicSubject" [(ngModel)]="newTopic().course_code" name="courseCode" required>
               @for(subject of subjects(); track subject.courseCode) {
                 <option [value]="subject.courseCode">{{ subject.courseName }}</option>
@@ -158,13 +177,18 @@
           </div>
           <div class="form-group">
             <label for="topicHours">Hours Spent</label>
-            <input id="topicHours" type="number" [(ngModel)]="newTopic().hours" name="hours" min="1" step="1">
+            <input id="topicHours" type="number"
+                   [ngModel]="newTopic().hours"
+                   (ngModelChange)="onNewTopicHoursChange($event)"
+                   name="hours" min="0" step="1">
           </div>
         </div>
         <div class="form-group">
           <label for="topicStatus">Status</label>
-          <select id="topicStatus" [(ngModel)]="newTopic().status" name="status">
-            <!-- ✅ FIX: Status values must match the interface exactly -->
+          <select id="topicStatus"
+                  [ngModel]="newTopic().status"
+                  (ngModelChange)="onNewTopicStatusChange($event)"
+                  name="status">
             <option value="In Progress">In Progress</option>
             <option value="Completed">Completed</option>
             <option value="Not Started">Not Started</option>
@@ -182,4 +206,3 @@
     </div>
   </div>
 }
-
