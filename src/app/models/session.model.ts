@@ -1,9 +1,9 @@
 export interface Session {
   sessionId?: number;
   title: string;
-  start_time: string; // ISO date string
+  start_time: string | Date; // ISO date string
   // FIXED: Changed type to allow null, which matches the value from the component
-  end_time?: string | null; // ISO date string
+  end_time?: string | Date | null; // ISO date string
   status: string;
   // FIXED: Changed type to allow null for consistency
   location?: string | null;

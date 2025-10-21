@@ -16,6 +16,8 @@
   // Session-specific colors
   --status-open-bg: #eaf3ff;
   --status-open-text: #2a8ded;
+  --status-scheduled-bg: #eaf3ff; // Added scheduled
+  --status-scheduled-text: #2a8ded; // Added scheduled
   --status-confirmed-bg: #e8f9ee;
   --status-confirmed-text: #27ae60;
   --status-cancelled-bg: #fbeaea;
@@ -99,25 +101,85 @@
   }
 }
 
-// Grid layout for upcoming and past sessions
-.sessions-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 2rem;
-  @media (max-width: 992px) {
-    grid-template-columns: 1fr;
+// NEW: Filter bar styles
+.sessions-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: var(--card-background);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow);
+
+  input, select {
+    flex: 1;
+    min-width: 150px;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.95rem;
+  }
+
+  button {
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+
+    &.btn-filter {
+      background-color: var(--primary-color);
+      color: white;
+      &:hover { background-color: #0056b3; }
+    }
+    &.btn-clear {
+      background-color: var(--background-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      &:hover { background-color: #e9ecef; }
+    }
   }
 }
 
-.sessions-column .column-header {
-  margin-bottom: 1.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
-  h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin: 0;
+// NEW: Tab navigation styles
+.sessions-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--border-color);
+
+  button {
+    background: transparent;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--light-text-color);
+    cursor: pointer;
+    border-bottom: 4px solid transparent;
+    transform: translateY(2px); // Aligns with the parent border
+    transition: all 0.2s ease;
+
+    &.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+    &:hover:not(.active) {
+      color: var(--text-color);
+      background-color: #e9ecef;
+      border-radius: 8px 8px 0 0;
+    }
   }
+}
+
+// Replaced .sessions-grid with .session-list for the new tabbed layout
+.session-list {
+  display: grid;
+  grid-template-columns: 1fr; // Single column list
+  gap: 1rem;
 }
 
 // A styled card for when there are no sessions
@@ -182,6 +244,7 @@
       font-weight: 500;
       text-transform: capitalize;
       &.status-open { background-color: var(--status-open-bg); color: var(--status-open-text); }
+      &.status-scheduled { background-color: var(--status-scheduled-bg); color: var(--status-scheduled-text); }
       &.status-confirmed { background-color: var(--status-confirmed-bg); color: var(--status-confirmed-text); }
       &.status-cancelled { background-color: var(--status-cancelled-bg); color: var(--status-cancelled-text); }
       &.type-online { background-color: var(--type-online-bg); color: var(--type-online-text); }
@@ -192,7 +255,52 @@
   .card-actions {
     display: flex;
     gap: 0.5rem;
+
+    // Base button style for actions
     button {
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    // NEW: Join/Leave/Admin button styles
+    .btn-join {
+      background-color: #e8f9ee;
+      color: #27ae60;
+      border-color: #27ae60;
+      &:hover { background-color: #d1f3e0; }
+    }
+    .btn-leave {
+      background-color: #fbeaea;
+      color: #c0392b;
+      border-color: #c0392b;
+      &:hover { background-color: #f7dcdc; }
+    }
+    .btn-admin {
+      background-color: #f5eaff;
+      color: #8e44ad;
+      border-color: #8e44ad;
+      &:hover { background-color: #eadaf7; }
+      &.end {
+        background-color: #fff6e5;
+        color: #e67e22;
+        border-color: #e67e22;
+        &:hover { background-color: #faecce; }
+      }
+    }
+    .btn-delete {
+      background-color: #fbeaea;
+      color: #c0392b;
+      border-color: #c0392b;
+      &:hover { background-color: #f7dcdc; }
+    }
+
+    // Styles for the icon buttons (from your original code)
+    button[title] {
       background: #f1f3f5;
       border: 1px solid var(--border-color);
       border-radius: 50%;
@@ -201,9 +309,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      cursor: pointer;
       font-size: 1rem;
-      transition: background-color 0.2s;
+      padding: 0;
       &:hover { background-color: #e9ecef; }
     }
   }
