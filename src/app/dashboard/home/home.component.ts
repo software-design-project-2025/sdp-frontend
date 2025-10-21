@@ -135,7 +135,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.isLoading$.next(true);
     try {
       const userResponse = await this.authService.getCurrentUser();
-      
+
       if (userResponse.data?.user) {
         this.currentUserId = userResponse.data.user.id;
         console.log('✅ User found:', this.currentUserId);
@@ -151,7 +151,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         // Process data after all fetches are complete
         this.processAndLoadSessions(sessions);
         this.messagesCount = msgCount;
-        
+
       } else {
         console.log('❌ No user logged in');
         this.handleUserNotLoggedIn();
@@ -175,7 +175,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       creatorName: this.getCreatorDisplayName(event.extendedProps['creatorId']),
       isPast: event.extendedProps['isPast']
     };
-    
+
     this.selectedSession = sessionData;
     this.showSessionModal = true;
     this.cdr.detectChanges();
@@ -244,7 +244,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       console.error('Error fetching pending requests for creator:', err);
     }
   }
-  
+
   joinGroup(groupId: number): void {
     if (!this.currentUserId || this.getJoinButtonState(groupId) !== 'idle') {
       return; // Do nothing if not logged in or already sending
@@ -259,7 +259,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         // Success - show green "sent" state
         this.discoverGroupUiState.set(groupId, 'sent');
         this.cdr.detectChanges();
-        
+
         // Refresh group data
         this.loadGroupData(this.currentUserId);
 
@@ -303,13 +303,13 @@ export class HomeComponent implements OnInit, OnDestroy {
       next: (newGroup) => {
         this.isGroupCreated = true;
         form.resetForm();
-        
+
         // Reset success state after 3 seconds
         setTimeout(() => {
           this.isGroupCreated = false;
           this.cdr.detectChanges();
         }, 3000);
-        
+
         this.loadGroupData(this.currentUserId);
         this.cdr.detectChanges();
       },
@@ -374,7 +374,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.loadUserStatistics(this.currentUserId);
       }
     });
-    
+
     this.groupRefreshSubscription = interval(this.GROUP_REFRESH_INTERVAL).subscribe(() => {
       if (this.currentUserId) {
         console.log('🔄 Auto-refreshing group data...');
@@ -434,10 +434,10 @@ export class HomeComponent implements OnInit, OnDestroy {
     try {
       const { hours, sessions, topics } = await firstValueFrom(forkJoin({
         hours: this.sessionService.getStudyHours(userId),
-        sessions: this.sessionService.getSessionsCount(userId),
+        sessions: this.sessionService.getSessionCount(userId),
         topics: this.topicService.getTopicsCount(userId)
       }));
-      
+
       this.studyHours = hours.totalHours;
       this.sessionsCount = sessions.numSessions;
       this.topicsCount = topics.numTopics;
@@ -464,9 +464,9 @@ export class HomeComponent implements OnInit, OnDestroy {
           return null;
         }
         const isPastSession = endTime < now;
-        
+
         const displayTitle = session.title || 'Untitled Session';
-        
+
         return {
           id: session.sessionId?.toString() || `session-${index}`,
           title: displayTitle,
