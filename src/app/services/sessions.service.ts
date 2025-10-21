@@ -1,95 +1,78 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
-import { Session, SessionDisplay } from '../models/session.model';
-import {environment} from '../../environments/environment.prod';
+import { catchError } from 'rxjs/operators';
+import { Session } from '../models/session.model';
+import { environment } from '../../environments/environment.prod';
+
+// FIXED: Exported the interface so it can be imported by other components
+export interface StudyHoursResponse {
+  userId: string;
+  totalHours: number;
+  exactHours: number;
+}
+
+// FIXED: Exported the interface so it can be imported by other components
+export interface SessionCountResponse {
+  userId: string;
+  numSessions: number;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class SessionsService {
-  private apiUrl = `${environment.apiBaseUrl}/api/sessions`;
-
-  // private getHeaders(): HttpHeaders {
-  //   return new HttpHeaders({
-  //     'Authorization': `Bearer ${environment.API_KEY_ADMIN}`,
-  //     'Content-Type': 'application/json'
-  //   });
-  // }
+  // Corrected the base URL to include '/api'
+  private apiUrl = `${environment.apiBaseUrl}/api`;
 
   constructor(private http: HttpClient) { }
 
-  getSessions(): Observable<SessionDisplay[]> {
-    return this.http.get<Session[]>(this.apiUrl, { headers: this.getHeaders() }).pipe(
-      map(sessions => sessions.map(s => this.convertToDisplay(s))),
-      catchError(this.handleError<SessionDisplay[]>('getSessions', []))
+  private getHeaders(): HttpHeaders {
+    return new HttpHeaders({
+      'Authorization': `Bearer ${environment.API_KEY_ADMIN}`,
+      'Content-Type': 'application/json'
+    });
+  }
+
+  // Corrected method name to getSessions, returns raw Session objects
+  getSessions(): Observable<Session[]> {
+    return this.http.get<Session[]>(`${this.apiUrl}/sessions`, { headers: this.getHeaders() }).pipe(
+      catchError(this.handleError<Session[]>('getSessions', []))
     );
   }
 
-  getSessionById(id: number): Observable<Session> {
-    return this.http.get<Session>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() }).pipe(
-      catchError(this.handleError<Session>('getSessionById'))
-    );
-  }
-
-  getSessionsByCreator(creatorId: string): Observable<Session[]> {
-    return this.http.get<Session[]>(`${this.apiUrl}/creator/${creatorId}`, { headers: this.getHeaders() }).pipe(
-      catchError(this.handleError<Session[]>('getSessionsByCreator', []))
-    );
-  }
-
-  getSessionsByGroup(groupId: number): Observable<Session[]> {
-    return this.http.get<Session[]>(`${this.apiUrl}/group/${groupId}`, { headers: this.getHeaders() }).pipe(
-      catchError(this.handleError<Session[]>('getSessionsByGroup', []))
-    );
-  }
-
-  createSession(session: any): Observable<Session> {
-    const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
-    return this.http.post<Session>(this.apiUrl, session, { headers: this.getHeaders() }).pipe(
+  // FIXED: The parameter type now correctly reflects the data sent from the component
+  // It accepts a partial session object, as 'sessionId' is not known on creation.
+  createSession(session: Partial<Session>): Observable<Session> {
+    return this.http.post<Session>(`${this.apiUrl}/sessions`, session, { headers: this.getHeaders() }).pipe(
       catchError(this.handleError<Session>('createSession'))
     );
   }
-    // constructor(private http: HttpClient) {}
 
-  updateSession(id: number, session: Session): Observable<Session> {
-    const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
-    return this.http.put<Session>(`${this.apiUrl}/${id}`, session, { headers: this.getHeaders() }).pipe(
-      catchError(this.handleError<Session>('updateSession'))
-    );
+  // --- Methods for User Statistics ---
+
+  getUpcomingSessions(userId: string): Observable<Session[]> {
+    const params = new HttpParams().set('userId', userId);
+    return this.http.get<Session[]>(`${this.apiUrl}/auth/sessions/upcoming`, {
+      params,
+      headers: this.getHeaders()
+    }).pipe(catchError(this.handleError<Session[]>('getUpcomingSessions', [])));
   }
 
-  deleteSession(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() }).pipe(
-      catchError(this.handleError<void>('deleteSession'))
-    );
+  getStudyHours(userId: string): Observable<StudyHoursResponse> {
+    const params = new HttpParams().set('userId', userId);
+    return this.http.get<StudyHoursResponse>(`${this.apiUrl}/auth/sessions/study-hours`, {
+      params,
+      headers: this.getHeaders()
+    }).pipe(catchError(this.handleError<StudyHoursResponse>('getStudyHours', { userId, totalHours: 0, exactHours: 0 })));
   }
 
-  // Convert backend Session to frontend SessionDisplay
-  private convertToDisplay(session: Session): SessionDisplay {
-    const startTime = new Date(session.start_time);
-    const endTime = session.end_time ? new Date(session.end_time) : null;
-
-    // Determine if it's online or in-person based on location
-    const isUrl = session.location && (session.location.startsWith('http://') || session.location.startsWith('https://'));
-    const isOnline = !session.location || session.location === 'online' || isUrl;
-
-    return {
-      sessionId: session.sessionId,
-      title: session.title,
-      date: startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      time: `${startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}${endTime ? ' - ' + endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}`,
-      status: session.status,
-      type: isOnline ? 'online' : 'in-person',
-      location: !isUrl && session.location ? session.location : undefined,
-      url: isUrl ? session.location : undefined,
-      organizer: session.creatorid,
-      participantCount: 0, // You'll need to get this from SessionMembers
-      maxParticipants: 10, // Default or get from elsewhere
-      topics: session.description ? session.description.split(',').map(t => t.trim()).filter(t => t.length > 0) : [],
-      description: session.description
-    };
+  getSessionCount(userId: string): Observable<SessionCountResponse> {
+    const params = new HttpParams().set('userId', userId);
+    return this.http.get<SessionCountResponse>(`${this.apiUrl}/auth/sessions/num-sessions`, {
+      params,
+      headers: this.getHeaders()
+    }).pipe(catchError(this.handleError<SessionCountResponse>('getSessionCount', { userId, numSessions: 0 })));
   }
 
   private handleError<T>(operation = 'operation', result?: T) {
@@ -98,49 +81,5 @@ export class SessionsService {
       return of(result as T);
     };
   }
-
-  // private apiUrl = 'http://localhost:8080/api/auth';
-
-    private getHeaders(): HttpHeaders {
-        return new HttpHeaders({
-        'Authorization': `Bearer ${environment.API_KEY_ADMIN}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-        });
-    }
-
-    getUpcomingSessions(userId: string): Observable<Session[]> {
-    const params = new HttpParams().set('userId', userId);
-
-    console.log('🔍 [SessionService] Calling:', `${this.apiUrl}/sessions/upcoming`);
-    console.log('🔍 [SessionService] With userId:', userId);
-
-    return this.http.get<Session[]>(`${this.apiUrl}/sessions/upcoming`, {
-        params,
-        headers: this.getHeaders()
-    });
-    }
-
-    getStudyHours(userId: string): Observable<any> {
-    const params = new HttpParams().set('userId', userId);
-
-    console.log('🔍 [SessionService] Getting study hours for user:', userId);
-
-    return this.http.get<any>(`${this.apiUrl}/sessions/study-hours`, {
-      params,
-      headers: this.getHeaders()
-    });
-  }
-
-  getSessionsCount(userId: string): Observable<any> {
-    const params = new HttpParams().set('userId', userId);
-
-    console.log('🔍 [SessionService] Getting sessions count for user:', userId);
-
-    return this.http.get<any>(`${this.apiUrl}/sessions/num-sessions`, {
-      params,
-      headers: this.getHeaders()
-    });
-  }
-
 }
+

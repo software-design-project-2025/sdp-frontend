@@ -2,10 +2,13 @@ export interface Session {
   sessionId?: number;
   title: string;
   start_time: string; // ISO date string
-  end_time?: string; // ISO date string
+  // FIXED: Changed type to allow null, which matches the value from the component
+  end_time?: string | null; // ISO date string
   status: string;
-  location?: string;
-  description?: string;
+  // FIXED: Changed type to allow null for consistency
+  location?: string | null;
+  // FIXED: Changed type to allow null for consistency
+  description?: string | null;
   creatorid: string;
   groupid: number;
 }
