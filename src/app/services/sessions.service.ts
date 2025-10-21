@@ -198,7 +198,7 @@ export class SessionsService {
   getStudyHours(userId: string): Observable<StudyHoursResponse> {
     const params = new HttpParams().set('userId', userId);
     // *** FIXED: URL changed from /auth/sessions/study-hours
-    return this.http.get<StudyHoursResponse>(`${this.apiUrl}/stats/study-hours`, {
+    return this.http.get<StudyHoursResponse>(`${this.apiUrl}/study-hours`, {
       params,
       headers: this.getHeaders()
     }).pipe(catchError(this.handleError<StudyHoursResponse>('getStudyHours', { userId, totalHours: 0, exactHours: 0 })));
@@ -210,7 +210,7 @@ export class SessionsService {
   getSessionCount(userId: string): Observable<SessionCountResponse> {
     const params = new HttpParams().set('userId', userId);
     // *** FIXED: URL changed from /auth/sessions/num-sessions
-    return this.http.get<SessionCountResponse>(`${this.apiUrl}/stats/num-sessions`, {
+    return this.http.get<SessionCountResponse>(`${this.apiUrl}/num-sessions`, {
       params,
       headers: this.getHeaders()
     }).pipe(catchError(this.handleError<SessionCountResponse>('getSessionCount', { userId, numSessions: 0 })));
