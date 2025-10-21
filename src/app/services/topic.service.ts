@@ -49,9 +49,9 @@ export class TopicApiService {
 
   getTopicsCount(userId: string): Observable<any> {
     const params = new HttpParams().set('userId', userId);
-    
+
     console.log('🔍 [TopicApiService] Getting topics count for user:', userId);
-    
+
     return this.http.get<any>(`${this.url}/api/topic/topics/num-topics`, {
       params,
       headers: this.getHeaders()
@@ -64,6 +64,14 @@ export class TopicApiService {
       {
         ...topicData,
       },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  patchTopic(topicId: number, userData: any): Observable<any> {
+    return this.http.patch(
+      `${this.url}/api/topic/patch/${topicId}`,
+      userData,
       { headers: this.getHeaders() }
     );
   }
