@@ -1,16 +1,14 @@
-<!-- Loading Screen Overlay -->
-<div *ngIf="isLoading | async" class="loading-overlay">
+<div *ngIf="isLoading$ | async" class="loading-overlay">
   <div class="spinner"></div>
   <p class="loading-text">Finding potential study partners...</p>
 </div>
 
-<div *ngIf="isNavigating | async" class="loading-overlay">
+<div *ngIf="isNavigating$ | async" class="loading-overlay">
   <div class="spinner"></div>
   <p class="loading-text">Connecting to study partner...</p>
 </div>
 
-<!-- Main Content -->
-<main *ngIf="!(isLoading | async)" class="study-partners-container">
+<main *ngIf="!(isLoading$ | async)" class="study-partners-container">
   <header class="page-header">
     <h1>Find Study Partners</h1>
     <p>Connect with fellow students who share your academic interests</p>
@@ -18,17 +16,18 @@
 
   <section class="search-and-filters">
     <div class="search-bar">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m19.6 21l-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5q0-2.725 1.888-4.612T9.5 3q2.725 0 4.612 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3zM9.5 14q1.875 0 3.188-1.313T14 9.5q0-1.875-1.313-3.188T9.5 5Q7.625 5 6.312 6.313T5 9.5q0 1.875 1.313 3.188T9.5 14"/></svg>
       <input
         type="text"
         placeholder="Search by name, course, or subject..."
-        [(ngModel)]="searchTerm"
-        (ngModelChange)="applyFilters()">
+        [ngModel]="searchTerm$ | async"
+        (ngModelChange)="searchTerm$.next($event)">
     </div>
     <div class="filters">
-      <select [(ngModel)]="selectedDegree" (ngModelChange)="applyFilters()">
+      <select
+        [ngModel]="selectedDegree$ | async"
+        (ngModelChange)="selectedDegree$.next($event)">
         <option value="All">All Degrees</option>
-        <!-- Use the new 'availableDegreesForFilter' array here -->
         <option *ngFor="let degree of availableDegreesForFilter" [value]="degree.degreeid">
           {{ degree.degree_name }}
         </option>
@@ -38,31 +37,38 @@
 
   <section class="results-section">
     <div class="results-header">
-      <h2>Found {{ filteredPartners.length }} potential study partners</h2>
+      <h2>Found {{ filteredAndSortedPartners.length }} potential study partners</h2>
     </div>
 
-    <div *ngIf="filteredPartners.length > 0; else noPartners" class="partners-grid">
-      <article *ngFor="let partner of filteredPartners" class="partner-card">
+    <div *ngIf="(paginatedPartners | async)?.length; else noPartners" class="partners-grid">
+      <article *ngFor="let partner of paginatedPartners | async" class="partner-card">
         <header class="card-header">
-          <div class="avatar" [style.backgroundColor]="getAvatarColor(partner.username)">
-            {{ getInitials(partner.username) }}
-          </div>
+          @if (partner.profile_picture) {
+            <img [src]="partner.profile_picture" [alt]="getInitials(partner.username)" class="avatar-image">
+          } @else {
+            <div class="avatar" [style.backgroundColor]="getAvatarColor(partner.username)" [attr.aria-label]="partner.username">
+              {{ getInitials(partner.username) }}
+            </div>
+          }
           <div class="partner-info">
             <h3>{{ partner.username }}</h3>
             <p>{{ getDegreeName(partner.degreeid) }} • {{ getYearOfStudy(partner.yearofstudy) }}</p>
           </div>
         </header>
-        <p class="description">{{ partner.bio }}</p>
+        <p class="description">{{ partner.bio | slice:0:120 }}{{ partner.bio.length > 120 ? '...' : '' }}</p>
         <div class="subjects">
           <h4>Subjects:</h4>
           <ul>
-            <li *ngFor="let course of getPartnerCourses(partner.userid)">
+            <li *ngFor="let course of getPartnerCourses(partner.userid) | slice:0:3">
               {{ course.courseName }}
+            </li>
+            <li *ngIf="getPartnerCourses(partner.userid).length > 3" class="more-subjects">
+              +{{ getPartnerCourses(partner.userid).length - 3 }} more
             </li>
           </ul>
         </div>
         <footer class="card-footer">
-          <button (click)="messageOnClick(partner)" [disabled]="isButtonDisabled" class="message-btn">Message</button>
+          <button (click)="viewProfile(partner)" class="view-profile-btn">View Profile</button>
         </footer>
       </article>
     </div>
@@ -73,6 +79,75 @@
         <p>Try adjusting your search terms or filters to find a match.</p>
       </div>
     </ng-template>
+
+    <nav *ngIf="totalPages > 1" aria-label="Partner results pagination">
+      <ul class="pagination-container">
+        <li class="page-item" [class.disabled]="(currentPage$ | async) === 1" (click)="previousPage()">
+          <span>&laquo;</span>
+        </li>
+        <li *ngFor="let page of [].constructor(totalPages); let i = index"
+            class="page-item"
+            [class.active]="i + 1 === (currentPage$ | async)"
+            (click)="setPage(i + 1)">
+          {{ i + 1 }}
+        </li>
+        <li class="page-item" [class.disabled]="(currentPage$ | async) === totalPages" (click)="nextPage()">
+          <span>&raquo;</span>
+        </li>
+      </ul>
+    </nav>
   </section>
 </main>
 
+<div *ngIf="selectedPartner.asObservable() | async as partner" class="profile-modal-overlay" (click)="closeProfile()">
+  <div class="profile-modal-card" (click)="$event.stopPropagation()">
+    <button class="close-btn" (click)="closeProfile()">&times;</button>
+    <div class="profile-header">
+      @if (partner.profile_picture) {
+        <img [src]="partner.profile_picture" [alt]="getInitials(partner.username)" class="profile-avatar-image">
+      } @else {
+        <div class="profile-avatar" [style.backgroundColor]="getAvatarColor(partner.username)" [attr.aria-label]="partner.username">
+          {{ getInitials(partner.username) }}
+        </div>
+      }
+      <div class="profile-info">
+        <h1 class="user-name">{{ partner.username }}</h1>
+        <p>{{ getDegreeName(partner.degreeid) }} • {{ getYearOfStudy(partner.yearofstudy) }}</p>
+      </div>
+    </div>
+    <div class="profile-body">
+      <div class="profile-section">
+        <h2>About</h2>
+        <p class="profile-bio">{{ partner.bio }}</p>
+      </div>
+      <div class="profile-section">
+        <h2>Subjects</h2>
+        <div class="subjects-container">
+          <div *ngFor="let module of getPartnerCourses(partner.userid)" class="subject-tag">
+            {{ module.courseName }}
+          </div>
+        </div>
+      </div>
+      <div class="profile-section">
+        <h2>Activity Stats</h2>
+        <div *ngIf="isProfileLoading$ | async" class="modal-spinner-container"><div class="spinner"></div></div>
+        <div *ngIf="!(isProfileLoading$ | async)" class="stats-grid">
+          <div *ngFor="let stat of partnerStats.asObservable() | async" class="stat-card">
+            <div class="stat-icon" [innerHTML]="stat.svgIcon | safeHtml"></div>
+            <div class="stat-value">{{ stat.value }}</div>
+            <div class="stat-label">{{ stat.label }}</div>
+          </div>
+          <div *ngIf="(partnerStats.asObservable() | async)?.length === 0" class="no-stats">
+            <p>No activity stats available for this user yet.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="profile-footer">
+      <button (click)="messageOnClick(partner)" [disabled]="isButtonDisabled" class="message-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        Message {{ partner.username.split(' ')[0] }}
+      </button>
+    </div>
+  </div>
+</div>
