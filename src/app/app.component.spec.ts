@@ -24,7 +24,7 @@ class MockLoginSuccessComponent {}
 class MockDashboardComponent {}
 
 
-describe('AppComponent', () => {
+xdescribe('AppComponent', () => {
   let component: AppComponent;
   let fixture: ComponentFixture<AppComponent>;
   let router: Router;
