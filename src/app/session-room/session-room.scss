@@ -1,0 +1,309 @@
+@use '@angular/material' as mat; // Import Angular Material theming functions if needed
+
+:host {
+  display: block;
+  height: 100vh; // Make component take full viewport height
+  overflow: hidden; // Prevent scrolling on the host element
+  background-color: #f0f2f5; // Light background for the overall page
+}
+
+// --- Loading & Error States ---
+.loading-overlay.room-loading,
+.room-error-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: 2rem;
+  text-align: center;
+
+  p {
+    margin-top: 1rem;
+    font-size: 1.1rem;
+    color: #555;
+  }
+  h2 {
+    color: #d32f2f; // Error color
+    margin-bottom: 0.5rem;
+  }
+  button { margin-top: 1.5rem; }
+}
+
+// --- Main Container ---
+.session-room-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #fff; // White background for the main content area
+}
+
+// --- Header ---
+.room-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #ffffff; // White header background
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  z-index: 10; // Keep header above content
+  flex-shrink: 0; // Prevent header from shrinking
+
+  .header-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    .back-button {
+      // Style the back button using Material's density mixins if possible
+      // Or basic styling:
+      color: #555;
+      margin-right: 0.5rem; // Space after back button
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .timer-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+}
+
+// --- Timer Display ---
+.timer {
+  display: flex;
+  align-items: center;
+  background-color: #f0f2f5; // Subtle background
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #555;
+
+  .timer-label {
+    font-weight: 500;
+    margin-right: 0.3rem;
+    color: #777;
+  }
+  .timer-value {
+    font-weight: 600;
+    font-family: 'monospace'; // Monospace for consistent width
+    min-width: 60px; // Ensure space for HH:MM:SS
+    text-align: center;
+
+    &.elapsed { color: #333; }
+    &.remaining { color: #e53935; } // Red for remaining time
+  }
+  .timer-separator {
+    margin: 0 0.5rem;
+    color: #ccc;
+  }
+}
+
+// --- Chat Main Area ---
+.chat-main {
+  flex-grow: 1; // Takes remaining vertical space
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; // Important: Prevents chat area from overflowing container
+}
+
+// --- Messages Container ---
+.messages-container {
+  flex-grow: 1; // Takes available space above input
+  overflow-y: auto; // Allows scrolling of messages
+  padding: 1rem 1.5rem;
+  background-color: #f7f9fc; // Very light blue/gray background
+
+  .chat-error {
+    text-align: center;
+    padding: 2rem;
+    color: #d32f2f;
+    font-style: italic;
+  }
+  .no-messages {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #999;
+    font-style: italic;
+  }
+}
+
+// --- Individual Messages ---
+.message-wrapper {
+  display: flex;
+  margin-bottom: 0.75rem;
+}
+
+.message {
+  max-width: 70%; // Limit message width
+  padding: 0.6rem 1rem;
+  border-radius: 18px; // Rounded corners
+  position: relative;
+  word-wrap: break-word; // Break long words
+
+  .sender-name {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 0.2rem;
+  }
+
+  p {
+    margin: 0;
+    line-height: 1.5;
+    font-size: 0.95rem;
+  }
+
+  time {
+    display: block; // On its own line below content
+    font-size: 0.7rem;
+    color: #999;
+    margin-top: 0.3rem;
+    text-align: right;
+  }
+
+  &.sent {
+    background-color: #dcf8c6; // Light green for sent
+    margin-left: auto; // Align right
+    border-bottom-right-radius: 6px; // Adjust corner for tail effect
+    time { color: #777; }
+  }
+
+  &.received {
+    background-color: #ffffff; // White for received
+    border: 1px solid #eee;
+    margin-right: auto; // Align left
+    border-bottom-left-radius: 6px; // Adjust corner
+    time { color: #aaa; }
+  }
+}
+
+// --- Document Message Styles ---
+.document-message {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem; // Internal padding
+  cursor: pointer;
+  border-radius: 8px; // Slight rounding inside message bubble
+  background-color: rgba(0, 0, 0, 0.03); // Subtle background
+  min-width: 200px; // Ensure it has some width
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+  }
+
+  .doc-icon {
+    font-size: 1.8rem;
+    flex-shrink: 0;
+    color: #777;
+  }
+  .doc-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; // Prevent long filenames from breaking layout
+  }
+  .doc-filename {
+    font-weight: 500;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #333;
+  }
+  .doc-action {
+    font-size: 0.75rem;
+    color: var(--primary-color);
+  }
+  .doc-spinner {
+    margin-left: auto; // Push spinner to the right
+    flex-shrink: 0;
+  }
+}
+// Adjust document style within sent/received bubbles
+.message.sent .document-message {
+  background-color: rgba(0, 80, 0, 0.05);
+  &:hover { background-color: rgba(0, 80, 0, 0.1); }
+  .doc-filename { color: #115511; }
+  .doc-action { color: #338833; }
+}
+.message.received .document-message {
+  background-color: rgba(0, 0, 0, 0.04);
+  &:hover { background-color: rgba(0, 0, 0, 0.08); }
+}
+
+
+// --- Message Input Footer ---
+.message-input-section {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.75rem 1.5rem;
+  border-top: 1px solid #e0e0e0; // Use theme variable: var(--border-color)
+  background-color: #f0f2f5; // Use theme variable: var(--input-background-color) or similar
+  flex-shrink: 0; // Crucial: Prevent input area from shrinking
+
+  .message-form {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .attach-button {
+    color: #555; // Use theme variable: var(--text-color-secondary)
+    // Assuming button styles are handled by mat-icon-button
+  }
+
+  .message-input-field {
+    flex-grow: 1; // Take available space
+
+    // Consider removing ::ng-deep if possible, or scope it more tightly.
+    // These styles adjust the Material component's appearance.
+    ::ng-deep .mdc-notched-outline > * { border-color: transparent !important; }
+    ::ng-deep .mat-mdc-form-field-flex {
+      background-color: white !important; // Use theme var: var(--card-background-color)
+      border-radius: 20px !important;
+      padding: 0 1rem !important;
+    }
+    ::ng-deep .mat-mdc-form-field-infix {
+      padding-top: 0.8em !important;
+      padding-bottom: 0.8em !important;
+    }
+  }
+
+  .send-button {
+    min-width: auto;
+    padding: 0.5rem !important;
+    border-radius: 50% !important;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    .send-spinner {
+      // Styles for spinner if needed
+    }
+
+    svg {
+      margin: 0;
+    }
+  }
+}
+
+// --- Snackbar Styles (Copied from previous step) ---
+.snackbar-success { background-color: #28a745; color: white; .mat-mdc-button.mat-mdc-snack-bar-action { color: white; } }
+.snackbar-error { background-color: #dc3545; color: white; .mat-mdc-button.mat-mdc-snack-bar-action { color: white; } }

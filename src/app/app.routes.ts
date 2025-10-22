@@ -10,12 +10,14 @@ import { FindPartners } from './findpartners/findpartners';
 import { Profile } from './profile/profile'
 import { Progress } from './progress/progress'
 import { LandingPage } from './landingpage/landingpage';
+import { SessionRoom } from './session-room/session-room';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'landingpage', pathMatch: 'full' }, // Default route
   { path: 'login', component: LoginComponent },
   { path: 'signup', component: SignupComponent },
   { path: 'login-success', component: LoginSuccessComponent },
+  { path: 'session-room/:id', component: SessionRoom },
   { path: 'chat', component: Chat},
   { path: 'findpartners', component: FindPartners},
   { path: 'profile', component: Profile},

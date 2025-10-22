@@ -12,6 +12,12 @@ export interface StudyHoursResponse {
   exactHours: number;
 }
 
+
+export interface SessionParticipant {
+  userid: string;
+  username: string; // Assuming you can get the username
+  // Add profile_picture if available
+}
 // Exported the interface so it can be imported by other components
 export interface SessionCountResponse {
   userId: string;
@@ -214,6 +220,13 @@ export class SessionsService {
       params,
       headers: this.getHeaders()
     }).pipe(catchError(this.handleError<SessionCountResponse>('getSessionCount', { userId, numSessions: 0 })));
+  }
+
+  getSessionMembers(sessionId: number): Observable<SessionParticipant[]> {
+    // Adjust the URL based on your actual backend endpoint
+    return this.http.get<SessionParticipant[]>(`${this.apiUrl}/${sessionId}/members`, { headers: this.getHeaders() }).pipe(
+      catchError(this.handleError<SessionParticipant[]>(`getSessionMembers id=${sessionId}`, []))
+    );
   }
 
   // --- Private Error Handler ---

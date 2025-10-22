@@ -8,12 +8,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ConfirmDialog } from '../confirm-dialog/confirm-dialog';
+import { RouterModule } from '@angular/router';
 
 // Models
 import { Session } from '../models/session.model';
 
 // --- Interfaces ---
-interface User {
+export interface User {
   userid: string; username: string | "unknown"; email: string | "unknown"; role: string; status: string;
   bio: string; degreeid: number; yearofstudy: number; profile_picture: string | null;
 }
@@ -32,7 +33,7 @@ import { UserService as SupabaseUserService } from '../services/supabase.service
   selector: 'app-sessions',
   standalone: true,
   providers: [DatePipe, FindPartnerApiService, SupabaseUserService],
-  imports: [CommonModule, FormsModule, MatSnackBarModule, MatDialogModule],
+  imports: [CommonModule, FormsModule, MatSnackBarModule, MatDialogModule, RouterModule],
   templateUrl: './sessions.component.html',
   styleUrls: ['./sessions.component.scss']
 })
@@ -440,6 +441,21 @@ export class SessionsComponent implements OnInit, OnDestroy {
   }
 
   // --- Helper Methods ---
+
+  isSessionInProgress(session: Session): boolean {
+    if (!session || !(session.start_time instanceof Date) || session.status === 'completed' || session.status === 'cancelled') {
+      return false;
+    }
+    const now = new Date();
+    const startTime = session.start_time;
+    let endTime: Date | null = null;
+    if (session.end_time instanceof Date) {
+      endTime = session.end_time;
+    }
+
+    // Check if current time is between start and end (or ongoing if end is infinity)
+    return now >= startTime && (session.end_time === 'infinity' || (endTime !== null && now < endTime));
+  }
   scheduleAgain(pastSession: Session): void {
     if (!pastSession) return; this.resetForm();
     this.newSession = { ...this.newSession, title: `Copy of: ${pastSession.title || 'Session'}`, groupid: pastSession.groupid ? String(pastSession.groupid) : '', description: pastSession.description ?? '', status: 'scheduled', start_time: '', end_time: '' };
