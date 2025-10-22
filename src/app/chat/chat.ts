@@ -93,6 +93,7 @@ export class Chat implements OnInit, AfterViewChecked {
   
   conversations: Conversation[] = [];
   filteredConversations: (Conversation | GroupConversation)[] = [];
+  private allConversations: (Conversation | GroupConversation)[] = [];
   activeConversation: Conversation | GroupConversation | null = null;
   
   currentUser: User = {
@@ -271,7 +272,8 @@ export class Chat implements OnInit, AfterViewChecked {
   this.conversations = [...convosWithMessages, ...convosWithoutMessages];
 
   // Combine sorted conversations with messages and conversations without messages
-  this.filteredConversations = [...allConversationsWithMessages, ...allConversationsWithoutMessages];
+  this.allConversations = [...allConversationsWithMessages, ...allConversationsWithoutMessages];
+  this.filteredConversations = [...this.allConversations];
 
       this.loading$.next(false);
 
@@ -673,20 +675,19 @@ export class Chat implements OnInit, AfterViewChecked {
 
   filterConversations(searchTerm: string): void {
     if (!searchTerm) {
-      this.filteredConversations = [...this.conversations, ...this.getGroupConversations()];
+      this.filteredConversations = [...this.allConversations];
       return;
     }
 
     const term = searchTerm.toLowerCase();
-    const filteredOneOnOne = this.conversations.filter(conversation => {
-      return conversation.participant.name.toLowerCase().includes(term);
-    });
     
-    const filteredGroups = this.getGroupConversations().filter(conversation => {
-      return conversation.name.toLowerCase().includes(term);
+    this.filteredConversations = this.allConversations.filter(conversation => {
+      if (this.isGroupConversation(conversation)) {
+        return conversation.name.toLowerCase().includes(term);
+      } else {
+        return conversation.participant.name.toLowerCase().includes(term);
+      }
     });
-    
-    this.filteredConversations = [...filteredOneOnOne, ...filteredGroups];
   }
 
   private getGroupConversations(): GroupConversation[] {
