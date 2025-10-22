@@ -1,0 +1,89 @@
+// --- 1. Theme Variables ---
+$text-primary: #212529;
+$text-secondary: #6c757d;
+$warn-color: #dc3545;
+$warn-hover: #c82333;
+$button-hover-light: rgba(0, 0, 0, 0.05);
+
+// --- 2. Base Component Styles ---
+// Styles from your component's 'styles' array
+p {
+  margin-top: 10px;
+}
+
+mat-dialog-actions {
+  padding-top: 10px;
+}
+
+// Base styles for elements in the template
+:host {
+  display: block; // Standard for component host
+}
+
+h2[mat-dialog-title] {
+  color: $text-primary;
+  font-weight: 600;
+}
+
+p {
+  color: $text-secondary;
+  line-height: 1.5;
+}
+
+// Style the "No" text button
+button[mat-button] {
+  color: $text-secondary;
+  font-weight: 600;
+
+  &:hover {
+    background-color: $button-hover-light;
+  }
+}
+
+// Style the "Yes" warn button
+button[mat-flat-button][color="warn"] {
+  background-color: $warn-color;
+  color: white;
+  font-weight: 600;
+
+  &:hover {
+    background-color: $warn-hover;
+  }
+}
+
+// --- 3. Dark Theme Overrides ---
+:host-context(body.dark-theme) {
+  // --- Dark Variables ---
+  $dark-text-primary: #4F46E5FF;
+  $dark-text-secondary: #a0a0a0;
+  $dark-warn: #f87171;
+  $dark-warn-hover: #f74d4d;
+  $dark-button-hover: #3a3a3a;
+
+  h2[mat-dialog-title] {
+    color: $dark-text-primary;
+  }
+
+  p {
+    color: $dark-text-secondary;
+  }
+
+  // "No" button
+  button[mat-button] {
+    color: $dark-text-secondary;
+
+    &:hover {
+      background-color: $dark-button-hover;
+    }
+  }
+
+  // "Yes" button
+  button[mat-flat-button][color="warn"] {
+    background-color: $dark-warn;
+    color: #1e1e1e; // Dark text on light red button for contrast
+
+    &:hover {
+      background-color: $dark-warn-hover;
+    }
+  }
+}

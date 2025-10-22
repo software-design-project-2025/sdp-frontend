@@ -226,12 +226,12 @@ body {
 
   display: flex;
   flex-direction: row;
-  
+
   p {
     order: 1;
     flex-grow: 1;
   }
-  
+
   header.icon {
     order: 2;
   }
@@ -264,10 +264,10 @@ body {
       background-color: $color-primary-light;
       box-shadow: $shadow-sm;
     }
-    
+
     &.success {
       background-color: $status-approved !important;
-      
+
       &:hover {
         background-color: adjust-color($status-approved, $lightness: -10%) !important;
       }
@@ -291,29 +291,29 @@ body {
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: 1rem;
-  
+
   &:focus {
     outline: none;
     border-color: $color-primary;
     box-shadow: 0 0 0 2px rgba($color-primary, 0.1);
   }
-  
+
   &:hover {
     border-color: $color-primary-light;
   }
-  
+
   option {
     padding: 0.5rem;
     font-weight: 500;
-    
+
     &[value=""] {
       color: $text-muted;
     }
-    
+
     &[value="approve"] {
       color: $status-approved;
     }
-    
+
     &[value="reject"] {
       color: $status-rejected;
     }
@@ -390,7 +390,7 @@ body {
       font-size: 0.75rem;
       font-weight: 500;
       border-color: $color-accent-blue;
-      
+
       .fc-event-time {
         display: none !important;
       }
@@ -635,14 +635,14 @@ p {
 
 .request-info {
   flex-grow: 1;
-  
+
   h3 {
     font-weight: 600;
     font-size: 1.1rem;
     color: $text-dark;
     margin: 0 0 0.25rem 0;
   }
-  
+
   p {
     font-weight: 500;
     color: #374151;
@@ -653,7 +653,7 @@ p {
 .request-info {
   flex-grow: 1;
   text-align: left !important;
-  
+
   h3 {
     font-weight: 600;
     font-size: 1.1rem;
@@ -661,7 +661,7 @@ p {
     margin: 0 0 0.25rem 0;
     text-align: left !important;
   }
-  
+
   p {
     font-weight: 500;
     color: #374151;
@@ -710,51 +710,51 @@ p {
 .btn.join-btn {
   position: relative;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   // Default state (purple)
   background-color: $color-accent-purple;
   color: $color-white;
-  
+
   &:hover:not(:disabled) {
     background-color: $color-accent-purple-hover;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(160, 106, 214, 0.3);
   }
-  
+
   // Sending state (pulse animation)
   &.sending {
     background-color: $color-primary-light;
     color: $color-white;
     animation: pulse 1.5s infinite;
-    
+
     &:hover {
       background-color: $color-primary-light;
       transform: none;
     }
   }
-  
+
   // Success state (green)
   &.success {
     background-color: $status-approved !important;
     color: $color-white;
-    
+
     &:hover {
       background-color: adjust-color($status-approved, $lightness: -10%) !important;
       transform: translateY(-2px);
     }
   }
-  
+
   // Error state (red)
   &.error {
     background-color: $status-rejected !important;
     color: $color-white;
-    
+
     &:hover {
       background-color: adjust-color($status-rejected, $lightness: -10%) !important;
       transform: translateY(-2px);
     }
   }
-  
+
   // Disabled state
   &:disabled {
     opacity: 0.7;
@@ -778,12 +778,374 @@ p {
 // Enhanced Create Group Button
 .btn.create-group-btn {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   &.success {
     background-color: $status-approved !important;
-    
+
     &:hover {
       background-color: adjust-color($status-approved, $lightness: -10%) !important;
+    }
+  }
+}
+
+// --- 7. Dark Theme Overrides ---
+:host-context(body.dark-theme) {
+  // --- Dark Theme Variables (for reference) ---
+  $dark-bg: #121212;
+  $dark-bg-card: #1e1e1e;
+  $dark-bg-subsection: #2a2a2a;
+  $dark-text-primary: #f0f0f0;
+  $dark-text-muted: #a0a0a0;
+  $dark-border: rgba(255, 255, 255, 0.1);
+  $dark-primary: #9382C4;
+  $dark-primary-light: #A696D1;
+  $dark-secondary: #2C253C;
+  $dark-accent-purple: #C789E0;
+  $dark-accent-purple-hover: #D6A3E9;
+  $dark-status-pending: #FBBF24;
+  $dark-status-approved: #4ADE80;
+  $dark-status-rejected: #F87171;
+  $dark-shadow-lg: 0 3px 8px rgba(0, 0, 0, 0.2);
+  $dark-shadow-md: 0 2px 6px rgba(0, 0, 0, 0.15);
+  $dark-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+  // 2. Base Styles
+  html,
+  body {
+    background: $dark-bg;
+    color: $dark-text-primary;
+  }
+
+  // 3. Main Layout
+  .top-nav {
+    background: $dark-bg-card;
+    border-bottom-color: $dark-border;
+
+    &-links {
+      a {
+        background: $dark-bg-card;
+        color: $dark-text-primary;
+        box-shadow: $dark-shadow-md;
+
+        &:hover {
+          background: $dark-bg-subsection;
+        }
+
+        &.active {
+          background: $dark-text-primary;
+          color: $dark-bg-card;
+          box-shadow: 0 2px 6px rgba(255, 255, 255, 0.1);
+        }
+      }
+    }
+  }
+
+  .dashboard {
+    background: $dark-bg;
+  }
+
+  // 4. Reusable Components
+  .card {
+    background: $dark-bg-card;
+    border-color: $dark-border;
+    box-shadow: $dark-shadow-lg;
+
+    header {
+      h1, h2, h3 {
+        color: $dark-text-primary;
+      }
+
+      p {
+        color: $dark-text-muted;
+      }
+    }
+  }
+
+  .stat-card {
+    background: $dark-bg-card;
+    border-color: $dark-border;
+    box-shadow: $dark-shadow-md;
+
+    &:hover {
+      box-shadow: $dark-shadow-lg;
+    }
+
+    strong {
+      color: $dark-primary;
+    }
+
+    small {
+      color: $dark-text-muted;
+    }
+
+    header.icon {
+      background: $dark-secondary;
+      color: $dark-primary;
+    }
+  }
+
+  .btn {
+    &.join-btn {
+      background-color: $dark-accent-purple;
+      color: $dark-bg-card;
+      &:hover {
+        background-color: $dark-accent-purple-hover;
+      }
+    }
+
+    &.create-group-btn {
+      background-color: $dark-primary;
+      color: $dark-text-primary;
+      &:hover {
+        background-color: $dark-primary-light;
+      }
+
+      &.success {
+        background-color: $dark-status-approved !important;
+        color: $dark-bg-card;
+        &:hover {
+          background-color: adjust-color($dark-status-approved, $lightness: -10%) !important;
+        }
+      }
+    }
+  }
+
+  .action-dropdown {
+    border-color: $dark-border;
+    background-color: $dark-bg-card;
+    color: $dark-text-primary;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a0a0a0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+
+    &:focus {
+      border-color: $dark-primary;
+      box-shadow: 0 0 0 2px rgba($dark-primary, 0.2);
+    }
+
+    &:hover {
+      border-color: $dark-primary-light;
+    }
+
+    option {
+      color: $dark-text-primary;
+      &[value=""] {
+        color: $dark-text-muted;
+      }
+      &[value="approve"] {
+        color: $dark-status-approved;
+      }
+      &[value="reject"] {
+        color: $dark-status-rejected;
+      }
+    }
+  }
+
+  .status-badge {
+    color: $dark-bg-card;
+    &.status-pending { background-color: $dark-status-pending; }
+    &.status-approved { background-color: $dark-status-approved; }
+    &.status-rejected { background-color: $dark-status-rejected; }
+  }
+
+  // 5. Page-Specific Components
+  #sessions-calendar {
+    ::ng-deep .fc {
+      .fc-toolbar-title {
+        color: $dark-text-primary !important;
+      }
+
+      .fc-button-primary {
+        background-color: $dark-primary !important;
+        border-color: $dark-primary !important;
+        color: $dark-text-primary !important;
+
+        &:hover, &:focus {
+          background-color: $dark-primary-light !important;
+          border-color: $dark-primary-light !important;
+        }
+
+        &:disabled {
+          background-color: #4b5563 !important; // Darker gray
+          border-color: #4b5563 !important;
+        }
+      }
+
+      .fc-day-today {
+        background-color: $dark-secondary !important;
+      }
+
+      .fc-event, .fc-daygrid-event {
+        background-color: $dark-accent-purple;
+        color: $dark-bg-card;
+        border-color: $dark-accent-purple;
+      }
+
+      // Calendar text colors
+      .fc-col-header-cell-cushion, // Day headers (Sun, Mon)
+      .fc-daygrid-day-number {   // Date numbers
+        color: $dark-text-muted;
+      }
+
+      .fc-day-today .fc-daygrid-day-number {
+        color: $dark-text-primary; // Highlight today's date number
+      }
+    }
+  }
+
+  // Study Groups Layered Design
+  #study-groups.card {
+    background-color: $dark-bg-card;
+    border-color: $dark-border;
+    box-shadow: $dark-shadow-lg;
+  }
+
+  .group-subsection {
+    background-color: $dark-bg-subsection;
+    border-color: $dark-border;
+
+    > header {
+      border-bottom-color: $dark-border;
+    }
+  }
+
+  .group-item {
+    background-color: $dark-bg-card !important;
+    border-color: $dark-border;
+    box-shadow: $dark-shadow-sm;
+
+    h3 {
+      color: $dark-text-primary;
+    }
+
+    p {
+      color: $dark-text-muted;
+    }
+  }
+
+  .create-group-form {
+    input[type="text"],
+    textarea {
+      border-color: $dark-border;
+      background-color: $dark-bg-card !important;
+      color: $dark-text-primary !important;
+
+      &:focus {
+        border-color: $dark-primary;
+        box-shadow: 0 0 0 2px rgba($dark-primary, 0.2);
+      }
+    }
+  }
+
+  .empty-state {
+    color: $dark-text-muted;
+    background-color: rgba(0,0,0,0.1);
+    border-color: $dark-border;
+  }
+
+  // Style enhancements for Incoming Requests
+  #creator-alerts .group-item {
+    h3 {
+      color: $dark-text-primary;
+    }
+    p {
+      color: $dark-text-muted;
+    }
+  }
+
+  p {
+    color: $dark-text-muted;
+  }
+
+  .request-info {
+    h3 {
+      color: $dark-text-primary;
+    }
+    p {
+      color: $dark-text-muted;
+    }
+  }
+
+  // Action states styling
+  .confirmation-prompt {
+    color: $dark-text-primary;
+  }
+
+  .btn-confirm {
+    background-color: $dark-status-approved;
+    color: $dark-bg-card;
+
+    &:hover {
+      background-color: adjust-color($dark-status-approved, $lightness: -10%) !important;
+    }
+  }
+
+  .btn-cancel {
+    background-color: $dark-bg-subsection;
+    color: $dark-text-muted;
+    border-color: $dark-border;
+
+    &:hover {
+      background-color: lighten($dark-bg-subsection, 5%);
+      color: $dark-text-primary;
+    }
+  }
+
+  .processing-message {
+    color: $dark-text-muted;
+  }
+
+  // Loading Overlay Styles
+  .loading-overlay {
+    background: rgba($dark-bg, 0.95);
+
+    .spinner {
+      border-color: $dark-border;
+      border-top-color: $dark-primary;
+    }
+
+    .loading-text {
+      color: $dark-text-muted;
+    }
+  }
+
+  // Enhanced Join Button States
+  .btn.join-btn {
+    // Default state
+    background-color: $dark-accent-purple;
+    color: $dark-bg-card;
+
+    &:hover:not(:disabled) {
+      background-color: $dark-accent-purple-hover;
+      box-shadow: 0 4px 12px rgba($dark-accent-purple, 0.3);
+    }
+
+    // Sending state
+    &.sending {
+      background-color: $dark-primary-light;
+      color: $dark-bg-card;
+
+      &:hover {
+        background-color: $dark-primary-light;
+      }
+    }
+
+    // Success state
+    &.success {
+      background-color: $dark-status-approved !important;
+      color: $dark-bg-card;
+
+      &:hover {
+        background-color: adjust-color($dark-status-approved, $lightness: -10%) !important;
+      }
+    }
+
+    // Error state
+    &.error {
+      background-color: $dark-status-rejected !important;
+      color: $dark-bg-card;
+
+      &:hover {
+        background-color: adjust-color($dark-status-rejected, $lightness: -10%) !important;
+      }
     }
   }
 }

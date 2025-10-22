@@ -263,3 +263,90 @@
     }
   }
 }
+
+// --- Dark Theme Overrides ---
+:host-context(body.dark-theme) {
+  .success-container {
+    background: linear-gradient(135deg, #1a203c 0%, #12121e 100%);
+  }
+
+  .loading-wrapper {
+    // Styles are already dark-mode compatible
+    color: white;
+  }
+
+  .success-card {
+    background: #1e1e1e;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  }
+
+  .success-header {
+    // .success-icon is fine, green status color works on dark bg
+
+    .success-title {
+      color: #f0f0f0;
+    }
+
+    .welcome-message {
+      color: #a0a0a0;
+
+      .user-name {
+        color: #8a7dfa;
+      }
+    }
+
+    .success-description {
+      color: #a0a0a0;
+    }
+
+    .user-info {
+      .email {
+        color: #718096; // Muted
+      }
+    }
+  }
+
+  .action-section {
+    h3 {
+      color: #f0f0f0;
+    }
+
+    .action-buttons {
+      button:hover {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+      }
+
+      .primary-btn {
+        background: linear-gradient(135deg, #8a7dfa, #9382C4);
+
+        &:hover {
+          background: linear-gradient(135deg, #7a6df8, #8a7dfa);
+        }
+      }
+
+      .secondary-btn {
+        background: #2a2a2a;
+        color: #f0f0f0;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+
+        &:hover {
+          background: #3a3a3a;
+          border-color: rgba(255, 255, 255, 0.2);
+        }
+      }
+    }
+  }
+
+  .logout-section {
+    border-top-color: rgba(255, 255, 255, 0.1);
+
+    .logout-btn {
+      color: #f87171;
+      border-color: rgba(248, 113, 113, 0.3);
+
+      &:hover {
+        background: rgba(248, 113, 113, 0.1);
+      }
+    }
+  }
+}
