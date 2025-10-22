@@ -460,45 +460,78 @@ export class Chat implements OnInit, AfterViewChecked {
 
   private async retrieveGroupMessages(groupid: number, participants: User[]): Promise<ExtendedGroupMessage[]> {
     try {
-      const result = await firstValueFrom(this.chatService.getGroupMessages(groupid));
-      
-      if (result.length > 0) {
-        const messages: ExtendedGroupMessage[] = [];
-        
-        for (const message of result) {
-          const utcDate = new Date(message.sent_datetime + "Z");
-          
-          // Find sender in participants
-          const sender = participants.find(p => p.userid === message.senderid);
-          
-          messages.push({
-            id: message.messageid,
-            messageid: message.messageid,
-            groupid: message.groupid,
-            sent_datetime: message.sent_datetime,
-            timestamp: utcDate,
-            senderid: message.senderid,
-            content: message.message,
-            document: null, 
-            message: message.message,
+        // 1. Fetch text and doc messages in parallel
+        const [textMessagesResult, docMessagesResult] = await Promise.all([
+            firstValueFrom(this.chatService.getGroupMessages(groupid)),
+            firstValueFrom(this.docApiService.getGroupDocsByGroupId(groupid))
+        ]);
 
-            type: (message.senderid === this.currentUser.userid) ? 'sent' : 'received',
-            sender: sender
-          });
+
+        const allMessages: ExtendedGroupMessage[] = [];
+
+        // 2. Process text messages
+        if (textMessagesResult && textMessagesResult.length > 0) {
+            for (const message of textMessagesResult) {
+                const utcDate = new Date(message.sent_datetime + "Z");
+                const sender = participants.find(p => p.userid === message.senderid);
+                
+                allMessages.push({
+                    id: message.messageid,
+                    messageid: message.messageid,
+                    groupid: message.groupid,
+                    sent_datetime: message.sent_datetime,
+                    timestamp: utcDate,
+                    senderid: message.senderid,
+                    content: message.message,
+                    document: null,
+                    message: message.message,
+                    type: (message.senderid === this.currentUser.userid) ? 'sent' : 'received',
+                    sender: sender
+                });
+            }
         }
 
-        messages.sort((a, b) => {
-          if (!a.timestamp || !b.timestamp) return 0;
-          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+        // 3. Process document messages
+        if (docMessagesResult && docMessagesResult.length > 0) {
+            for (const docMsg of docMessagesResult) {
+                const [docIdStr, ...filenameParts] = (docMsg.doc || '').split(':');
+                const docId = parseInt(docIdStr, 10);
+                const originalFilename = filenameParts.join(':');
+                const sender = participants.find(p => p.userid === docMsg.senderid);
+                if (!isNaN(docId) && originalFilename && docMsg.sent_datetime) {
+                    const timestamp = new Date(docMsg.sent_datetime + "Z");
+                    allMessages.push({
+                        id: docMsg.docid,
+                        messageid: docMsg.docid,
+                        groupid: docMsg.groupid,
+                        sent_datetime: docMsg.sent_datetime,
+                        timestamp: timestamp,
+                        senderid: docMsg.senderid,
+                        content: '',
+                        document: {
+                            id: docId,
+                            originalFilename: originalFilename
+                        },
+                        message: '',
+                        type: (docMsg.senderid === this.currentUser.userid) ? 'sent' : 'received',
+                        sender: sender
+                    });
+                }
+            }
+        }
+
+        // 4. Sort all messages chronologically
+        allMessages.sort((a, b) => {
+            if (!a.timestamp || !b.timestamp) return 0;
+            return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
         });
         
-        return messages;
-      }
-      return [];
-    }
-    catch {
-      this.error = 'Error retrieving group messages';   
-      return [];
+        return allMessages;
+
+    } catch (err) {
+        this.error = 'Error retrieving group messages';
+        console.error("Error in retrieveGroupMessages:", err);
+        return [];
     }
   }
 
@@ -523,8 +556,6 @@ export class Chat implements OnInit, AfterViewChecked {
         firstValueFrom(this.chatService.getMessagesByChatId(chatid)),
         firstValueFrom(this.docApiService.getDocsByChatId(chatid))
       ]);
-      console.log(docMessagesResult);
-
       const allMessages: Message[] = [];
 
       // Process text messages
@@ -575,7 +606,6 @@ export class Chat implements OnInit, AfterViewChecked {
         if (!a.timestamp || !b.timestamp) return 0;
         return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
       });
-      
       return allMessages;
 
     } catch (err) {
@@ -893,13 +923,15 @@ export class Chat implements OnInit, AfterViewChecked {
       const docString = `${uploadedDoc.id}:${uploadedDoc.originalFilename}`;
 
       if (this.isGroupConversation(activeConvo)) {
-        // TODO: Call createGroupChatDoc when available in your service
-        this.error = "File upload for groups is not supported yet.";
-        // NOTE: Group file upload logic seems incomplete in the original,
-        // but we can still add the message to the UI optimistically.
-        // For now, we'll log it and proceed to show the message locally.
-        console.log("Group doc upload logic pending in service. Doc:", docString);
-        // If you want to stop here for groups, add a `return;`
+        // This is the new logic for groups
+        const newGroupDocData: NewGroupDoc = {
+            senderid: this.currentUser.userid,
+            groupid: activeConvo.id,
+            doc: docString
+        };
+        // Call the correct service method
+        await firstValueFrom(this.docApiService.createGroupDoc(newGroupDocData));
+        console.log(newGroupDocData)
       } else {
         const newChatDocData: NewChatDoc = {
           senderID: this.currentUser.userid,
@@ -951,7 +983,7 @@ export class Chat implements OnInit, AfterViewChecked {
 
   async downloadDocument(doc: MessageDocument): Promise<void> {
       if (doc.downloading) return; // Prevent multiple clicks
-      console.log(doc);
+      //console.log(doc);
       doc.downloading = true;
       this.cdr.detectChanges(); // Show loading spinner
 
@@ -970,7 +1002,7 @@ export class Chat implements OnInit, AfterViewChecked {
         const response = await firstValueFrom(
           this.docApiService.getDocumentDownloadUrl(doc.id)
         );
-        console.log(response)
+        //console.log(response)
         
         // 2. If the URL is received, update the new tab's location to start the download.
         if (response && response.downloadUrl) {

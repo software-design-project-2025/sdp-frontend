@@ -146,7 +146,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
               font-weight: 600;
               font-size: 16px;
               text-decoration: none;
-            }
+            }}
 
             .online-status {
               position: absolute;
@@ -224,7 +224,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
       }
     }
   }
-}
+
 
 // Chat main area
 .chat-main {
@@ -1034,5 +1034,227 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     color: $text-secondary;
     margin: 0;
     max-width: 400px;
+  }
+}
+
+/* ---
+🌙 Dark Theme Overrides
+Add this code to the end of your stylesheet.
+--- */
+:host-context(body.dark-theme) {
+
+  // --- 1. Base & Host ---
+  // Override the main component background and text color
+  background-color: #121212;
+  color: #f0f0f0;
+
+  // --- 2. Sidebar ---
+  .sidebar {
+    background-color: #1e1e1e;
+    border-right-color: rgba(255, 255, 255, 0.15);
+
+    .sidebar-header {
+      border-bottom-color: rgba(255, 255, 255, 0.15);
+      h1 { color: #f0f0f0; }
+    }
+
+    .search-section {
+      border-bottom-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .search-input {
+      background-color: #2c2c2c; // Darker input field
+      color: #f0f0f0;
+      &::placeholder { color: #888888; }
+      &:focus {
+        background-color: #3a3a3a;
+        box-shadow: 0 0 0 2px rgba(90, 169, 242, 0.3); // Use a light blue for focus
+      }
+    }
+  }
+
+  // --- 3. Conversation List ---
+  .conversations-nav {
+    .conversation-item {
+      border-bottom-color: rgba(255, 255, 255, 0.15);
+      &:hover { background-color: #2a2a2a; }
+      &.active {
+        background-color: rgba(90, 169, 242, 0.1); // Light blue active state
+        border-right-color: #5aa9f2; // Brighter blue for the border
+      }
+    }
+
+    .conversation-card {
+      .avatar {
+        // New dark-friendly gradient for initials
+        background: linear-gradient(135deg, #5a68e2 0%, #6e4ba2 100%);
+        .group-badge {
+          background: #5aa9f2; // Brighter blue
+          border-color: #1e1e1e; // Match the new card background
+        }
+      }
+      .conversation-content {
+        h3 { color: #f0f0f0; }
+        time { color: #a0a0a0; }
+        .message-count {
+          background-color: #5aa9f2; // Brighter blue
+          color: #ffffff;
+        }
+        .last-message { color: #a0a0a0; }
+      }
+    }
+  }
+
+  // --- 4. Chat Main Area ---
+  .chat-main {
+    background-color: #1e1e1e; // Main chat area background
+  }
+
+  .chat-header {
+    border-bottom-color: rgba(255, 255, 255, 0.15);
+    background-color: #1e1e1e;
+
+    .avatar {
+      background: linear-gradient(135deg, #5a68e2 0%, #6e4ba2 100%);
+      .group-badge {
+        background: #5aa9f2;
+        border-color: #1e1e1e;
+      }
+    }
+    .contact-details {
+      h2 { color: #f0f0f0; }
+      .group-info, .status { color: #a0a0a0; }
+    }
+  }
+
+  // --- 5. Messages ---
+  .messages-container {
+    .group-message {
+      &.sent .message-sender { color: #5aa9f2; }
+      &.sent .message-body,
+      &.sent .message-document {
+        background-color: #5aa9f2; // Brighter sent message
+        color: #ffffff;
+      }
+      
+      &.received .message-sender { color: #f0f0f0; }
+      &.received .message-body,
+      &.received .message-document {
+        background-color: #3a3a3a; // Darker received message
+        color: #f0f0f0;
+      }
+      time { color: #888888; }
+    }
+
+    .message {
+      &.sent .message-body,
+      &.sent .message-document {
+        background-color: #5aa9f2;
+        color: #ffffff;
+      }
+      &.received .message-body,
+      &.received .message-document {
+        background-color: #3a3a3a;
+        color: #f0f0f0;
+      }
+      time { color: #888888; }
+    }
+  }
+
+  // --- 6. Message Input ---
+  .message-input-section {
+    border-top-color: rgba(255, 255, 255, 0.15);
+    background-color: #1e1e1e;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+
+    .attach-button {
+      color: #a0a0a0;
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #f0f0f0;
+      }
+      &:disabled { color: #888888; }
+    }
+
+    .message-form {
+      background-color: #2c2c2c;
+    }
+    .message-input {
+      color: #f0f0f0;
+      &::placeholder { color: #888888; }
+    }
+    .send-button {
+      background-color: #5aa9f2;
+      &:hover:not(:disabled) { background-color: #4a90e2; } // Darken to original blue
+      &:disabled { background-color: #888888; }
+    }
+  }
+  // Fix for received spinner
+  .received .download-spinner,
+  .group-message.received .download-spinner {
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #f0f0f0; // Use light text color for spinner
+  }
+  
+  // --- 8. Drop Zone ---
+  .drop-zone-overlay {
+    background-color: rgba(90, 169, 242, 0.1); // Light blue overlay
+    border-color: #5aa9f2; // Brighter blue border
+  }
+  .drop-zone-text {
+    background-color: #1e1e1e; // Dark background
+    color: #5aa9f2; // Bright text
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  // --- 9. Scrollbar ---
+  ::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+    &:hover {
+      background: #6a6a6a;
+    }
+  }
+  
+  // --- 10. Skeleton Loading ---
+  .skeleton {
+    background-color: #3a3a3a; // Darker skeleton base
+    &::before {
+      // Use a more subtle shimmer for dark mode
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent
+      );
+    }
+  }
+
+  // Specific skeleton backgrounds
+  .conversations-loading .conversation-card .avatar,
+  .chat-header-loading .contact-info .avatar {
+     background: #3a3a3a !important;
+  }
+  .messages-loading .message p {
+     background-color: #3a3a3a !important;
+  }
+  .message-input-loading .message-form {
+    .message-input, .send-button {
+      background-color: #3a3a3a !important;
+    }
+  }
+  
+  // --- 11. Empty States ---
+  .no-conversations,
+  .no-messages {
+    color: #888888;
+  }
+  
+  .empty-state {
+    .empty-state-title {
+      color: #f0f0f0;
+    }
+    .empty-state-text {
+      color: #a0a0a0;
+    }
   }
 }
