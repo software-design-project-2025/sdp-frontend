@@ -4,7 +4,7 @@
     <div class="spinner"></div>
     <p>Loading...</p>
   </div>
-  
+
   <!-- Success content -->
   <div *ngIf="!isLoading" class="success-card">
     <div class="success-header">
@@ -14,15 +14,15 @@
           <path d="m9 12 2 2 4-4"></path>
         </svg>
       </div>
-      
+
       <h1 class="success-title">Login Successful!</h1>
-      
+
       <p class="welcome-message">
         Welcome back, <span class="user-name">{{ userName }}</span>!
       </p>
-      
+
       <p class="success-description">
-        You have successfully logged into your Campus Study Buddy account.
+        You have successfully logged into your Study Link account.
       </p>
 
       <div class="user-info">
@@ -32,7 +32,7 @@
 
     <div class="action-section">
       <h3>What would you like to do?</h3>
-      
+
       <div class="action-buttons">
         <button class="primary-btn" (click)="goToDashboard()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -43,7 +43,7 @@
           </svg>
           Go to Dashboard
         </button>
-        
+
         <button class="secondary-btn" (click)="goToProfile()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>

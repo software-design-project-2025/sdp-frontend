@@ -1,5 +1,5 @@
 import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {CommonModule, NgOptimizedImage} from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 
@@ -13,15 +13,16 @@ import { LoginSuccessComponent } from './LoginSuccessComponent/LoginSuccessCompo
     LoginComponent,
    // LoginSuccessComponent
   ],
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    RouterModule.forChild([  // Child routes for auth
-      { path: 'signup', component: SignupComponent },
-      { path: 'login', component: LoginComponent },
-      { path: 'login-success', component: LoginSuccessComponent }
-    ])
-  ],
+    imports: [
+        CommonModule,
+        ReactiveFormsModule,
+        RouterModule.forChild([  // Child routes for auth
+            {path: 'signup', component: SignupComponent},
+            {path: 'login', component: LoginComponent},
+            {path: 'login-success', component: LoginSuccessComponent}
+        ]),
+        NgOptimizedImage
+    ],
   exports: [
     // Export components if needed by other modules
   ]

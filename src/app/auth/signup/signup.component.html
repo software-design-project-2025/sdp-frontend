@@ -1,7 +1,10 @@
 <div class="auth-container">
   <div class="auth-card">
     <div class="auth-header">
-      <h1 class="logo-text">Campus Study Buddy</h1>
+      <a class="navbar-logo">
+        <img ngSrc="/assets/logo.png" alt="StudyLink Logo" width="45" height="45" />
+        <h1 class="logo-text">StudyLink</h1>
+      </a>
       <h2>Create your account</h2>
       <p class="subtext">Join our learning community</p>
     </div>
@@ -24,9 +27,9 @@
       <!-- Name Field -->
       <div class="input-group">
         <label for="name">Full Name</label>
-        <input 
-          type="text" 
-          id="name" 
+        <input
+          type="text"
+          id="name"
           formControlName="name"
           placeholder="Alex Johnson"
           [class.error]="signupForm.get('name')?.invalid && signupForm.get('name')?.touched">
@@ -38,9 +41,9 @@
       <!-- Email Field -->
       <div class="input-group">
         <label for="email">University Email</label>
-        <input 
-          type="email" 
-          id="email" 
+        <input
+          type="email"
+          id="email"
           formControlName="email"
           placeholder="student@university.edu"
           [class.error]="signupForm.get('email')?.invalid && signupForm.get('email')?.touched">
@@ -54,15 +57,15 @@
       <div class="input-group">
         <label for="password">Create Password</label>
         <div class="password-wrapper">
-          <input 
-            [type]="passwordVisible ? 'text' : 'password'" 
-            id="password" 
+          <input
+            [type]="passwordVisible ? 'text' : 'password'"
+            id="password"
             formControlName="password"
             placeholder="At least 8 characters"
             [class.error]="signupForm.get('password')?.invalid && signupForm.get('password')?.touched">
-          <button 
-            type="button" 
-            class="toggle-password" 
+          <button
+            type="button"
+            class="toggle-password"
             (click)="togglePasswordVisibility()"
             [attr.aria-label]="passwordVisible ? 'Hide password' : 'Show password'">
             {{ passwordVisible ? '🙈' : '👁️' }}
@@ -93,8 +96,8 @@
       </div>
 
       <!-- Submit Button -->
-      <button 
-        type="submit" 
+      <button
+        type="submit"
         class="submit-button"
         [disabled]="signupForm.invalid || isLoading">
         <span *ngIf="!isLoading">Create Account</span>
