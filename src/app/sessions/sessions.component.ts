@@ -10,6 +10,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ConfirmDialog } from '../confirm-dialog/confirm-dialog';
 import { Router } from '@angular/router';
 import { TimerService } from '../services/timer.service';
+import { ChatService } from '../services/chat.service';
 
 // Models
 import { Session } from '../models/session.model';
@@ -91,7 +92,8 @@ export class SessionsComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
     private timerService: TimerService,
-    private router: Router
+    private router: Router,
+    private chatService: ChatService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -473,7 +475,8 @@ export class SessionsComponent implements OnInit, OnDestroy {
     // Pass session ID, maybe as state or query param if chat needs it directly
     // Or chat component can get active session ID from TimerService
     this.router.navigate(['/chat']); // Or '/chat', sessionId if chat uses it
-
+    this.chatService.setSessionGroupId(session.groupid);
+    this.chatService.setActiveConversationStatus(false);
     // Optional: Show a confirmation snackbar
     this.showSnackbar(`Joining session: ${session.title}...`);
   }

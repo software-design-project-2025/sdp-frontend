@@ -55,7 +55,9 @@ export class ChatService {
       'Accept': 'application/json'
     });
   }
-  partnerID: string | null = null;
+  private partnerID: string | null = null;
+  private sessionGroupId: number | undefined = undefined;
+  private isConversationSet = false;
 
   getChatById(userid: String): Observable<Chat[]> {
     return this.http.get<Chat[]>(`${environment.apiBaseUrl}/api/chat/getChat?userid=${userid}`,
@@ -145,6 +147,22 @@ export class ChatService {
       }, 
       { headers: this.getHeaders() } 
     );
+  }
+
+  setSessionGroupId(id: number | undefined) {
+    this.sessionGroupId = id;
+  }
+
+  getSessionGroupId(): number | undefined {
+    return this.sessionGroupId;
+  }
+
+  setActiveConversationStatus(status: boolean) {
+    this.isConversationSet = status;
+  }
+
+  getActiveConversationStatus(): boolean {
+    return this.isConversationSet;
   }
 
 }
