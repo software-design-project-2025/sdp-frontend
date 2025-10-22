@@ -198,7 +198,9 @@ export class Chat implements OnInit, AfterViewChecked {
 
       const convos = await this.formatConvos(userid);
       const groupConvos = await this.retrieveGroupConvos(userid);
-      const partnerID = this.chatService.getPartnerID();  
+      const partnerID = this.chatService.getPartnerID(); 
+      const sessionId = this.chatService.getSessionGroupId();
+      const isSoloConvo = this.chatService.getActiveConversationStatus(); 
 
       const convosWithoutMessages = [];       
       const convosWithMessages = [];
@@ -212,7 +214,7 @@ export class Chat implements OnInit, AfterViewChecked {
           convo.participant.name = name;
         }
         
-        if (partnerID && (partnerID == convo.participant.userid)) { 
+        if (partnerID && (partnerID == convo.participant.userid) && isSoloConvo) { 
           this.setActiveConversation(convo);
         }
         
@@ -234,8 +236,10 @@ export class Chat implements OnInit, AfterViewChecked {
       // Process group conversations
       const groupConvosWithMessages = [];
       const groupConvosWithoutMessages = [];
-
       for (const groupConvo of groupConvos) {
+        if (sessionId && (sessionId == groupConvo.id) && !isSoloConvo){
+          this.setActiveConversation(groupConvo);
+        }
         // Retrieve group messages
         const groupMessages = await this.retrieveGroupMessages(groupConvo.id, groupConvo.participants);
         groupConvo.messages = groupMessages;
@@ -253,27 +257,27 @@ export class Chat implements OnInit, AfterViewChecked {
         }
       }
       
-  // Combine all conversations with messages and sort them together
-  const allConversationsWithMessages = [
-    ...convosWithMessages.map(convo => ({ ...convo, type: 'individual' as const })),
-    ...groupConvosWithMessages.map(convo => ({ ...convo, type: 'group' as const }))
-  ].sort((a, b) => {
-    if (!a.timestamp || !b.timestamp) return 0;
-    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-  });
+    // Combine all conversations with messages and sort them together
+    const allConversationsWithMessages = [
+      ...convosWithMessages.map(convo => ({ ...convo, type: 'individual' as const })),
+      ...groupConvosWithMessages.map(convo => ({ ...convo, type: 'group' as const }))
+    ].sort((a, b) => {
+      if (!a.timestamp || !b.timestamp) return 0;
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    });
 
-  // Combine all conversations without messages
-  const allConversationsWithoutMessages = [
-    ...convosWithoutMessages.map(convo => ({ ...convo, type: 'individual' as const })),
-    ...groupConvosWithoutMessages.map(convo => ({ ...convo, type: 'group' as const }))
-  ];
+    // Combine all conversations without messages
+    const allConversationsWithoutMessages = [
+      ...convosWithoutMessages.map(convo => ({ ...convo, type: 'individual' as const })),
+      ...groupConvosWithoutMessages.map(convo => ({ ...convo, type: 'group' as const }))
+    ];
 
-  // Store individual conversations separately
-  this.conversations = [...convosWithMessages, ...convosWithoutMessages];
+    // Store individual conversations separately
+    this.conversations = [...convosWithMessages, ...convosWithoutMessages];
 
-  // Combine sorted conversations with messages and conversations without messages
-  this.allConversations = [...allConversationsWithMessages, ...allConversationsWithoutMessages];
-  this.filteredConversations = [...this.allConversations];
+    // Combine sorted conversations with messages and conversations without messages
+    this.allConversations = [...allConversationsWithMessages, ...allConversationsWithoutMessages];
+    this.filteredConversations = [...this.allConversations];
 
       this.loading$.next(false);
 
