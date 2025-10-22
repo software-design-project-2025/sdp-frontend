@@ -1,6 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
+import { Observable, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+//import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+//import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment.prod';
 
 // Define interfaces for strong typing
@@ -21,11 +24,13 @@ export interface GroupJoinRequest {
 }
 
 @Injectable({
-    providedIn: 'root'
+  providedIn: 'root'
 })
 export class GroupService {
+  // CORRECTED: The API URL now correctly includes the /api prefix
+  private apiUrl = `${environment.apiBaseUrl}/api`;
 
-    constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) { }
 
     //This private method creates the authorization headers
     private getHeaders(): HttpHeaders {
@@ -36,6 +41,15 @@ export class GroupService {
         });
     }
 
+  /**
+   * Generic error handler for API calls.
+   */
+  private handleError<T>(operation = 'operation', result?: T) {
+    return (error: any): Observable<T> => {
+      console.error(`${operation} failed:`, error);
+      return of(result as T);
+    };
+  }
 
     // Method to create a new group
     createGroup(groupData: { title: string; goal: string; creatorid: string }): Observable<Group> {
@@ -86,11 +100,23 @@ export class GroupService {
             headers: this.getHeaders()
         });
     }
-
-    getUnreadCount(userid: string): Observable<number> {
-        return this.http.get<number>(`${environment.apiBaseUrl}/api/chat/getTotalUnreadCount?userid=${userid}`, {
-            headers: this.getHeaders()
-        });
-    }
+  /**
+   * Fetches all groups that the user is a part of.
+   * Endpoint: GET /api/auth/groups
+   */
+  getAllGroups(): Observable<Group[]> {
+    // CORRECTED: The endpoint now matches the GroupController's @RequestMapping
+    return this.http.get<Group[]>(`${this.apiUrl}/auth/groups`, { headers: this.getHeaders() }).pipe(
+      catchError(this.handleError<Group[]>('getAllGroups', []))
+    );
+  }
+  getUnreadCount(userid: string): Observable<number> {
+    return this.http.get<number>(`${environment.apiBaseUrl}/api/chat/getTotalUnreadCount?userid=${userid}`, {
+      headers: this.getHeaders()
+    });
+  }
 }
+
+
+
 

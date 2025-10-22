@@ -1,173 +1,338 @@
-<!-- Sessions Page Header -->
-<header class="sessions-header">
-  <h1>Study Sessions</h1>
-  <button class="create-btn" (click)="createSession()">➕ Create Session</button>
-</header>
+<div *ngIf="isLoading$ | async" class="loading-overlay">
+  <div class="spinner"></div>
+  <p class="loading-text">Loading your sessions...</p>
+</div>
 
-<!-- Upcoming Sessions Section -->
-<section class="sessions-container">
-  <h2 class="section-title">Upcoming Sessions</h2>
+<main *ngIf="!(isLoading$ | async)" class="sessions-page-container">
 
-  <!-- Session Cards -->
-  <article class="session-card" *ngFor="let session of sessions">
-    <header class="session-header">
-      <div class="session-title-section">
-        <h3 class="session-title">{{ session.title }}</h3>
-        <ul class="session-badges">
-          <li class="badge"
-              [class.confirmed]="session.status === 'confirmed'"
-              [class.open]="session.status === 'open'">
-            {{ session.status === 'confirmed' ? '✅ Confirmed' : '🟢 Open' }}
-          </li>
-          <li class="badge type-badge"
-              [class.in-person]="session.type === 'in-person'"
-              [class.online]="session.type === 'online'">
-            {{ session.type === 'in-person' ? '🏫 In-Person' : '🌐 Online' }}
-          </li>
-        </ul>
+  <header class="page-header">
+    <h1 style="margin-bottom: 0.75rem;">Study Sessions</h1>
+    <p>Discover, join, and manage your study sessions.</p>
+    <button class="create-session-btn" (click)="createSession()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <span>Create Session</span>
+    </button>
+  </header>
+
+  <section class="stats-section" *ngIf="userStats">
+    <div class="stat-card">
+      <h3>{{ userStats.totalHours }} hrs</h3>
+      <p>Study Time (Last 7 Days)</p>
+    </div>
+    <div class="stat-card">
+      <h3>{{ userStats.numSessions }}</h3>
+      <p>Sessions Attended (Last 7 Days)</p>
+    </div>
+    <div class="stat-card">
+      <h3>{{ filteredUpcomingSessions.length }}</h3>
+      <p>Upcoming Sessions</p>
+    </div>
+  </section>
+
+  <nav class="sessions-tabs">
+    <button [class.active]="activeTab === 'suggestions'" (click)="activeTab = 'suggestions'">Suggestions</button>
+    <button [class.active]="activeTab === 'discover'" (click)="activeTab = 'discover'">Discover</button>
+    <button [class.active]="activeTab === 'future'" (click)="activeTab = 'future'">Future</button>
+    <button [class.active]="activeTab === 'created'" (click)="activeTab = 'created'">My Sessions</button>
+    <button [class.active]="activeTab === 'past'" (click)="activeTab = 'past'">Past</button>
+  </nav>
+
+  <div class="sessions-filters">
+    <input
+      type="text"
+      [(ngModel)]="filters.search"
+      (ngModelChange)="onFilterChange()"
+      placeholder="Search by title or description..."
+    />
+    <select [(ngModel)]="filters.module" (ngModelChange)="onFilterChange()">
+      <option value="">All My Modules</option>
+      <option *ngFor="let mod of currentUserModules" [value]="mod.courseCode">{{ mod.courseName }}</option>
+    </select>
+    <input
+      type="date"
+      [(ngModel)]="filters.startDate"
+      (ngModelChange)="onFilterChange()"
+      placeholder="From date..."
+    />
+    <button class="btn-clear" (click)="clearFilters()">Clear</button>
+  </div>
+
+  <div class="tab-content">
+
+    <section *ngIf="activeTab === 'suggestions'">
+      <div class="session-list">
+        <div *ngIf="filteredSuggestedSessions.length === 0" class="no-results-card">
+          <p>No relevant sessions found that match your filters.</p>
+          <span *ngIf="filters.search === '' && filters.module === '' && filters.startDate === ''">Try the "Discover" tab for all sessions.</span>
+        </div>
+        <article class="session-card" *ngFor="let session of filteredSuggestedSessions">
+          <header class="card-header">
+            <div class="session-info">
+              <h3>{{ session.title }}</h3>
+              <p class="session-creator">by {{ getCreatorName(session.creatorid) }}</p>
+              <div class="session-badges">
+                <span class="badge status-{{ session.status }}">{{ session.status }}</span>
+<!--                <span class="badge type-participants">-->
+<!--                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>-->
+<!--                  {{ session.participantCount }}-->
+<!--                 </span>-->
+              </div>
+            </div>
+            <div class="card-actions">
+              <button *ngIf="session.sessionId" class="btn-join" (click)="onJoinSession(session.sessionId)">
+                Join Session
+              </button>
+            </div>
+          </header>
+          <div class="card-body">
+            <p class="session-time">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              {{ session.start_time | date:'fullDate' }}
+            </p>
+            <p class="session-time">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              {{ session.start_time | date:'shortTime' }} -
+              <span *ngIf="session.end_time !== 'infinity'">{{ session.end_time | date:'shortTime' }}</span>
+              <span *ngIf="session.end_time === 'infinity'">Ongoing</span>
+            </p>
+            <p *ngIf="session.creatorid" class="session-creator"> <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              Created by: {{ getCreatorName(session.creatorid) }}
+            </p>
+          </div>
+          <footer class="card-footer" *ngIf="session.description">
+            <p>{{ session.description }}</p>
+          </footer>
+        </article>
+      </div>
+    </section>
+
+    <section *ngIf="activeTab === 'discover'">
+      <div class="session-list">
+        <div *ngIf="filteredAllSessions.length === 0" class="no-results-card">
+          <p>No active sessions match your filters.</p>
+        </div>
+        <article class="session-card" *ngFor="let session of filteredAllSessions">
+          <header class="card-header">
+            <div class="session-info">
+              <h3>{{ session.title }}</h3>
+              <p class="session-creator">by {{ getCreatorName(session.creatorid) }}</p>
+              <div class="session-badges">
+                <span class="badge status-{{ session.status }}">{{ session.status }}</span>
+<!--                <span class="badge type-participants">-->
+<!--                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>-->
+<!--                  {{ session.participantCount }}-->
+<!--                 </span>-->
+              </div>
+            </div>
+            <div class="card-actions">
+              <button *ngIf="session.sessionId" class="btn-join" (click)="onJoinSession(session.sessionId)">
+                Join Session
+              </button>
+            </div>
+          </header>
+          <div class="card-body">
+            <p class="session-time">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              {{ session.start_time | date:'fullDate' }}
+            </p>
+            <p class="session-time">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              {{ session.start_time | date:'shortTime' }} -
+              <span *ngIf="session.end_time !== 'infinity'">{{ session.end_time | date:'shortTime' }}</span>
+              <span *ngIf="session.end_time === 'infinity'">Ongoing</span>
+            </p>
+            <p *ngIf="session.creatorid" class="session-creator"> <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              Created by: {{ getCreatorName(session.creatorid) }}
+            </p>
+          </div>
+          <footer class="card-footer" *ngIf="session.description">
+            <p>{{ session.description }}</p>
+          </footer>
+        </article>
+      </div>
+    </section>
+
+    <section *ngIf="activeTab === 'future'">
+      <div class="session-list">
+        <div *ngIf="filteredUpcomingSessions.length === 0" class="no-results-card">
+          <p *ngIf="upcomingSessions_src.length === 0">You haven't joined any upcoming sessions.</p>
+          <p *ngIf="upcomingSessions_src.length > 0">No sessions match your filters.</p>
+          <span *ngIf="upcomingSessions_src.length === 0">Check the "Discover" tab to find one!</span>
+        </div>
+        <article class="session-card" *ngFor="let session of filteredUpcomingSessions">
+          <header class="card-header">
+            <div class="session-info">
+              <h3>{{ session.title }}</h3>
+              <p class="session-creator">by {{ getCreatorName(session.creatorid) }}</p>
+              <div class="session-badges">
+                <span class="badge status-{{ session.status }}">{{ session.status }}</span>
+<!--                <span class="badge type-participants">-->
+<!--                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>-->
+<!--                  {{ session.participantCount }}-->
+<!--                 </span>-->
+              </div>
+            </div>
+            <div class="card-actions" *ngIf="session.sessionId">
+              <ng-container *ngIf="isCreator(session); else memberActions">
+                <button class="btn-admin end" (click)="onEndSession(session.sessionId)" title="End Session Now">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
+                </button>
+<!--                <button class="btn-admin extend" (click)="onExtendSession(session.sessionId)" title="Extend Session">-->
+<!--                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"></path></svg>-->
+<!--                </button>-->
+              </ng-container>
+              <ng-template #memberActions>
+                <button class="btn-leave" (click)="onLeaveSession(session.sessionId)">Leave Session</button>
+              </ng-template>
+            </div>
+          </header>
+          <div class="card-body">
+            <p class="session-time">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              {{ session.start_time | date:'fullDate' }}
+            </p>
+            <p class="session-time">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              {{ session.start_time | date:'shortTime' }} -
+              <span *ngIf="session.end_time !== 'infinity'">{{ session.end_time | date:'shortTime' }}</span>
+              <span *ngIf="session.end_time === 'infinity'">Ongoing</span>
+            </p>
+            <p *ngIf="session.creatorid" class="session-creator"> <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              Created by: {{ getCreatorName(session.creatorid) }}
+            </p>
+          </div>
+          <footer class="card-footer" *ngIf="session.description">
+            <p>{{ session.description }}</p>
+          </footer>
+        </article>
+      </div>
+    </section>
+
+    <section *ngIf="activeTab === 'created'">
+      <div class="session-list">
+        <div *ngIf="filteredMyCreatedSessions.length === 0" class="no-results-card">
+          <p *ngIf="myCreatedSessions_src.length === 0">You haven't created any sessions.</p>
+          <p *ngIf="myCreatedSessions_src.length > 0">No sessions match your filters.</p>
+          <span *ngIf="myCreatedSessions_src.length === 0">Click "Create Session" to get started!</span>
+        </div>
+        <article class="session-card" *ngFor="let session of filteredMyCreatedSessions">
+          <header class="card-header">
+            <div class="session-info">
+              <h3>{{ session.title }}</h3>
+              <p class="session-creator">by {{ getCreatorName(session.creatorid) }}</p>
+              <div class="session-badges">
+                <span class="badge status-{{ session.status }}">{{ session.status }}</span>
+<!--                <span class="badge type-participants">-->
+<!--                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>-->
+<!--                  {{ session.participantCount }}-->
+<!--                 </span>-->
+              </div>
+            </div>
+            <div class="card-actions" *ngIf="session.sessionId">
+              <button *ngIf="session.status === 'scheduled'" class="btn-admin" (click)="onEditSession(session)" title="Edit Session">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path></svg>
+              </button>
+              <button class="btn-admin end" (click)="onEndSession(session.sessionId)" title="End Session Now">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
+              </button>
+<!--              <button class="btn-admin extend" (click)="onExtendSession(session.sessionId)" title="Extend Session">-->
+<!--                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"></path></svg>-->
+<!--              </button>-->
+              <button class="btn-delete" (click)="onDeleteSession(session.sessionId)" title="Delete Session">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+              </button>
+            </div>
+          </header>
+          <div class="card-body">
+            <p class="session-time">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              {{ session.start_time | date:'fullDate' }}
+            </p>
+            <p class="session-time">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              {{ session.start_time | date:'shortTime' }} -
+              <span *ngIf="session.end_time !== 'infinity'">{{ session.end_time | date:'shortTime' }}</span>
+              <span *ngIf="session.end_time === 'infinity'">Ongoing</span>
+            </p>
+            <p *ngIf="session.creatorid" class="session-creator"> <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              Created by: {{ getCreatorName(session.creatorid) }}
+            </p>
+          </div>
+          <footer class="card-footer" *ngIf="session.description">
+            <p>{{ session.description }}</p>
+          </footer>
+        </article>
+      </div>
+    </section>
+
+    <section *ngIf="activeTab === 'past'">
+      <div class="session-list">
+        <div *ngIf="filteredPastSessions.length === 0" class="no-results-card">
+          <p *ngIf="pastSessions_src.length === 0">No past sessions found.</p>
+          <p *ngIf="pastSessions_src.length > 0">No sessions match your filters.</p>
+        </div>
+        <article class="session-card past" *ngFor="let past of filteredPastSessions">
+          <header class="card-header">
+            <div class="session-info">
+              <h3>{{ past.title }}</h3>
+              <p *ngIf="past.creatorid" class="session-creator-past">
+                Created by: {{ getCreatorName(past.creatorid) }}
+              </p>
+              <p class="past-date">{{ past.start_time | date:'mediumDate' }}</p>
+            </div>
+            <div class="card-actions">
+              <button (click)="viewSummary(past)" title="View Summary">📄</button>
+              <button (click)="scheduleAgain(past)" title="Schedule Again">🔄</button>
+            </div>
+          </header>
+        </article>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<div class="modal-backdrop" *ngIf="showModal" (click)="cancelSession()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h2>{{ isEditMode ? 'Edit Session' : 'Create New Session' }}</h2>
+      <button class="close-btn" (click)="cancelSession()">&times;</button>
+    </header>
+    <form class="modal-form" (ngSubmit)="confirmSession()">
+      <div class="form-group">
+        <label for="title">Session Title <span class="required">*</span></label>
+        <input id="title" type="text" [(ngModel)]="newSession.title" name="title" placeholder="e.g., Calculus II Final Review" required />
       </div>
 
-      <nav class="session-actions">
-        <button *ngIf="session.type === 'in-person'"
-                class="action-btn directions-btn"
-                (click)="getDirections(session)">
-          📍 Get Directions
-        </button>
+<!--      <div class="form-group">-->
+<!--        <label for="module">Module (Optional)</label>-->
+<!--        <select id="module" [(ngModel)]="newSession.groupid" name="groupid">-->
+<!--          <option value="">None (General Session)</option>-->
+<!--          <option *ngFor="let mod of currentUserModules" [value]="mod.courseCode">-->
+<!--            {{ mod.courseName }} ({{ mod.courseCode }})-->
+<!--          </option>-->
+<!--        </select>-->
+<!--      </div>-->
 
-        <button *ngIf="session.type === 'online'"
-                class="action-btn join-online-btn"
-                (click)="joinOnline(session)">
-          🎥 Join Online
-        </button>
-
-        <button class="action-btn view-details-btn" (click)="viewDetails(session)">
-          🔎 View Details
-        </button>
-      </nav>
-    </header>
-
-    <section class="session-details">
-      <ul class="session-info">
-        <li class="info-item">📅 {{ session.date }}</li>
-        <li class="info-item">⏰ {{ session.time }}</li>
-        <li class="info-item">📍 {{ session.type === 'in-person' ? session.location : session.url }}</li>
-      </ul>
-
-      <footer class="session-meta">
-        <p class="participants-info">👥 {{ session.participantCount }}/{{ session.maxParticipants }} participants</p>
-        <p class="organizer-info">🧑‍🏫 Organized by {{ session.organizer }}</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="start_time">Start Time <span class="required">*</span></label>
+          <input id="start_time" type="datetime-local" [(ngModel)]="newSession.start_time" name="start_time" required />
+        </div>
+        <div class="form-group">
+          <label for="end_time">End Time</label>
+          <input id="end_time" type="datetime-local" [(ngModel)]="newSession.end_time" name="end_time" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" [(ngModel)]="newSession.description" name="description" rows="3" placeholder="Add session details, topics to cover, etc."></textarea>
+      </div>
+      <p *ngIf="modalError" class="modal-error">{{ modalError }}</p>
+      <footer class="modal-actions">
+        <button type="button" class="btn-cancel" (click)="cancelSession()">Cancel</button>
+        <button type="submit" class="btn-confirm">{{ isEditMode ? 'Save Changes' : 'Create Session' }}</button>
       </footer>
-    </section>
-
-    <section class="session-topics" *ngIf="session.topics.length > 0">
-      <ul>
-        <li class="topic-tag" *ngFor="let topic of session.topics">#{{ topic }}</li>
-      </ul>
-    </section>
-  </article>
-</section>
-
-<!-- Past Sessions Section -->
-<section class="sessions-container past-events">
-  <h2 class="section-title">Past Sessions</h2>
-
-  <article class="session-card" *ngFor="let past of pastSessions">
-    <header class="session-header">
-      <div class="session-title-section">
-        <h3 class="session-title">{{ past.title }}</h3>
-      </div>
-      <nav class="session-actions">
-        <button class="action-btn summary-btn" (click)="viewSummary(past)">📄 View Summary</button>
-        <button class="action-btn reschedule-btn" (click)="scheduleAgain(past)">🔄 Reschedule</button>
-      </nav>
-    </header>
-
-    <section class="session-details">
-      <ul class="session-info">
-        <li class="info-item">📅 {{ past.date }}</li>
-        <li class="info-item">⏰ {{ past.time }}</li>
-        <li class="info-item">👥 {{ past.participantCount }} attendees</li>
-        <li class="info-item">⭐ {{ past.rating }}/5</li>
-      </ul>
-    </section>
-  </article>
-</section>
-
-<!-- Create Session Modal -->
-<div class="modal-backdrop" *ngIf="showModal">
-  <div class="modal">
-    <h2>Create New Session</h2>
-
-    <label>
-      Session Name:
-      <input type="text" [(ngModel)]="newSession.title" placeholder="Enter session name" />
-    </label>
-
-    <label>
-      Date:
-      <input type="date" [(ngModel)]="newSession.date" />
-    </label>
-
-    <label>
-      Start Time:
-      <input type="time" [(ngModel)]="newSession.time" />
-    </label>
-
-<!--    <label>-->
-<!--      End Time:-->
-<!--      <input type="time" [(ngModel)]="newSession.endTime" />-->
-<!--    </label>-->
-
-    <label>
-      Status:
-      <select [(ngModel)]="newSession.status">
-        <option value="open">Open</option>
-        <option value="confirmed">Confirmed</option>
-        <option value="cancelled">Cancelled</option>
-      </select>
-    </label>
-
-    <label>
-      Session Type:
-      <select [(ngModel)]="newSession.type">
-        <option value="online">Online</option>
-        <option value="in-person">In-Person</option>
-      </select>
-    </label>
-
-    <label *ngIf="newSession.type === 'in-person'">
-      Venue:
-      <input type="text" [(ngModel)]="newSession.location" placeholder="Enter venue" />
-    </label>
-
-    <label *ngIf="newSession.type === 'online'">
-      Virtual Platform / URL:
-      <input type="text" [(ngModel)]="newSession.url" placeholder="Enter URL" />
-    </label>
-
-    <label>
-      Max Participants:
-      <input type="number" min="1" [(ngModel)]="newSession.maxParticipants" />
-    </label>
-
-    <label>
-      Topics:
-      <div class="topics-input">
-        <input type="text" [(ngModel)]="topicInput" placeholder="Add topic" (keyup.enter)="addTopic()" />
-        <button type="button" (click)="addTopic()">➕ Add</button>
-      </div>
-    </label>
-
-    <div class="topics-list" *ngIf="newSession.topics.length > 0">
-      <span class="topic-tag" *ngFor="let topic of newSession.topics; let i = index">
-        #{{ topic }}
-        <button type="button" (click)="removeTopic(i)">❌</button>
-      </span>
-    </div>
-
-    <div class="modal-actions">
-      <button class="confirm-btn" (click)="confirmSession()">Confirm</button>
-      <button class="cancel-btn" (click)="cancelSession()">Cancel</button>
-    </div>
+    </form>
   </div>
 </div>

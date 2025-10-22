@@ -8,11 +8,10 @@ import { TopicApiService } from '../services/topic.service'; // For topics and s
 import { UserApiService } from '../services/user.service';   // For user's courses
 import { AcademicApiService } from '../services/academic.service'; // For all modules
 import { AuthService } from '../services';
-import {MatSnackBar} from '@angular/material/snack-bar'; // For getting the current user
+import {MatSnackBar} from '@angular/material/snack-bar';
 
 // --- INTERFACES ---
 interface StatCard { label: string; value: string; icon: string; colorClass: string; }
-// ✅ UPDATED: Aligned with the API response (snake_case)
 interface Topic {
   topicid: number; userid: string; title: string; description: string;
   status: 'Completed' | 'In Progress' | 'Not Started';
@@ -64,10 +63,12 @@ export class Progress implements AfterViewInit, OnDestroy {
 
   // --- STATE MANAGEMENT ---
   isLoading = signal<boolean>(true);
-  isSaving = signal<boolean>(false); // ✅ ADDED: For modal save button state
+  isSaving = signal<boolean>(false);
   activeTab = signal<'overview' | 'subjects' | 'topics'>('overview');
   isLogProgressModalOpen = signal(false);
   editingTopicId = signal<number | null>(null);
+  topicSearchTerm = signal<string>('');
+  topicStatusFilter = signal<'all' | Topic['status']>('all');
 
   // --- FORM MODELS ---
   newTopic = signal({
@@ -81,6 +82,36 @@ export class Progress implements AfterViewInit, OnDestroy {
   topics = signal<Topic[]>([]);
   subjects = signal<Subject[]>([]);
   weeklyHoursData = signal<{ labels: string[], data: number[] }>({ labels: [], data: [] });
+
+  filteredTopics = computed(() => {
+    const allTopics = this.topics();
+    const searchTerm = this.topicSearchTerm().toLowerCase();
+    const statusFilter = this.topicStatusFilter();
+
+    // 1. Define the custom sort order
+    const statusPriority: Record<Topic['status'], number> = {
+      'In Progress': 1,
+      'Not Started': 2,
+      'Completed': 3,
+    };
+
+    return allTopics
+      .filter(topic => {
+        // 2. Apply status filter
+        const matchesStatus = (statusFilter === 'all') || (topic.status === statusFilter);
+
+        // 3. Apply search filter (on title OR subject name)
+        const subjectName = this.getSubjectName(topic.course_code).toLowerCase();
+        const topicTitle = topic.title.toLowerCase();
+        const matchesSearch = topicTitle.includes(searchTerm) || subjectName.includes(searchTerm);
+
+        return matchesStatus && matchesSearch;
+      })
+      .sort((a, b) => {
+        // 4. Apply custom sorting
+        return statusPriority[a.status] - statusPriority[b.status];
+      });
+  });
 
   constructor() {
     this.initializePageData();
@@ -365,15 +396,141 @@ export class Progress implements AfterViewInit, OnDestroy {
     }
   }
 
+  // --- ✅ UPDATED: Logic handlers for NEW topic modal ---
+  onNewTopicHoursChange(newHours: number | string): void {
+    const currentData = this.newTopic();
+    // Use parseInt to truncate decimals and ensure it's an integer
+    const hours = parseInt(newHours.toString(), 10) || 0;
+
+    if (hours === 0) {
+      this.newTopic.set({
+        ...currentData,
+        status: 'Not Started',
+        hours: 0
+      });
+    } else {
+      const newStatus = currentData.status === 'Not Started'
+        ? 'In Progress'
+        : currentData.status;
+      this.newTopic.set({
+        ...currentData,
+        status: newStatus,
+        hours: hours // This will now always be an integer
+      });
+    }
+  }
+
+  onNewTopicStatusChange(newStatus: Topic['status']): void {
+    const currentData = this.newTopic();
+    if (newStatus === 'Not Started') {
+      this.newTopic.set({
+        ...currentData,
+        status: 'Not Started',
+        hours: 0
+      });
+    } else {
+      // If status is "In Progress" or "Completed", just update status
+      this.newTopic.set({
+        ...currentData,
+        status: newStatus
+      });
+    }
+  }
+  // --- End of new methods ---
+
+
+  onEditHoursChange(newHours: number | string): void {
+    const currentData = this.editedTopicData();
+    if (!currentData) return;
+
+    // Use parseInt to truncate decimals and ensure it's an integer
+    const hours = parseInt(newHours.toString(), 10) || 0;
+
+    if (hours === 0) {
+      // Rule 1: If hours are 0, status MUST be "Not Started".
+      this.editedTopicData.set({
+        status: 'Not Started',
+        hours: 0
+      });
+    } else {
+      // If hours > 0, status CANNOT be "Not Started".
+      // If it was "Not Started", move it to "In Progress".
+      const newStatus = currentData.status === 'Not Started'
+        ? 'In Progress'
+        : currentData.status;
+
+      this.editedTopicData.set({
+        status: newStatus,
+        hours: hours // This will now always be an integer
+      });
+    }
+  }
+
+  onEditStatusChange(newStatus: Topic['status']): void {
+    const currentData = this.editedTopicData();
+    if (!currentData) return;
+
+    if (newStatus === 'Not Started') {
+      // Rule 2: If status is "Not Started", hours MUST be 0.
+      this.editedTopicData.set({
+        status: 'Not Started',
+        hours: 0
+      });
+    } else {
+      // If status is "In Progress" or "Completed", just update the status.
+      // Leave hours as they are (they could be 0, that's fine for "In Progress").
+      this.editedTopicData.set({
+        ...currentData,
+        status: newStatus
+      });
+    }
+  }
+
   startEditTopic(topic: Topic): void {
     this.editingTopicId.set(topic.topicid);
     this.editedTopicData.set({ status: topic.status, hours: topic.hours });
   }
   cancelEditTopic = () => this.editingTopicId.set(null);
-  saveEditTopic(topicIdToSave: number): void {
-    // This would become an API call
-    console.log("Saving topic:", topicIdToSave, this.editedTopicData());
-    this.cancelEditTopic();
+
+  async saveEditTopic(topicIdToSave: number): Promise<void> {
+    const editedData = this.editedTopicData();
+    if (!editedData) {
+      console.warn('No edited data to save.');
+      this.cancelEditTopic();
+      return;
+    }
+
+    this.isSaving.set(true); // Show loading spinner on the (future) save button
+    try {
+      const patchData = {
+        status: editedData.status,
+        hours: editedData.hours
+      };
+      console.log("hi")
+
+      // Call the API
+      await firstValueFrom(this.topicApiService.patchTopic(topicIdToSave, patchData));
+      console.log("hi222")
+
+      // Handle success
+      this.snackBar.open('Topic updated successfully!', 'Dismiss', {
+        duration: 2000,
+        panelClass: ['snackbar-success'],
+      });
+
+      this.cancelEditTopic(); // Close the edit UI
+      await this.initializePageData(); // Refresh all page data
+
+    } catch (err) {
+      // Handle errors
+      console.error('Error saving topic changes:', err);
+      this.snackBar.open('An error occurred while saving. Please try again.', 'Dismiss', {
+        duration: 2000,
+        panelClass: ['snackbar-error'],
+      });
+    } finally {
+      // Always stop the loading state
+      this.isSaving.set(false);
+    }
   }
 }
-

@@ -1,289 +1,773 @@
-/* Base styles */
-body {
-  font-family: "Inter", "Segoe UI", sans-serif;
-  background-color: #f7f9fc;
-  color: #222;
-  margin: 0;
-  padding: 0;
+/* ---
+  Sessions Page SCSS
+  Based on Progress Tracker styles for consistency.
+--- */
+
+// --- 1. Theme Variables & Design Tokens (from progress tracker) ---
+:host {
+  --primary-color: #6a5af9;
+  --primary-hover-color: #5a4af7;
+  --success-color: #28a745;
+  --success-hover-color: #218838;
+  --danger-color: #dc3545;
+  --danger-hover-color: #c82333;
+  --warning-color: #ffc107; // Added for some badges/buttons potentially
+  --info-color: #17a2b8; // Added for some badges/buttons potentially
+  --text-color-primary: #212529;
+  --text-color-secondary: #6c757d;
+  --background-color: #f8f9fa;
+  --card-background-color: #ffffff;
+  --border-color: #dee2e6;
+  --input-background-color: #f1f3f5;
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --border-radius: 12px;
+  --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+  --transition-speed: 0.2s ease-in-out;
+
+  // Session-specific status/type colors (adjust to match new theme if needed)
+  --status-scheduled-bg: rgba(106, 90, 249, 0.1); // Primary subtle bg
+  --status-scheduled-text: var(--primary-color);
+  --status-in_progress-bg: rgba(255, 193, 7, 0.15); // Warning subtle bg
+  --status-in_progress-text: #b98900; // Darker warning text
+  --status-completed-bg: rgba(40, 167, 69, 0.1); // Success subtle bg
+  --status-completed-text: var(--success-hover-color);
+  --status-cancelled-bg: rgba(220, 53, 69, 0.1); // Danger subtle bg
+  --status-cancelled-text: var(--danger-hover-color);
+  // Default/Fallback
+  --status-unknown-bg: var(--input-background-color);
+  --status-unknown-text: var(--text-color-secondary);
+
+  --type-online-bg: rgba(111, 66, 193, 0.1); // Indigo subtle bg
+  --type-online-text: #6f42c1; // Indigo text
+  --type-in-person-bg: rgba(23, 162, 184, 0.1); // Info subtle bg
+  --type-in-person-text: var(--info-color); // Info text
 }
 
-/* Header */
-.sessions-header {
+// --- 2. Global Page Layout (from progress tracker) ---
+:host {
+  display: block; // Changed from flex for simpler page structure
+  min-height: 100vh;
+  background-color: var(--background-color);
+  padding: 2rem;
+  font-family: var(--font-family);
+  color: var(--text-color-primary);
+}
+
+// --- 3. Main Container (Adapts .progress-container) ---
+.sessions-page-container {
+  width: 100%;
+  max-width: 1200px; // Wider than progress, suitable for session cards
+  margin: 0 auto; // Center the container
+  background: var(--card-background-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  padding: 2.5rem;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 2.5rem;
+  position: relative; // For loading overlay
+}
+
+// --- 4. Loading Overlay & Spinner (from progress tracker) ---
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column; // Stack spinner and text
+  justify-content: center;
   align-items: center;
-  padding: 1.2rem 2rem;
-  background: #fff;
-  border-bottom: 1px solid #e0e6ef;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  z-index: 1000;
+  border-radius: var(--border-radius);
+
+  .spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  .loading-text { // Added style for text
+    margin-top: 1rem;
+    color: var(--text-color-primary);
+    font-weight: 500;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// --- 5. Page Header (Adapts .progress-header) ---
+.page-header {
+  display: flex;
+  flex-direction: column; // Stack elements vertically
+  align-items: center; // Center align content
+  text-align: center;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
 
   h1 {
-    font-size: 1.8rem;
+    font-size: 2rem; // Slightly larger than progress
     font-weight: 700;
-    margin: 0;
-    color: #2c3e50;
+    margin: 0 0 0.5rem;
   }
+  p {
+    font-size: 1.1rem;
+    color: var(--text-color-secondary);
+    margin: 0 0 1.5rem;
+    max-width: 600px; // Limit description width
+  }
+}
 
-  .create-btn {
-    background: linear-gradient(135deg, #4cafef, #2a8ded);
-    color: #fff;
-    font-weight: 600;
-    border: none;
-    border-radius: 8px;
-    padding: 0.6rem 1rem;
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
+// --- 6. Generic Button Styling (from progress tracker) ---
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center; // Center icon and text
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-speed);
+  font-family: inherit;
+  font-size: 0.95rem; // Standard button font size
+  line-height: 1.5; // Ensure consistent line height
+  text-align: center; // Ensure text is centered if button wraps
+
+  svg {
+    stroke-width: 2.5px;
+    width: 18px; // Slightly smaller icon
+    height: 18px;
+  }
+}
+
+// Specific button in header (Adapts .log-progress-btn)
+.create-session-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem; // Slightly larger padding
+
+  &:hover {
+    background-color: var(--primary-hover-color);
+    box-shadow: 0 4px 12px rgba(106, 90, 249, 0.2); // Subtle shadow on hover
+  }
+}
+
+// --- 7. Statistics Cards Section (Adapts .stat-cards-grid) ---
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); // Adjusted min size
+  gap: 1.5rem;
+
+  .stat-card {
+    background-color: var(--card-background-color); // Card BG (already white)
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column; // Stack elements
+    align-items: center; // Center horizontally
+    text-align: center;
+    transition: var(--transition-speed);
 
     &:hover {
-      background: linear-gradient(135deg, #2a8ded, #1f6bc1);
-      box-shadow: 0 3px 8px rgba(42, 141, 237, 0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    h3 { // Adapts .card-value
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0 0 0.25rem;
+      color: var(--primary-color); // Use primary color for value
+    }
+
+    p { // Adapts .card-label
+      font-size: 0.9rem;
+      color: var(--text-color-secondary);
+      margin: 0;
+    }
+    // Icon styling is removed as stats section doesn't have icons here
+  }
+}
+
+
+// --- 8. Tabs Navigation (Adapts .tabs from progress tracker) ---
+.sessions-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0; // Remove margin, handled by filter bar below
+  overflow-x: auto; // Allow horizontal scrolling if needed
+
+  button {
+    padding: 0.75rem 0.25rem;
+    margin: 0 1.5rem -1px 0; // Overlap border
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color-secondary);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: var(--transition-speed);
+    white-space: nowrap;
+
+    &:hover:not(.active) {
+      color: var(--text-color-primary);
+    }
+    &.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
     }
   }
 }
 
-/* Sections */
-.sessions-container {
-  padding: 2rem;
+// --- 9. Filters Bar (Adapts .topics-filter-bar) ---
+.sessions-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem; // Reduced gap slightly
+  margin-top: 2rem; // Add space below tabs
+  margin-bottom: 2rem;
+  padding: 1rem 1.5rem; // More padding
+  background-color: transparent; // No background needed inside main card
+  border: 1px solid var(--border-color); // Add border like input fields
+  border-radius: var(--border-radius);
 
-  .section-title {
-    font-size: 1.4rem;
-    font-weight: 600;
-    margin-bottom: 1.2rem;
-    color: #34495e;
+  input, select {
+    box-sizing: border-box; // Ensure padding is included in width
+    flex: 1 1 200px; // Allow growth, base width 200px
+    min-width: 150px;
+    padding: 0.75rem;
+    border-radius: 8px;
+    background-color: var(--input-background-color); // Use input background
+    border: 1px solid var(--border-color);
+    font-size: 0.95rem;
+    transition: var(--transition-speed);
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(106, 90, 249, 0.2);
+    }
+  }
+
+  // Clear button specific style
+  .btn-clear {
+    background-color: transparent;
+    color: var(--text-color-secondary);
+    border: 1px solid var(--border-color);
+    padding: 0.75rem 1rem; // Match input height
+    flex-shrink: 0; // Prevent shrinking
+
+    &:hover {
+      background-color: var(--input-background-color);
+      color: var(--text-color-primary);
+    }
   }
 }
 
-/* Session Card */
+
+// --- 10. Tab Content & Session List ---
+.tab-content {
+  // No extra margin needed if filters handle spacing
+}
+
+.session-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem; // Increase gap between cards
+}
+
+.no-results-card {
+  background-color: var(--card-background-color); // Match card background
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 2.5rem; // More padding
+  text-align: center;
+  color: var(--text-color-secondary);
+  p { margin: 0 0 0.5rem; font-size: 1.1rem; }
+  span { font-size: 0.9rem; }
+}
+
+// --- 11. Session Card Styling ---
+// Merges existing session card style with base card look
 .session-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  background: var(--card-background-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03); // Lighter shadow initially
+  transition: var(--transition-speed);
+  display: flex;
+  flex-direction: column;
 
   &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow); // Use main card shadow on hover
   }
 
-  .session-header {
+  &.past {
+    background-color: var(--background-color); // Use main page background for past
+    opacity: 0.85;
+    &:hover { opacity: 1; } // Fully opaque on hover
+    .session-info h3 { color: var(--text-color-secondary); }
+    .session-creator-past { // Style for creator in past header
+      font-size: 0.85rem;
+      color: var(--text-color-secondary);
+      margin: -0.25rem 0 0.25rem;
+    }
+  }
+
+  .card-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 1rem;
-
-    .session-title-section {
-      .session-title {
-        font-size: 1.2rem;
-        font-weight: 600;
-        margin: 0 0 0.5rem 0;
-        color: #2c3e50;
-      }
-
-      .session-badges {
-        display: flex;
-        gap: 0.4rem;
-        list-style: none;
-        padding: 0;
-        margin: 0;
-
-        .badge {
-          padding: 0.3rem 0.7rem;
-          font-size: 0.8rem;
-          border-radius: 12px;
-          font-weight: 500;
-
-          &.confirmed { background: #e8f9ee; color: #27ae60; }
-          &.open { background: #eaf3ff; color: #2a8ded; }
-          &.in-person { background: #fff6e5; color: #e67e22; }
-          &.online { background: #f5eaff; color: #8e44ad; }
-        }
-      }
-    }
-
-    .session-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-
-      .action-btn {
-        padding: 0.5rem 0.8rem;
-        border: none;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        cursor: pointer;
-        font-weight: 500;
-        transition: all 0.2s ease-in-out;
-
-        &.directions-btn { background: #fff6e5; color: #e67e22; &:hover { background: #ffe0b2; } }
-        &.join-online-btn { background: #f5eaff; color: #8e44ad; &:hover { background: #e1d4f3; } }
-        &.view-details-btn { background: #eaf3ff; color: #2a8ded; &:hover { background: #cfe2fb; } }
-        &.summary-btn { background: #dfeaf6; color: #2a8ded; &:hover { background: #c9dcf3; } }
-        &.reschedule-btn { background: #f8e9da; color: #e67e22; &:hover { background: #f5ddc5; } }
-      }
-    }
+    padding: 1.25rem 1.5rem; // Increased padding
+    border-bottom: 1px solid var(--border-color);
+    gap: 1rem;
   }
 
-  .session-details {
-    margin-bottom: 1rem;
-
-    .session-info {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      list-style: none;
-      padding: 0;
-      margin: 0 0 0.8rem 0;
-
-      .info-item {
-        font-size: 0.9rem;
-        color: #555;
-        display: flex;
-        align-items: center;
-        gap: 0.3rem;
-      }
-    }
-
-    .session-meta {
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      font-size: 0.85rem;
-      color: #666;
-
-      .participants-info { font-weight: 500; }
-    }
-  }
-
-  .session-topics {
-    margin-top: 0.6rem;
-
-    ul {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      padding: 0;
-      list-style: none;
-
-      .topic-tag {
-        background: #eef3f8;
-        border-radius: 20px;
-        padding: 0.3rem 0.7rem;
-        font-size: 0.85rem;
-        color: #2c3e50;
-        font-weight: 500;
-
-        button {
-          border: none;
-          background: transparent;
-          cursor: pointer;
-          color: #e74c3c;
-          font-size: 0.8rem;
-          margin-left: 0.3rem;
-        }
-      }
-    }
-  }
-}
-
-/* Past events style */
-.sessions-container.past-events .session-card {
-  background: #f5f6f8;
-  box-shadow: none;
-  opacity: 0.9;
-  border: 1px solid #e0e6ef;
-
-  &:hover { transform: none; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
-}
-
-/* Modal styles */
-.modal-backdrop {
-  position: fixed;
-  top:0; left:0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.4);
-  display: flex; justify-content: center; align-items: center;
-  z-index: 1000;
-  overflow-y: auto; /* 👈 allow scrolling whole page if needed */
-}
-
-.modal {
-  background: #fff;
-  border-radius: 16px;
-  padding: 2rem;
-  width: 400px;
-  max-width: 90%;
-  max-height: 90vh;   /* 👈 limit height to viewport */
-  overflow-y: auto;   /* 👈 scroll inside modal if too tall */
-  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-
-  h2 { margin: 0 0 1rem 0; color: #2c3e50; }
-
-  label {
-    display: flex;
-    flex-direction: column;
-    font-size: 0.9rem;
-    color: #34495e;
-
-    input, select {
-      margin-top: 0.3rem;
-      padding: 0.5rem;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 0.9rem;
-    }
-  }
-
-  .topics-input {
-    display: flex; gap: 0.5rem;
-
-    input { flex: 1; }
-
-    button {
-      background: #4cafef;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 0.4rem 0.8rem;
-      cursor: pointer;
+  .session-info {
+    flex-grow: 1;
+    h3 {
+      font-size: 1.2rem; // Slightly larger title
       font-weight: 600;
-      transition: all 0.2s ease;
-
-      &:hover { background: #2a8ded; }
+      margin: 0 0 0.25rem; // Reduced bottom margin
+    }
+    .session-creator, .session-creator-past { // Combined style for creator name
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-color-secondary);
+      margin: 0 0 0.5rem 0;
+    }
+    .past-date {
+      font-size: 0.9rem;
+      color: var(--text-color-secondary);
+      margin-top: 0.25rem;
     }
   }
 
-  .topics-list {
+  .session-badges {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+    margin-top: 0.5rem;
+    .badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px; // Pill shape
+      font-size: 0.75rem; // Smaller badge text
+      font-weight: 600;
+      text-transform: capitalize;
+      // Status colors defined in :host
+      &.status-scheduled { background-color: var(--status-scheduled-bg); color: var(--status-scheduled-text); }
+      &.status-in_progress { background-color: var(--status-in_progress-bg); color: var(--status-in_progress-text); }
+      &.status-completed { background-color: var(--status-completed-bg); color: var(--status-completed-text); }
+      &.status-cancelled { background-color: var(--status-cancelled-bg); color: var(--status-cancelled-text); }
+      &:not([class*="status-"]) { background-color: var(--status-unknown-bg); color: var(--status-unknown-text); } // Fallback
 
-    .topic-tag {
-      background: #eef3f8;
-      border-radius: 20px;
-      padding: 0.3rem 0.7rem;
-      display: flex; align-items: center; gap: 0.3rem;
-      font-size: 0.85rem; color: #2c3e50;
-
-      button { border:none; background:transparent; cursor:pointer; color:#e74c3c; font-size:0.8rem; }
+      // Type colors defined in :host
+      &.type-online { background-color: var(--type-online-bg); color: var(--type-online-text); }
+      &.type-in-person { background-color: var(--type-in-person-bg); color: var(--type-in-person-text); }
+      &.type-participants {
+        background-color: var(--input-background-color); // Use subtle background
+        color: var(--text-color-secondary);
+        display: inline-flex; // Align icon and text
+        align-items: center;
+        svg {
+          // Style for the small icon inside the badge
+          width: 12px; height: 12px;
+          stroke-width: 2.5px; // Make icon bolder
+          margin-right: 4px;
+        }
+      }
     }
   }
 
-  .modal-actions {
-    display:flex; justify-content:flex-end; gap:1rem; margin-top:1rem;
+  // START: UPDATED CARD ACTIONS BLOCK
+  .card-actions {
+    display: flex;
+    flex-wrap: wrap; // Allow buttons to wrap on small screens
+    gap: 0.5rem;
+    flex-shrink: 0;
 
-    .confirm-btn {
-      background: #27ae60; color:#fff; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-weight:600;
-      &:hover { background: #219150; }
+    button { // Base style for all action buttons
+      padding: 0.5rem 0.8rem; // Slightly more vertical padding
+      font-size: 0.85rem;
+      border-radius: 6px;
+      display: inline-flex; // Ensure icon and text align
+      align-items: center;
+      gap: 0.35rem; // Gap between icon and text
+      transition: all 0.15s ease-in-out; // Faster transition
+
+      // Icon styles
+      svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        // The fill/color is handled by the parent button's 'color' property
+        stroke-width: 0; // Remove stroke if using fill-based icons
+        fill: currentColor; // Use button's text color for fill
+      }
+
+      span {
+        display: block; // Ensures text is part of the flex item
+        line-height: 1.2; // Adjust line height for small buttons
+      }
+
+      // Better hover/focus
+      &:hover {
+        transform: translateY(-2px); // Slight lift
+        box-shadow: 0 4px 8px rgba(0,0,0,0.08); // Subtle shadow
+      }
+      &:active {
+        transform: translateY(0); // Press down
+        box-shadow: none;
+      }
     }
 
-    .cancel-btn {
-      background: #e74c3c; color:#fff; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-weight:600;
-      &:hover { background: #c0392b; }
+    // Button colors using theme variables
+    .btn-join {
+      background-color: rgba(40, 167, 69, 0.1); color: var(--success-hover-color); border: 1px solid rgba(40, 167, 69, 0.3);
+      &:hover {
+        background-color: rgba(40, 167, 69, 0.2);
+        border-color: rgba(40, 167, 69, 0.5);
+      }
+    }
+
+    .btn-leave {
+      background-color: rgba(220, 53, 69, 0.1); color: var(--danger-hover-color); border: 1px solid rgba(220, 53, 69, 0.3);
+      &:hover {
+        background-color: rgba(220, 53, 69, 0.2);
+        border-color: rgba(220, 53, 69, 0.5);
+      }
+    }
+
+    .btn-admin { // General admin button (Edit)
+      background-color: rgba(106, 90, 249, 0.1); color: var(--primary-color); border: 1px solid rgba(106, 90, 249, 0.3);
+      &:hover {
+        background-color: rgba(106, 90, 249, 0.2);
+        border-color: rgba(106, 90, 249, 0.5);
+      }
+    }
+
+    .btn-admin.extend { // Specific Extend button (Info)
+      background-color: rgba(23, 162, 184, 0.1); color: var(--info-color); border: 1px solid rgba(23, 162, 184, 0.3);
+      &:hover {
+        background-color: rgba(23, 162, 184, 0.2);
+        border-color: rgba(23, 162, 184, 0.5);
+      }
+    }
+
+    .btn-admin.end { // Specific End button (Warning)
+      background-color: rgba(255, 193, 7, 0.15); color: #b98900; border: 1px solid rgba(255, 193, 7, 0.3);
+      &:hover {
+        background-color: rgba(255, 193, 7, 0.25);
+        border-color: rgba(255, 193, 7, 0.5);
+      }
+    }
+
+    .btn-delete { // Destructive (Danger)
+      background-color: rgba(220, 53, 69, 0.1); color: var(--danger-hover-color); border: 1px solid rgba(220, 53, 69, 0.3);
+      &:hover {
+        background-color: var(--danger-color); // Solid red on hover
+        color: white; // White text on hover
+        border-color: var(--danger-hover-color);
+        box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2);
+      }
+    }
+
+    // START: FIX
+    // This selector is now more specific by adding ".session-card.past"
+    // It will ONLY target icon buttons inside a .past card.
+    .session-card.past & button[title] {
+      // END: FIX
+      background: var(--input-background-color); border: 1px solid var(--border-color); color: var(--text-color-secondary);
+      border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; padding: 0;
+
+      svg { // Ensure no gap interferes
+        width: 16px;
+        height: 16px;
+        gap: 0;
+        fill: none; // These icons use stroke
+        stroke: currentColor;
+        stroke-width: 2;
+      }
+
+      &:hover {
+        background-color: var(--border-color);
+        color: var(--text-color-primary);
+        transform: translateY(-2px);
+        // Add box-shadow to be consistent with other buttons
+        box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+      }
+
+      &:active {
+        transform: translateY(0);
+        box-shadow: none;
+      }
     }
   }
+  // END: UPDATED CARD ACTIONS BLOCK
+
+  .card-body {
+    padding: 1rem 1.5rem; // Consistent horizontal padding
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    p { // Style for time, location, creator paragraphs
+      margin: 0; display: flex; align-items: center; gap: 0.65rem; // Increased gap
+      color: var(--text-color-secondary); font-size: 0.9rem;
+      svg { flex-shrink: 0; width: 16px; height: 16px; }
+    }
+    p.session-participants {
+      font-weight: 500; // Example: Make it slightly bolder
+    }
+    p.session-creator { font-weight: 500; } // Slightly bolder creator text in body
+  }
+
+  .card-footer {
+    padding: 1rem 1.5rem; margin-top: auto; border-top: 1px solid var(--border-color);
+    background-color: var(--background-color); // Use main bg for footer contrast
+    p { margin: 0; font-size: 0.85rem; color: var(--text-color-secondary); line-height: 1.5; }
+  }
+}
+
+// --- 12. Modal Styling (Adapts .modal-* from progress tracker) ---
+.modal-overlay { // Renamed from .modal-backdrop for consistency
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); // Darker overlay
+  backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 1rem;
+}
+
+// Renamed modal-backdrop to modal-overlay in this rule
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 1rem;
+}
+
+
+.modal-content {
+  background: var(--card-background-color); border-radius: var(--border-radius);
+  width: 100%; max-width: 550px; // Standard modal width
+  box-shadow: var(--card-shadow); display: flex; flex-direction: column;
+  max-height: 90vh; overflow: hidden; // Prevent content overflow issues
+}
+
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1.5rem; border-bottom: 1px solid var(--border-color);
+  h2 { font-size: 1.25rem; font-weight: 600; margin: 0; }
+  .close-btn { background: none; border: none; font-size: 1.75rem; cursor: pointer; color: var(--text-color-secondary); line-height: 1; padding: 0; &:hover { color: var(--text-color-primary); } }
+}
+
+.modal-form {
+  padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.25rem;
+}
+
+.form-row { display: flex; gap: 1rem; > .form-group { flex: 1; } }
+
+.form-group {
+  display: flex; flex-direction: column;
+  label { margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; color: var(--text-color-primary); .required { color: var(--danger-color); margin-left: 2px;} }
+  input, select, textarea {
+    box-sizing: border-box; width: 100%; padding: 0.75rem; border-radius: 8px;
+    background-color: var(--input-background-color); border: 1px solid var(--border-color);
+    font-size: 0.95rem; transition: var(--transition-speed); font-family: inherit;
+    &:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(106, 90, 249, 0.2); }
+  }
+  textarea { resize: vertical; min-height: 80px; }
+}
+
+.modal-error { // Error message style
+  background-color: rgba(220, 53, 69, 0.1); color: var(--danger-hover-color);
+  border: 1px solid rgba(220, 53, 69, 0.3); border-radius: 8px;
+  padding: 0.75rem 1rem; text-align: center; font-size: 0.9rem; margin-top: 0.5rem;
+}
+
+// Renamed modal-actions to modal-footer
+.modal-actions, .modal-footer {
+  display: flex; justify-content: flex-end; gap: 0.75rem;
+  padding: 1.5rem; border-top: 1px solid var(--border-color);
+  background-color: var(--background-color); // Match card footer
+
+  .btn-confirm { // Adapts .save-btn
+    background-color: var(--primary-color); color: white; border: none;
+    &:hover { background-color: var(--primary-hover-color); }
+  }
+
+  .btn-cancel { // Adapts .cancel-btn
+    background-color: transparent; color: var(--text-color-secondary); border: 1px solid var(--border-color);
+    &:hover { background-color: var(--input-background-color); }
+  }
+}
+
+// --- Snackbar Styles ---
+// Add these styles (adjust colors as needed to match your theme)
+
+// Success Snackbar
+.snackbar-success {
+  background-color: #28a745; // Green background
+  color: white; // White text
+
+  .mat-mdc-button.mat-mdc-snack-bar-action { // Style the 'Dismiss' button
+    color: white;
+  }
+}
+
+// Error Snackbar
+.snackbar-error {
+  background-color: #dc3545; // Red background
+  color: white; // White text
+
+  .mat-mdc-button.mat-mdc-snack-bar-action { // Style the 'Dismiss' button
+    color: white;
+  }
+}
+
+// --- 13. Dark Theme Overrides (from progress tracker, adapted selectors) ---
+:host-context(body.dark-theme) {
+  // Dark theme variable overrides
+  --primary-color: #8a7dfa;
+  --primary-hover-color: #7a6df8;
+  --success-color: #30c552;
+  --success-hover-color: #26a342;
+  --danger-color: #e57373; // Softer red for dark mode text
+  --danger-hover-color: #ef5350;
+  --warning-color: #ffca28;
+  --info-color: #26c6da;
+  --text-color-primary: #f0f0f0;
+  --text-color-secondary: #a0a0a0;
+  --background-color: #121212;
+  --card-background-color: #1e1e1e;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --input-background-color: #2a2a2a;
+  --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+
+  .loading-overlay { background-color: rgba(30, 30, 30, 0.8); }
+
+  .session-card {
+    &.past { background-color: #2a2a2a; } // Darker past cards
+  }
+
+  // Badge background/text adjustments for dark mode
+  .session-badges .badge {
+    &.status-scheduled { background-color: rgba(138, 125, 250, 0.15); color: var(--primary-color); }
+    &.status-in_progress { background-color: rgba(255, 202, 40, 0.15); color: var(--warning-color); }
+    &.status-completed { background-color: rgba(48, 197, 82, 0.15); color: var(--success-color); }
+    &.status-cancelled { background-color: rgba(239, 83, 80, 0.15); color: var(--danger-hover-color); }
+    &.status-unknown { background-color: #3a3a3a; color: #a0a0a0; }
+
+    &.type-online { background-color: rgba(171, 113, 255, 0.15); color: #ab71ff; } // Adjust purple if needed
+    &.type-in-person { background-color: rgba(38, 198, 218, 0.15); color: var(--info-color); }
+    &.type-participants {
+      background-color: #3a3a3a; // Darker subtle background
+      color: #a0a0a0; // Lighter secondary text
+    }
+  }
+
+  // Action button adjustments for dark mode
+  .card-actions {
+    .btn-join {
+      background-color: rgba(48, 197, 82, 0.15);
+      color: var(--success-color);
+      border-color: rgba(48, 197, 82, 0.4);
+
+      &:hover {
+        background-color: rgba(48, 197, 82, 0.25);
+        border-color: rgba(48, 197, 82, 0.6);
+      }
+    }
+
+    .btn-leave {
+      background-color: rgba(239, 83, 80, 0.15);
+      color: var(--danger-hover-color);
+      border-color: rgba(239, 83, 80, 0.4);
+
+      &:hover {
+        background-color: rgba(239, 83, 80, 0.25);
+        border-color: rgba(239, 83, 80, 0.6);
+      }
+    }
+
+    .btn-admin {
+      background-color: rgba(138, 125, 250, 0.15);
+      color: var(--primary-color);
+      border-color: rgba(138, 125, 250, 0.4);
+
+      &:hover {
+        background-color: rgba(138, 125, 250, 0.25);
+        border-color: rgba(138, 125, 250, 0.6);
+      }
+    }
+
+    .btn-admin.extend {
+      background-color: rgba(38, 198, 218, 0.15);
+      color: var(--info-color);
+      border-color: rgba(38, 198, 218, 0.4);
+
+      &:hover {
+        background-color: rgba(38, 198, 218, 0.25);
+        border-color: rgba(38, 198, 218, 0.6);
+      }
+    }
+
+    .btn-admin.end {
+      background-color: rgba(255, 202, 40, 0.15);
+      color: var(--warning-color);
+      border-color: rgba(255, 202, 40, 0.4);
+
+      &:hover {
+        background-color: rgba(255, 202, 0.25);
+        border-color: rgba(255, 202, 40, 0.6);
+      }
+    }
+
+    .btn-delete {
+      background-color: rgba(239, 83, 80, 0.15);
+      color: var(--danger-hover-color);
+      border-color: rgba(239, 83, 80, 0.4);
+
+      &:hover {
+        background-color: var(--danger-hover-color); // Solid red on hover
+        color: var(--card-background-color); // Dark mode white/light text
+        border-color: var(--danger-color);
+        box-shadow: 0 4px 10px rgba(239, 83, 80, 0.2);
+      }
+    }
+
+    // START: FIX
+    // This selector is now also specific for dark mode
+    .session-card.past & button[title] {
+      background: #3a3a3a;
+      border-color: var(--border-color);
+      color: var(--text-color-secondary);
+
+      &:hover {
+        background-color: #4a4a4a;
+        color: var(--text-color-primary);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08); // add consistent shadow
+      }
+    }
+  }
+
+
+  // Modal adjustments
+  .modal-backdrop { background: rgba(0, 0, 0, 0.7); } // Corrected selector
+  .modal-actions, .modal-footer { background-color: #121212; } // Match main background
+  .modal-actions .btn-cancel, .modal-footer .btn-cancel { background-color: transparent; color: var(--text-color-secondary); border-color: var(--border-color); &:hover { background-color: #3a3a3a; } }
+  .modal-error { background-color: rgba(239, 83, 80, 0.15); color: var(--danger-hover-color); border-color: rgba(239, 83, 80, 0.4); }
+
+  // Filter adjustments
+  .sessions-filters { border-color: rgba(255, 255, 255, 0.1); } // Use darker border
+  .sessions-filters .btn-clear { background-color: transparent; color: var(--text-color-secondary); border-color: var(--border-color); &:hover { background-color: #3a3a3a; } }
 }
