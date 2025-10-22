@@ -1,5 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {CommonModule, NgOptimizedImage} from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -7,7 +7,7 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   selector: 'app-signup',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+    imports: [CommonModule, ReactiveFormsModule, RouterModule, NgOptimizedImage],
   templateUrl: './signup.component.html',
   styleUrls: ['./signup.component.scss']
 })

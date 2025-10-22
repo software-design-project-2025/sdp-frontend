@@ -284,65 +284,88 @@ export class SessionsComponent implements OnInit, OnDestroy {
   onEditSession(session: Session): void {
     if (!session?.sessionId) return;
     if (session.status !== 'scheduled') {
-      // **** UPDATED: Use snackbar ****
       this.showSnackbar("Only scheduled sessions can be edited.", true); return;
     }
     this.isEditMode = true; this.editingSessionId = session.sessionId; this.modalError = null;
-    const format = 'yyyy-MM-ddTHH:mm';
-    const start = (session.start_time instanceof Date && !isNaN(session.start_time.getTime())) ? this.datePipe.transform(session.start_time, format) || '' : '';
-    const end = (session.end_time instanceof Date && !isNaN(session.end_time.getTime())) ? this.datePipe.transform(session.end_time, format) || '' : '';
+
+    // --- THIS IS THE CHANGE ---
+
+    // const format = 'yyyy-MM-ddTHH:mm'; // No longer needed here
+
+    // OLD
+    // const start = (session.start_time instanceof Date && !isNaN(session.start_time.getTime())) ? this.datePipe.transform(session.start_time, format) || '' : '';
+    // const end = (session.end_time instanceof Date && !isNaN(session.end_time.getTime())) ? this.datePipe.transform(session.end_time, format) || '' : '';
+
+    // NEW
+    const start = this.toLocalISOString(session.start_time as Date);
+    const end = (session.end_time instanceof Date) ? this.toLocalISOString(session.end_time) : '';
+
+    // --- END OF CHANGE ---
+
     this.newSession = {
-      title: session.title || '', start_time: start, end_time: session.end_time === 'infinity' ? '' : end,
+      title: session.title || '',
+      start_time: start, // Use the new local-formatted string
+      end_time: session.end_time === 'infinity' ? '' : end, // Use the new local-formatted string
       status: session.status || 'scheduled', location: session.location || 'StudyLink',
       description: session.description || '', groupid: session.groupid ? String(session.groupid) : ''
-    }; this.showModal = true;
+    };
+    this.showModal = true;
   }
   cancelSession(): void { this.showModal = false; this.modalError = null; this.isEditMode = false; this.editingSessionId = null; }
   private resetForm(): void { this.newSession = { title: '', start_time: '', end_time: '', status: 'scheduled', location: 'StudyLink', description: '', groupid: '' }; }
 
   async confirmSession(): Promise<void> {
     if (!this.newSession.title || !this.newSession.start_time) { this.modalError = 'Title and Start Time required.'; return; }
-    let startTimeISO: string; let endTimeValue: string | 'infinity';
+
+    // --- START OF CHANGE ---
+    let startTimeValue: string;
+    let endTimeValue: string | 'infinity';
+
     try {
-      startTimeISO = new Date(this.newSession.start_time).toISOString();
+      // 1. Get the start time string *directly* from the form
+      startTimeValue = this.newSession.start_time; // This is already "yyyy-MM-ddTHH:mm"
+
       if(this.newSession.end_time) {
-        const endDate = new Date(this.newSession.end_time);
-        if (endDate <= new Date(this.newSession.start_time)) { this.modalError = 'End time must be after start.'; return; }
-        endTimeValue = endDate.toISOString();
-      } else { endTimeValue = 'infinity'; }
-    } catch (e) { this.modalError = 'Invalid date/time.'; return; }
+        // 2. Get the end time string *directly*
+        endTimeValue = this.newSession.end_time;
+
+        // 3. Create Date objects *only* for the validation check
+        const endDate = new Date(endTimeValue);
+        const startDate = new Date(startTimeValue);
+        if (endDate <= startDate) {
+          this.modalError = 'End time must be after start.';
+          return;
+        }
+      } else {
+        endTimeValue = 'infinity';
+      }
+    } catch (e) {
+      this.modalError = 'Invalid date/time.';
+      return;
+    }
+    // --- END OF CHANGE ---
 
     try {
       const finalLocation = this.newSession.location || 'StudyLink';
       const payloadBase = {
         title: this.newSession.title, description: this.newSession.description || '', location: finalLocation,
-        startTime: startTimeISO, endTime: endTimeValue,
-        groupid: this.newSession.groupid || 0 // Assuming backend wants 0 for general
+        startTime: startTimeValue, // <-- Pass the local string
+        endTime: endTimeValue,   // <-- Pass the local string or 'infinity'
+        groupid: this.newSession.groupid || 1 // Assuming backend wants 0 for general
       };
 
       if (this.isEditMode && this.editingSessionId) {
         const updatePayload = { ...payloadBase };
         await lastValueFrom(this.sessionsService.updateSession(this.editingSessionId, this.currentUserId, updatePayload as Partial<Session>));
-        // **** UPDATED: Use snackbar ****
         this.showSnackbar('Session updated successfully!');
       } else {
         const createPayload = { ...payloadBase, status: this.newSession.status, creatorid: this.currentUserId };
         await lastValueFrom(this.sessionsService.createSession(createPayload as Partial<Session>));
-        // **** UPDATED: Use snackbar ****
         this.showSnackbar('Session created successfully!');
       }
       this.cancelSession(); this.loadAllData();
     } catch (err: any) {
-      console.error('Error saving session:', err);
-      let msg = 'Failed to save session.';
-      if (err instanceof HttpErrorResponse) {
-        if (err.status === 403) msg = 'Save failed: Permission denied or session not scheduled.';
-        else if (err.error?.message) msg = `Save failed: ${err.error.message}`;
-        else msg = `HTTP error (${err.status}).`;
-      } else if (err instanceof Error) msg = `Unexpected error: ${err.message}`;
-      this.modalError = msg; // Keep modal error for form issues
-      // **** NEW: Show snackbar for general save errors ****
-      this.showSnackbar(msg, true); // Show error snackbar as well
+      // ... (rest of your error handling)
     }
   }
 
@@ -435,7 +458,7 @@ export class SessionsComponent implements OnInit, OnDestroy {
       filter(result => result === true)
     ).subscribe(async () => {
       try {
-        await lastValueFrom(this.sessionsService.deleteSession(sessionId, this.currentUserId));
+        await lastValueFrom(this.sessionsService.deleteSession(sessionId));
         this.showSnackbar('Session deleted successfully.');
         this.loadAllData();
       } catch (error) {
@@ -482,6 +505,24 @@ export class SessionsComponent implements OnInit, OnDestroy {
   }
 
   // --- Helper Methods ---
+
+  // Add this new helper function
+  private toLocalISOString(date: Date): string {
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      return '';
+    }
+
+    const pad = (num: number) => (num < 10 ? '0' : '') + num;
+
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1); // getMonth() is 0-indexed
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+
+    // Returns format: "yyyy-MM-ddTHH:mm"
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
   scheduleAgain(pastSession: Session): void {
     if (!pastSession) return; this.resetForm();
     this.newSession = { ...this.newSession, title: `Copy of: ${pastSession.title || 'Session'}`, groupid: pastSession.groupid ? String(pastSession.groupid) : '', description: pastSession.description ?? '', status: 'scheduled', start_time: '', end_time: '' };

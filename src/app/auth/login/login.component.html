@@ -1,7 +1,10 @@
 <div class="auth-container">
   <div class="auth-card">
     <div class="auth-header">
-      <h1 class="logo-text">Campus Study Buddy</h1>
+      <a class="navbar-logo">
+        <img ngSrc="/assets/logo.png" alt="StudyLink Logo" width="45" height="45" />
+        <h1 class="logo-text">StudyLink</h1>
+      </a>
       <h2>Welcome back!</h2>
       <p class="subtext">Sign in to continue your learning journey</p>
     </div>
@@ -30,7 +33,7 @@
           formControlName="email"
           placeholder="student@university.edu"
           [class.error]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched">
-        
+
         <div *ngIf="loginForm.get('email')?.invalid && loginForm.get('email')?.touched" class="validation-error">
           <span *ngIf="loginForm.get('email')?.errors?.['required']">Email is required</span>
           <span *ngIf="loginForm.get('email')?.errors?.['email']">Please enter a valid email</span>
@@ -55,7 +58,7 @@
             {{ passwordVisible ? '🙈' : '👁️' }}
           </button>
         </div>
-        
+
         <div *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched" class="validation-error">
           <span *ngIf="loginForm.get('password')?.errors?.['required']">Password is required</span>
         </div>
@@ -63,7 +66,7 @@
 
       <!-- Remember Me & Forgot Password -->
       <div class="form-options">
-      
+
         <a routerLink="/forgot-password" class="forgot-password">Forgot password?</a>
       </div>
 

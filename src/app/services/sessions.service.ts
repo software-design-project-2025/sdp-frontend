@@ -86,9 +86,9 @@ export class SessionsService {
    * DELETE: a session. (Creator only)
    * Requires userId for backend authorization check.
    */
-  deleteSession(sessionId: number, userId: string): Observable<Object> {
+  deleteSession(sessionId: number): Observable<Object> {
     //const params = new HttpParams().set('userId', userId);
-    return this.http.delete(`${this.apiUrl}/delete/${sessionId.toString()}/${userId}`, { headers: this.getHeaders() }).pipe(
+    return this.http.delete(`${this.apiUrl}/delete/${sessionId.toString()}`, { headers: this.getHeaders() }).pipe(
       catchError(this.handleError<Object>('deleteSession'))
     );
   }

@@ -80,7 +80,9 @@ export class Progress implements AfterViewInit, OnDestroy {
   // --- LIVE DATA SIGNALS ---
   statCards = signal<StatCard[]>([]);
   topics = signal<Topic[]>([]);
-  subjects = signal<Subject[]>([]);
+  subjects = signal<Subject[]>([]); // For enrolled subjects dropdown
+  // ✅ NEW: Map for all modules (code -> name) for historical lookups
+  allModulesMap = signal<Map<string, string>>(new Map());
   weeklyHoursData = signal<{ labels: string[], data: number[] }>({ labels: [], data: [] });
 
   filteredTopics = computed(() => {
@@ -101,6 +103,7 @@ export class Progress implements AfterViewInit, OnDestroy {
         const matchesStatus = (statusFilter === 'all') || (topic.status === statusFilter);
 
         // 3. Apply search filter (on title OR subject name)
+        // ✅ UPDATED: getSubjectName now correctly finds deregistered course names
         const subjectName = this.getSubjectName(topic.course_code).toLowerCase();
         const topicTitle = topic.title.toLowerCase();
         const matchesSearch = topicTitle.includes(searchTerm) || subjectName.includes(searchTerm);
@@ -119,7 +122,9 @@ export class Progress implements AfterViewInit, OnDestroy {
   }
 
   // --- COMPUTED SIGNALS FOR CHARTS ---
-  getSubjectName = (courseCode: string) => this.subjects().find(s => s.courseCode === courseCode)?.courseName || 'Unknown';
+  // ✅ UPDATED: Now uses the allModulesMap to find names for all topics,
+  // even those for courses the user is no longer enrolled in.
+  getSubjectName = (courseCode: string) => this.allModulesMap().get(courseCode) || 'Unknown';
 
   topicCompletionData = computed(() => {
     const all = this.topics();
@@ -130,15 +135,28 @@ export class Progress implements AfterViewInit, OnDestroy {
     };
   });
 
+  // ✅ UPDATED: This now builds from all *topics* and the *module map*,
+  // not just the list of *enrolled* subjects.
   subjectPerformanceData = computed(() => {
     const allTopics = this.topics();
-    const allSubjects = this.subjects();
-    const labels = allSubjects.map(s => s.courseName);
-    const data = allSubjects.map(subject =>
-      allTopics
-        .filter(topic => topic.course_code === subject.courseCode)
-        .reduce((sum, topic) => sum + topic.hours, 0)
-    );
+    const moduleMap = this.allModulesMap(); // Use the new map
+
+    // 1. Group hours by course code from all topics
+    const hoursByCourseCode = new Map<string, number>();
+    for (const topic of allTopics) {
+      const currentHours = hoursByCourseCode.get(topic.course_code) || 0;
+      hoursByCourseCode.set(topic.course_code, currentHours + topic.hours);
+    }
+
+    // 2. Create labels and data from this map
+    const labels: string[] = [];
+    const data: number[] = [];
+    hoursByCourseCode.forEach((hours, courseCode) => {
+      // Use the map to get the name
+      labels.push(moduleMap.get(courseCode) || 'Unknown');
+      data.push(hours);
+    });
+
     return { labels, data };
   });
 
@@ -167,11 +185,21 @@ export class Progress implements AfterViewInit, OnDestroy {
         }
         this.topics.set(topics);
 
+        // Keep this logic for the "Log Progress" modal dropdown (enrolled subjects only)
         const enrolledCourseCodes = new Set((userCourses || []).map((course: { courseCode: any; }) => course.courseCode));
         const enrolledSubjects = allModules
           .filter((mod: Module) => enrolledCourseCodes.has(mod.courseCode))
           .map((mod: Module) => ({ courseCode: mod.courseCode, courseName: mod.courseName }));
         this.subjects.set(enrolledSubjects);
+
+        // --- ✅ NEW LOGIC ---
+        // Create a map of ALL modules to look up names, even for deregistered courses
+        const moduleMap = new Map<string, string>();
+        allModules.forEach((mod: Module) => {
+          moduleMap.set(mod.courseCode, mod.courseName);
+        });
+        this.allModulesMap.set(moduleMap);
+        // --- End of new logic ---
 
         const labels = (weeklyStats || []).map((stat: WeeklyStat) => stat.weekLabel);
         const data = (weeklyStats || []).map((stat: WeeklyStat) => stat.hoursStudied);
@@ -502,13 +530,20 @@ export class Progress implements AfterViewInit, OnDestroy {
 
     this.isSaving.set(true); // Show loading spinner on the (future) save button
     try {
-      const patchData = {
+      // Define the base patch data as 'any' to allow dynamic property
+      const patchData: any = {
         status: editedData.status,
         hours: editedData.hours
       };
+
+      // ✅ REQUIREMENT: If status is 'Completed', set the end_date to now.
+      if (editedData.status === 'Completed') {
+        patchData.end_date = new Date();
+      }
+
       console.log("hi")
 
-      // Call the API
+      // Call the API with the potentially modified patchData
       await firstValueFrom(this.topicApiService.patchTopic(topicIdToSave, patchData));
       console.log("hi222")
 
