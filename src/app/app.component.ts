@@ -6,12 +6,13 @@ import { Router, NavigationEnd, RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { filter } from 'rxjs/operators';
 import {Navbar} from './navbar/navbar';
+import {SessionTimer} from './session-timer/session-timer';
 //import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, Navbar],
+  imports: [CommonModule, RouterOutlet, Navbar, SessionTimer],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })

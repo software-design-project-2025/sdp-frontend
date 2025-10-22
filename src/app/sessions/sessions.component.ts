@@ -8,6 +8,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ConfirmDialog } from '../confirm-dialog/confirm-dialog';
+import { Router } from '@angular/router';
+import { TimerService } from '../services/timer.service';
 
 // Models
 import { Session } from '../models/session.model';
@@ -87,7 +89,9 @@ export class SessionsComponent implements OnInit, OnDestroy {
     private findPartnerApiService: FindPartnerApiService,
     private supabaseUserService: SupabaseUserService,
     private snackBar: MatSnackBar,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private timerService: TimerService,
+    private router: Router
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -437,6 +441,41 @@ export class SessionsComponent implements OnInit, OnDestroy {
         this.showSnackbar('Error deleting session.', true);
       }
     });
+  }
+
+  isSessionInProgress(session: Session): boolean {
+    if (!session || !(session.start_time instanceof Date) || session.status === 'completed' || session.status === 'cancelled') {
+      return false;
+    }
+    const now = new Date();
+    const startTime = session.start_time;
+    let endTime: Date | null = null;
+    if (session.end_time instanceof Date) { endTime = session.end_time; }
+    return now >= startTime && (session.end_time === 'infinity' || (endTime !== null && now < endTime));
+  }
+
+  enterSession(session: Session): void {
+    if (!session || !session.sessionId) {
+      this.showSnackbar("Cannot enter session: Invalid data.", true);
+      return;
+    }
+
+    // Check if session is actually in progress using the helper
+    if (!this.isSessionInProgress(session)) {
+      this.showSnackbar("Cannot enter session: It is not currently active.", true);
+      return;
+    }
+
+    // Start the timer via the service
+    this.timerService.startTimer(session);
+
+    // Navigate to the chat page (adjust route as needed)
+    // Pass session ID, maybe as state or query param if chat needs it directly
+    // Or chat component can get active session ID from TimerService
+    this.router.navigate(['/chat']); // Or '/chat', sessionId if chat uses it
+
+    // Optional: Show a confirmation snackbar
+    this.showSnackbar(`Joining session: ${session.title}...`);
   }
 
   // --- Helper Methods ---

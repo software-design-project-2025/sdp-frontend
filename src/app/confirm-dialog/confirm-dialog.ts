@@ -23,10 +23,7 @@ export interface ConfirmDialogData {
       <button mat-flat-button color="warn" (click)="onConfirm()" cdkFocusInitial>Yes</button>
     </mat-dialog-actions>
   `,
-  styles: [`
-    p { margin-top: 10px; }
-    mat-dialog-actions { padding-top: 10px; }
-  `]
+  styleUrls: ['./confirm-dialog.scss']
 })
 export class ConfirmDialog {
   constructor(

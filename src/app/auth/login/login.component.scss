@@ -195,3 +195,111 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+// --- Dark Theme Overrides ---
+:host-context(body.dark-theme) {
+  .auth-container {
+    background: linear-gradient(135deg, #1a203c 0%, #12121e 100%);
+  }
+
+  .auth-card {
+    background: #1e1e1e;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+
+    .auth-header {
+      .logo-text {
+        color: #8a7dfa;
+      }
+      h2 {
+        color: #f0f0f0;
+      }
+      .subtext {
+        color: #a0a0a0;
+      }
+    }
+  }
+
+  // Styles for elements in HTML but not the base SCSS
+  .google-signin-button {
+    background-color: #f0f0f0; // Keep light for brand recognition
+    color: #1e1e1e;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    &:hover {
+      background-color: #e0e0e0;
+    }
+  }
+
+  .divider {
+    color: #a0a0a0; // "or" text
+
+    // Assumes ::before/::after are used for lines
+    &::before, &::after {
+      border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+  }
+
+  .input-group {
+    label {
+      color: #e0e0e0;
+    }
+
+    input {
+      background: #2a2a2a;
+      border-color: rgba(255, 255, 255, 0.1);
+      color: #f0f0f0;
+
+      &::placeholder {
+        color: #6b7280;
+      }
+
+      &:focus {
+        border-color: #8a7dfa;
+        box-shadow: 0 0 0 3px rgba(138, 125, 250, 0.2);
+      }
+
+      &.error {
+        border-color: #f87171;
+      }
+    }
+
+    .validation-error {
+      color: #f87171;
+    }
+  }
+
+  .form-options {
+    .remember-me {
+      color: #a0a0a0;
+    }
+    .forgot-password {
+      color: #8a7dfa;
+    }
+  }
+
+  .submit-button {
+    background: #8a7dfa;
+    color: #1e1e1e; // Dark text on light button for contrast
+
+    &:hover:not(:disabled) {
+      background: #7a6df8;
+    }
+  }
+
+  .auth-footer {
+    color: #a0a0a0;
+    .auth-link {
+      color: #8a7dfa;
+    }
+  }
+
+  .error-message {
+    background: rgba(248, 113, 113, 0.1);
+    color: #f87171;
+  }
+
+  .success-message {
+    background: rgba(74, 222, 128, 0.1);
+    color: #4ade80;
+  }
+}

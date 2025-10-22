@@ -1,0 +1,11 @@
+<div class="session-timer-widget" *ngIf="timerState?.isActive" cdkDrag>
+  <div class="timer-header" cdkDragHandle>
+    <span>Active Session</span>
+    <button mat-icon-button (click)="stop()" aria-label="Stop session timer">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+  <div class="timer-display">
+    {{ timerState?.elapsedTimeString }}
+  </div>
+</div>
