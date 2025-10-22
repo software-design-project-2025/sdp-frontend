@@ -5,7 +5,7 @@ import { AuthService } from '../services/auth.service';
 import { CommonModule } from '@angular/common';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { UserApiService } from '../services/user.service';
-import { DocApiService, NewChatDoc } from '../services/doc.service';
+import { DocApiService, NewChatDoc, NewGroupDoc, Document as chatDocument } from '../services/doc.service';
 
 // Interface definitions
 export interface User {
@@ -79,6 +79,7 @@ export class Chat implements OnInit, AfterViewChecked {
   @ViewChild('fileInput') private fileInput!: ElementRef<HTMLInputElement>;
   private shouldScrollToBottom = false;
   private imageErrors = new Set<string>();
+  isDragging = false;
 
   // Loading states
   loading$ = new BehaviorSubject<boolean>(true);
@@ -118,7 +119,7 @@ export class Chat implements OnInit, AfterViewChecked {
     });
 
     this.messageForm = this.fb.group({
-      message: ['']
+      message: ['', Validators.required]
     });
   }
 
@@ -138,6 +139,39 @@ export class Chat implements OnInit, AfterViewChecked {
         }
       }
     });
+  }
+
+  // drag-and-drop handler methods
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    // Only show the drop zone if a conversation is active
+    if (this.activeConversation) {
+      this.isDragging = true;
+    }
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = false;
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = false;
+
+    // Check if files were dropped and a conversation is active
+    if (!this.activeConversation || !event.dataTransfer?.files?.length) {
+      return;
+    }
+
+    const file = event.dataTransfer.files[0];
+    // We'll just handle the first file dropped
+    if (file) {
+      this.handleFileUpload(file); // Call the new reusable handler
+    }
   }
 
   private scrollToBottomSmooth(): void {
@@ -489,6 +523,7 @@ export class Chat implements OnInit, AfterViewChecked {
         firstValueFrom(this.chatService.getMessagesByChatId(chatid)),
         firstValueFrom(this.docApiService.getDocsByChatId(chatid))
       ]);
+      console.log(docMessagesResult);
 
       const allMessages: Message[] = [];
 
@@ -721,8 +756,8 @@ export class Chat implements OnInit, AfterViewChecked {
   }
 
   async sendMessage(): Promise<void> {
+    const messageContent = this.messageForm.get('message')?.value?.trim();
     if (this.messageForm.valid && this.activeConversation && !this.isGroupConversation(this.activeConversation)) {
-      const messageContent = this.messageForm.get('message')?.value; 
       const newMessage: Message = {
         id: 0,
         chatid: this.activeConversation.id,
@@ -746,10 +781,8 @@ export class Chat implements OnInit, AfterViewChecked {
   }
 
   async sendGroupMessage(): Promise<void> {
+    const messageContent = this.messageForm.get('message')?.value?.trim();
     if (this.messageForm.valid && this.activeConversation && this.isGroupConversation(this.activeConversation)) {
-      const messageContent = this.messageForm.get('message')?.value;
-      
-      // Create the new message object
       const newMessage: ExtendedGroupMessage = {
         id: 0, // Temporary ID, will be replaced by the actual ID from the server
         messageid: 0,
@@ -844,20 +877,17 @@ export class Chat implements OnInit, AfterViewChecked {
   }
 
   triggerFileUpload(): void {
-    if (this.messagesLoading || !this.activeConversation) return;
+    if (this.messagesLoading$.value || !this.activeConversation) return;
     this.fileInput.nativeElement.click();
   }
 
-  async onFileSelectedAndUpload(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    if (!input.files?.length || !this.activeConversation) return;
+  private async handleFileUpload(file: File): Promise<void> {
+    if (!this.activeConversation) return;
 
-    const file = input.files[0];
     const activeConvo = this.activeConversation;
-    input.value = '';
 
     try {
-      const uploadedDoc = await firstValueFrom(
+      const uploadedDoc: chatDocument = await firstValueFrom(
         this.docApiService.uploadDocument(file, this.currentUser.userid)
       );
       const docString = `${uploadedDoc.id}:${uploadedDoc.originalFilename}`;
@@ -865,7 +895,11 @@ export class Chat implements OnInit, AfterViewChecked {
       if (this.isGroupConversation(activeConvo)) {
         // TODO: Call createGroupChatDoc when available in your service
         this.error = "File upload for groups is not supported yet.";
-        return;
+        // NOTE: Group file upload logic seems incomplete in the original,
+        // but we can still add the message to the UI optimistically.
+        // For now, we'll log it and proceed to show the message locally.
+        console.log("Group doc upload logic pending in service. Doc:", docString);
+        // If you want to stop here for groups, add a `return;`
       } else {
         const newChatDocData: NewChatDoc = {
           senderID: this.currentUser.userid,
@@ -876,7 +910,7 @@ export class Chat implements OnInit, AfterViewChecked {
       }
 
       const docMessage: Message | ExtendedGroupMessage = {
-        id: Date.now(),
+        id: Date.now(), // Temporary ID
         chatid: activeConvo.id, // For individual
         groupid: activeConvo.id, // For group
         timestamp: new Date(),
@@ -888,9 +922,10 @@ export class Chat implements OnInit, AfterViewChecked {
         // Group-specific properties
         message: '',
         sent_datetime: new Date(),
-        messageid: Date.now(),
+        messageid: Date.now(), // Temporary ID
         sender: this.currentUser
       };
+      
       activeConvo.messages.push(docMessage as any);
 
       activeConvo.lastMessage = `📄 ${uploadedDoc.originalFilename}`;
@@ -902,6 +937,16 @@ export class Chat implements OnInit, AfterViewChecked {
       this.error = 'Failed to upload and send document.';
       console.error(err);
     }
+  }
+
+ async onFileSelectedAndUpload(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+
+    const file = input.files[0];
+    input.value = ''; // Clear the input so the same file can be re-selected
+
+    await this.handleFileUpload(file);
   }
 
   async downloadDocument(doc: MessageDocument): Promise<void> {
@@ -925,6 +970,7 @@ export class Chat implements OnInit, AfterViewChecked {
         const response = await firstValueFrom(
           this.docApiService.getDocumentDownloadUrl(doc.id)
         );
+        console.log(response)
         
         // 2. If the URL is received, update the new tab's location to start the download.
         if (response && response.downloadUrl) {

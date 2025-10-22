@@ -113,7 +113,11 @@
     </ng-template>
   </aside>
 
-  <section class="chat-main" *ngIf="activeConversation; else noConversationSelected">
+  <section class="chat-main" 
+    *ngIf="activeConversation; else noConversationSelected"
+    (drop)="onDrop($event)"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)">
     <header class="chat-header" [class.chat-header-loading]="messagesLoading | async">
       <section class="contact-info">
         <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
@@ -251,7 +255,24 @@
     </section>
 
     <footer class="message-input-section" [class.message-input-loading]="messagesLoading | async">
-      <form 
+    <input 
+      type="file"
+      #fileInput
+      (change)="onFileSelectedAndUpload($event)"
+      class="sr-only"
+      aria-hidden="true"
+      tabindex="-1"
+      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
+      <button
+      type="button"
+      class="attach-button"
+      (click)="triggerFileUpload()"
+      [disabled]="(messagesLoading | async) || !activeConversation"
+      aria-label="Attach a file">
+      📎
+    </button>     
+      
+     <form 
         [formGroup]="messageForm" 
         (ngSubmit)="isGroupConversation(activeConversation) ? sendGroupMessage() : sendMessage()" 
         class="message-form"
@@ -273,6 +294,12 @@
         </button>
       </form>
     </footer>
+
+    <figure *ngIf="isDragging" class="drop-zone-overlay">
+      <figcaption class="drop-zone-text">
+        Drop file to upload
+      </figcaption>
+    </figure>
   </section>
 
   <ng-template #noConversationSelected>

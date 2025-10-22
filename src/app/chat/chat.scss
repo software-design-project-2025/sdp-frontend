@@ -473,12 +473,14 @@ $shadow-light: rgba(0, 0, 0, 0.1);
   }
 
   .no-conversation {
-    flex: 1;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: $text-muted;
-    font-size: 16px;
   }
 
   .message-input-section {
@@ -491,6 +493,9 @@ $shadow-light: rgba(0, 0, 0, 0.1);
     background-color: $background-white;
     z-index: 10;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 
     .message-form {
       display: flex;
@@ -499,6 +504,7 @@ $shadow-light: rgba(0, 0, 0, 0.1);
       background-color: $background-light;
       border-radius: 24px;
       padding: 8px 16px;
+      flex-grow: 1;
 
       .message-input {
         flex: 1;
@@ -547,6 +553,32 @@ $shadow-light: rgba(0, 0, 0, 0.1);
       }
     }
   }
+}
+
+.drop-zone-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(74, 144, 226, 0.1);  /* Use your $primary-color */
+  border: 3px dashed $primary-color;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  margin: 0;
+  pointer-events: none; /* Lets drag events pass through */
+}
+
+.drop-zone-text {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: $primary-color;
+  background-color: $background-white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px $shadow-light;
 }
 
 // Responsive design
@@ -979,23 +1011,28 @@ $shadow-light: rgba(0, 0, 0, 0.1);
 
 .empty-state {
   text-align: center;
-  padding: 60px 40px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
   
   .empty-state-icon {
     font-size: 64px;
-    margin-bottom: 20px;
+    margin: 0;
   }
   
   .empty-state-title {
     font-size: 24px;
     font-weight: 600;
     color: $text-primary;
-    margin-bottom: 12px;
+    margin: 0;
   }
   
   .empty-state-text {
     font-size: 16px;
     color: $text-secondary;
     margin: 0;
+    max-width: 400px;
   }
 }
