@@ -11,8 +11,8 @@ export interface NewChatDoc {
 }
 
 export interface NewGroupDoc {
-  senderID: string;
-  groupID: number;
+  senderid: string;
+  groupid: number;
   doc: string;
 }
 
