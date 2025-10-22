@@ -1,490 +1,471 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BehaviorSubject, forkJoin, lastValueFrom } from 'rxjs';
+import { BehaviorSubject, forkJoin, lastValueFrom, Subject, Subscription, of } from 'rxjs';
+import {catchError, debounceTime, filter} from 'rxjs/operators';
 import { HttpErrorResponse } from '@angular/common/http';
+// **** NEW: Import MatSnackBar ****
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { ConfirmDialog } from '../confirm-dialog/confirm-dialog';
 
 // Models
 import { Session } from '../models/session.model';
-// NEW: Add models for academic data
-interface Module {
-  courseCode: string;
-  courseName: string;
-  facultyId: number;
+
+// --- Interfaces ---
+interface User {
+  userid: string; username: string | "unknown"; email: string | "unknown"; role: string; status: string;
+  bio: string; degreeid: number; yearofstudy: number; profile_picture: string | null;
 }
+interface UserCourse { userid: string; courseCode: string; }
+interface Module { courseCode: string; courseName: string; facultyid: number; }
+interface SupabaseUser { id: string; email: string; name: string; user_metadata: { [key: string]: any }; }
 
 // Services
 import { SessionsService, StudyHoursResponse, SessionCountResponse } from '../services/sessions.service';
-// import { GroupService } from '../services/group.service'; // Removed for now
 import { AuthService } from '../services/auth.service';
-// FIXED: Corrected import path
 import { AcademicApiService } from '../services/academic.service';
+import { ApiService as FindPartnerApiService } from '../services/findpartner.service';
+import { UserService as SupabaseUserService } from '../services/supabase.service';
 
 @Component({
   selector: 'app-sessions',
   standalone: true,
-  providers: [DatePipe], // DatePipe is provided here
-  imports: [CommonModule, FormsModule],
+  providers: [DatePipe, FindPartnerApiService, SupabaseUserService],
+  imports: [CommonModule, FormsModule, MatSnackBarModule, MatDialogModule],
   templateUrl: './sessions.component.html',
   styleUrls: ['./sessions.component.scss']
 })
-export class SessionsComponent implements OnInit {
+export class SessionsComponent implements OnInit, OnDestroy {
   isLoading$ = new BehaviorSubject<boolean>(true);
   currentUserId: string = '';
+  currentUser: User | null = null;
+  activeTab: string = 'suggestions';
 
-  // State for tabs
-  activeTab: string = 'future';
+  // --- Source Arrays ---
+  private allSessions_src: Session[] = [];
+  protected upcomingSessions_src: Session[] = [];
+  protected myCreatedSessions_src: Session[] = [];
+  protected pastSessions_src: Session[] = [];
+  private suggestedSessions_src: Session[] = [];
 
-  // Separate arrays for each tab
-  allSessions: Session[] = [];
-  upcomingSessions: Session[] = [];
-  myCreatedSessions: Session[] = [];
-  pastSessions: Session[] = [];
+  // --- Display Arrays ---
+  filteredAllSessions: Session[] = [];
+  filteredUpcomingSessions: Session[] = [];
+  filteredMyCreatedSessions: Session[] = [];
+  filteredPastSessions: Session[] = [];
+  filteredSuggestedSessions: Session[] = [];
 
-  groups: any[] = [];
-  modules: Module[] = [];
+  allModules: Module[] = [];
+  currentUserModules: Module[] = [];
+
+  // --- Data Maps ---
+  private userNameMap = new Map<string, string>();
+  private userCourseMap = new Map<string, Set<string>>();
+  private allPgUsers: User[] = [];
+  private currentUserCourseCodes = new Set<string>();
 
   userStats: { totalHours: number, numSessions: number } | null = null;
-
-  // Filter object
-  filters = {
-    search: '',
-    module: '',
-    startDate: '',
-    endDate: ''
-  };
-
+  filters = { search: '', module: '', startDate: '' };
   showModal = false;
   modalError: string | null = null;
-
-  // NEW: State for create/edit modal
   isEditMode = false;
   editingSessionId: number | null = null;
-
   newSession = {
-    title: '',
-    start_time: '', // Will be in 'yyyy-MM-ddTHH:mm' format for datetime-local
-    end_time: '',   // Will be in 'yyyy-MM-ddTHH:mm' format for datetime-local
-    status: 'scheduled',
-    location: '',
-    description: '',
-    groupid: 0
+    title: '', start_time: '', end_time: '', status: 'scheduled',
+    location: 'StudyLink', description: '', groupid: ''
   };
+
+  private filterChange$ = new Subject<void>();
+  private filterSubscription: Subscription | null = null;
 
   constructor(
     private sessionsService: SessionsService,
     private authService: AuthService,
     private academicApiService: AcademicApiService,
-    private datePipe: DatePipe // NEW: Inject DatePipe for formatting
+    private datePipe: DatePipe,
+    private findPartnerApiService: FindPartnerApiService,
+    private supabaseUserService: SupabaseUserService,
+    private snackBar: MatSnackBar,
+    private dialog: MatDialog
   ) {}
 
   async ngOnInit(): Promise<void> {
+    this.filterSubscription = this.filterChange$.pipe(debounceTime(400))
+      .subscribe(() => this.applyFiltersToAllTabs());
     try {
       const userResponse = await this.authService.getCurrentUser();
-      if (!userResponse.data?.user?.id) {
-        throw new Error('User not authenticated.');
-      }
+      if (!userResponse.data?.user?.id) throw new Error('User not authenticated.');
       this.currentUserId = userResponse.data.user.id;
       this.loadAllData();
     } catch (error) {
-      console.error('Error loading initial data:', error);
-      this.isLoading$.next(false);
+      console.error('Error loading initial data:', error); this.isLoading$.next(false);
     }
   }
+
+  ngOnDestroy(): void { this.filterSubscription?.unsubscribe(); }
 
   async loadAllData(): Promise<void> {
+    // ... (rest of loadAllData logic remains the same, including forkJoin) ...
     this.isLoading$.next(true);
-    const now = new Date(); // Get the current time once
+    const now = new Date();
 
     forkJoin({
-      upcoming: this.sessionsService.getUpcomingSessions(this.currentUserId),
-      created: this.sessionsService.getMyCreatedSessions(this.currentUserId),
-      past: this.sessionsService.getPastSessions(this.currentUserId),
-      discover: this.sessionsService.getDiscoverSessions(this.currentUserId),
-      statsHours: this.sessionsService.getStudyHours(this.currentUserId),
-      statsCount: this.sessionsService.getSessionCount(this.currentUserId),
-      modules: this.academicApiService.getAllModules()
+      upcoming: this.sessionsService.getUpcomingSessions(this.currentUserId).pipe(catchError(() => of([]))),
+      created: this.sessionsService.getMyCreatedSessions(this.currentUserId).pipe(catchError(() => of([]))),
+      past: this.sessionsService.getPastSessions(this.currentUserId).pipe(catchError(() => of([]))),
+      discover: this.sessionsService.getDiscoverSessions(this.currentUserId).pipe(catchError(() => of([]))),
+      statsHours: this.sessionsService.getStudyHours(this.currentUserId).pipe(catchError(() => of({ userId: this.currentUserId, totalHours: 0, exactHours: 0 }))),
+      statsCount: this.sessionsService.getSessionCount(this.currentUserId).pipe(catchError(() => of({ userId: this.currentUserId, numSessions: 0 }))),
+      allModules: this.academicApiService.getAllModules().pipe(catchError(() => of([]))),
+      allPgUsers: this.findPartnerApiService.getUser().pipe(catchError(() => of([]))),
+      allSupabaseUsers: this.supabaseUserService.getAllUsers(), // Promise
+      allUserCourses: this.findPartnerApiService.getAllUserCourses().pipe(catchError(() => of([]))),
     }).subscribe({
-      next: ({ upcoming, created, past, discover, statsHours, statsCount, modules }) => {
+      next: async (results) => {
+        try {
+          const supabaseUsers = results.allSupabaseUsers || [];
 
-        // --- NEW DISCOVER FILTERING LOGIC ---
-        const createdSessionIds = new Set(created.map(session => session.sessionId));
-        const upcomingSessionIds = new Set(upcoming.map(session => session.sessionId));
+          // 1. Process User & Module Data
+          this.userNameMap.clear();
+          supabaseUsers.forEach((u: any) => {
+            if (u && u.id && (u.user_metadata?.name || u.name)) {
+              this.userNameMap.set(u.id, u.user_metadata?.name || u.name);
+            }
+          });
+          this.allPgUsers = (results.allPgUsers || []) as User[];
+          this.currentUser = this.allPgUsers.find(u => u?.userid === this.currentUserId) || null;
+          this.userCourseMap.clear();
+          (results.allUserCourses || []).forEach((uc: UserCourse) => {
+            if (uc && uc.userid && uc.courseCode) {
+              if (!this.userCourseMap.has(uc.userid)) this.userCourseMap.set(uc.userid, new Set<string>());
+              this.userCourseMap.get(uc.userid)?.add(uc.courseCode);
+            }
+          });
+          this.currentUserCourseCodes = this.userCourseMap.get(this.currentUserId) || new Set<string>();
+          this.allModules = (results.allModules || []) as Module[];
+          this.currentUserModules = this.allModules.filter(m => m && this.currentUserCourseCodes.has(m.courseCode));
 
-        // --- DEBUGGING DISCOVER ---
-        console.log("--- DEBUGGING DISCOVER ---");
-        console.log("Current Time:", now.toISOString());
-        console.log("Created IDs:", createdSessionIds);
-        console.log("Joined IDs:", upcomingSessionIds);
-        console.log("Raw Discover List (before filter):", discover);
-        // --- END DEBUGGING ---
+          // 2. Process Session Data
+          const createdSessionIds = new Set((results.created || []).map(s => s?.sessionId).filter(id => id != null));
+          const upcomingSessionIds = new Set((results.upcoming || []).map(s => s?.sessionId).filter(id => id != null));
+          const filteredDiscover = (results.discover || []).filter((s: any) => {
+            if (!s || !s.startTime || s.sessionId == null) return false;
+            const sessionStartTime = new Date(s.startTime);
+            return !createdSessionIds.has(s.sessionId) && !upcomingSessionIds.has(s.sessionId) && sessionStartTime > now;
+          });
 
-        // --- FIX IS HERE: (session: any) ---
-        // This tells TypeScript to allow us to read session.startTime
-        // (which exists on the raw data) even if it's not in the Session model.
-        const filteredDiscover = discover.filter((session: any) => {
-          // Use the raw camelCase startTime from the API for comparison
-          const sessionStartTime = new Date(session.startTime);
+          // Assign to source arrays
+          this.upcomingSessions_src = this.convertSessionDatesAndAddCount(results.upcoming || []);
+          this.myCreatedSessions_src = this.convertSessionDatesAndAddCount(results.created || []);
+          this.pastSessions_src = this.convertSessionDatesAndAddCount(results.past || []);
+          this.allSessions_src = this.convertSessionDatesAndAddCount(filteredDiscover);
 
-          // Check all 3 rules
-          const notCreated = !createdSessionIds.has(session.sessionId);
-          const notJoined = !upcomingSessionIds.has(session.sessionId);
-          const isFuture = sessionStartTime > now;
-
-          // --- ADD THIS LOGIC ---
-          if (!isFuture) {
-            console.log(`FILTERED (Past): ${session.title} (Start: ${session.startTime})`);
-          } else if (!notJoined) {
-            console.log(`FILTERED (Joined): ${session.title} (ID: ${session.sessionId})`);
-          } else if (!notCreated) {
-            console.log(`FILTERED (Created): ${session.title} (ID: ${session.sessionId})`);
+          // 3. Create Suggestions List
+          this.suggestedSessions_src = [...this.allSessions_src];
+          if (this.currentUser) {
+            this.suggestedSessions_src.sort((a, b) => {
+              if (!a) return 1; if (!b) return -1;
+              try {
+                const scoreB = this.calculateRelevanceScore(b, this.currentUser!);
+                const scoreA = this.calculateRelevanceScore(a, this.currentUser!);
+                if (isNaN(scoreB) || isNaN(scoreA)) return 0;
+                return scoreB - scoreA;
+              } catch (e) { console.error("Sort Error:", e, a, b); return 0; }
+            });
           }
-          // --- END LOGIC ---
 
-          return notCreated && notJoined && isFuture;
-        });
-        // --- END NEW FILTERING LOGIC ---
+          // 4. Finalize
+          this.applyFiltersToAllTabs();
+          this.userStats = {
+            totalHours: results.statsHours?.totalHours ?? 0,
+            numSessions: results.statsCount?.numSessions ?? 0
+          };
+          this.isLoading$.next(false);
 
-        // Now convert all the final, filtered lists for the templates
-        this.upcomingSessions = this.convertSessionDates(upcoming);
-        this.myCreatedSessions = this.convertSessionDates(created);
-        this.pastSessions = this.convertSessionDates(past);
-        this.allSessions = this.convertSessionDates(filteredDiscover); // Assign the new filtered list
-
-        this.userStats = {
-          totalHours: statsHours.totalHours,
-          numSessions: statsCount.numSessions
-        };
-
-        this.modules = modules;
-
-        // --- Console logs ---
-        console.log("--- Sessions Data After Processing ---");
-        console.log("Discover (allSessions):", this.allSessions);
-        console.log("Future (upcomingSessions):", this.upcomingSessions);
-        console.log("My Sessions (myCreatedSessions):", this.myCreatedSessions);
-        console.log("Past (pastSessions):", this.pastSessions);
-        // --- END ---
-
-        this.isLoading$.next(false);
+        } catch (processingError) {
+          console.error("Error processing loaded data:", processingError);
+          this.isLoading$.next(false);
+        }
       },
       error: (err) => {
-        console.error('Failed to load page data', err);
+        console.error('Failed to load page data:', err);
+        this.resetStateOnError();
         this.isLoading$.next(false);
+        // **** NEW: Show snackbar on load error ****
+        this.showSnackbar('Error loading session data. Please refresh the page.', true);
       }
     });
   }
 
-  // NEW: Helper method to convert date strings to Date objects
-  private convertSessionDates(sessions: any[]): Session[] { // Use any[] to handle incoming shape
-    return sessions.map(session => {
+  // UPDATED: convertSessionDates - using placeholder count '1'
+  private convertSessionDatesAndAddCount(sessions: any[]): Session[] {
+    return (sessions || []).map(session => {
+      if (!session || session.sessionId == null) return null;
+      let newStartTime: Date | null = null;
+      if (session.startTime && typeof session.startTime === 'string') {
+        try { const d=new Date(session.startTime); if(!isNaN(d.getTime())) newStartTime=d; else console.warn("Invalid startTime:", session.startTime); } catch(e){ console.error("Err parsing start:", e);}
+      } else if (session.startTime instanceof Date) { newStartTime = session.startTime; }
 
-      // Create Date objects from the camelCase properties
-      const newStartTime = typeof session.startTime === 'string'
-        ? new Date(session.startTime)
-        : session.startTime;
+      let newEndTime: Date | 'infinity' | null = null;
+      if (session.endTime === 'infinity') { newEndTime = 'infinity'; }
+      else if (session.endTime && typeof session.endTime === 'string') {
+        try { const d=new Date(session.endTime); if(!isNaN(d.getTime())) newEndTime=d; else console.warn("Invalid endTime:", session.endTime); } catch(e){ console.error("Err parsing end:", e);}
+      } else if (session.endTime instanceof Date) { newEndTime = session.endTime; }
 
-      const newEndTime = session.endTime === 'infinity'
-        ? 'infinity'
-        : (typeof session.endTime === 'string' ? new Date(session.endTime) : session.endTime);
+      // Placeholder count
+      const participantCount = 1;
 
-      return {
-        ...session,
-
-        // Assign the new Date objects to the snake_case properties
-        // that the HTML template expects.
-        start_time: newStartTime,
-        end_time: newEndTime
-      };
-    }) as Session[];
+      if (newStartTime) {
+        return {
+          sessionId: session.sessionId, title: session.title || '',
+          start_time: newStartTime, end_time: newEndTime,
+          status: session.status || 'unknown', location: session.location || '',
+          description: session.description || '', creatorid: session.creatorid || '',
+          groupid: session.groupid, participantCount: participantCount
+        } as Session;
+      }
+      return null;
+    }).filter(s => s !== null) as Session[];
   }
 
-  // --- Filter Methods ---
-
-  applyFilters(): void {
-    this.isLoading$.next(true);
-    const now = new Date(); // Get current time
-
-    this.sessionsService.getDiscoverSessions(
-      this.currentUserId,
-      this.filters.search,
-      this.filters.startDate ? new Date(this.filters.startDate).toISOString() : undefined,
-      this.filters.endDate ? new Date(this.filters.endDate).toISOString() : undefined
-    ).subscribe(sessions => {
-
-      // --- ROBUST FILTER FIX ---
-      const createdSessionIds = new Set(this.myCreatedSessions.map(s => s.sessionId));
-      const upcomingSessionIds = new Set(this.upcomingSessions.map(s => s.sessionId));
-
-      // --- ADD DEBUG LOGS ---
-      console.log("--- DEBUGGING FILTERS ---");
-      console.log("Current Time:", now.toISOString());
-      console.log("Created IDs:", createdSessionIds);
-      console.log("Joined IDs:", upcomingSessionIds);
-      // --- END DEBUG LOGS ---
-
-      // --- FIX IS HERE: (session: any) ---
-      const filteredSessions = sessions.filter((session: any) => {
-        // Use the raw camelCase startTime from the API for comparison
-        const sessionStartTime = new Date(session.startTime);
-
-        const notCreated = !createdSessionIds.has(session.sessionId);
-        const notJoined = !upcomingSessionIds.has(session.sessionId);
-        const isFuture = sessionStartTime > now;
-
-        // --- ADD THIS LOGIC ---
-        if (!isFuture) {
-          console.log(`FILTERED (Past): ${session.title} (Start: ${session.startTime})`);
-        } else if (!notJoined) {
-          console.log(`FILTERED (Joined): ${session.title}`);
-        } else if (!notCreated) {
-          console.log(`FILTERED (Created): ${session.title}`);
-        }
-        // --- END LOGIC ---
-
-        return notCreated && notJoined && isFuture;
-      });
-
-      this.allSessions = this.convertSessionDates(filteredSessions);
-      // --- END ROBUST FILTER FIX ---
-
-      this.isLoading$.next(false);
+  // --- Filter Logic ---
+  onFilterChange(): void { this.filterChange$.next(); }
+  applyFiltersToAllTabs(): void {
+    this.filteredAllSessions = this.filterSessions(this.allSessions_src);
+    this.filteredUpcomingSessions = this.filterSessions(this.upcomingSessions_src);
+    this.filteredMyCreatedSessions = this.filterSessions(this.myCreatedSessions_src);
+    this.filteredPastSessions = this.filterSessions(this.pastSessions_src);
+    this.filteredSuggestedSessions = this.filterSessions(this.suggestedSessions_src);
+  }
+  private filterSessions(sessions: Session[]): Session[] {
+    if (!Array.isArray(sessions)) return [];
+    return sessions.filter(session => {
+      if (!session || typeof session !== 'object') return false;
+      const searchLower = (this.filters.search || '').toLowerCase();
+      const titleLower = (session.title || '').toLowerCase();
+      const descriptionLower = (session.description || '').toLowerCase();
+      const matchesSearch = !searchLower || titleLower.includes(searchLower) || descriptionLower.includes(searchLower);
+      const creatorCourseSet = this.userCourseMap.get(session.creatorid) || new Set<string>();
+      const matchesModule = !this.filters.module || creatorCourseSet.has(this.filters.module);
+      let matchesDate = true;
+      if (this.filters.startDate) {
+        try { if (session.start_time instanceof Date && !isNaN(session.start_time.getTime())) { const d = new Date(this.filters.startDate); d.setHours(0,0,0,0); matchesDate = session.start_time >= d; } else { matchesDate = false;} }
+        catch(e) { matchesDate = false; console.error("Date filter error:", e); }
+      }
+      return matchesSearch && matchesModule && matchesDate;
     });
   }
-
   clearFilters(): void {
-    this.filters = { search: '', module: '', startDate: '', endDate: '' };
-    this.applyFilters(); // Re-run with no filters
+    this.filters = { search: '', module: '', startDate: '' };
+    this.applyFiltersToAllTabs();
   }
+
+  // --- Relevance & Helper Methods ---
+  calculateRelevanceScore(session: Session, currentUser: User): number {
+    if (!currentUser || !session?.creatorid) return 0; let score = 0;
+    const creator = this.allPgUsers.find(u => u?.userid === session.creatorid); if (!creator) return 0;
+    if (creator.degreeid != null && currentUser.degreeid != null && creator.degreeid === currentUser.degreeid) score += 10;
+    const creatorCourses = this.userCourseMap.get(creator.userid);
+    if (creatorCourses && this.currentUserCourseCodes) {
+      const shared = [...this.currentUserCourseCodes].filter(c => creatorCourses.has(c)).length; score += shared * 2;
+    } return score;
+  }
+  getCreatorName = (userId?: string): string => userId ? this.userNameMap.get(userId) || 'Unknown User' : 'Unknown User';
 
   // --- Modal & Create/Edit Methods ---
-
-  createSession(): void {
-    this.isEditMode = false;
-    this.editingSessionId = null;
-    this.resetForm();
-    this.showModal = true;
-  }
-
-  // NEW: Method to open modal in edit mode
+  createSession(): void { this.isEditMode = false; this.editingSessionId = null; this.resetForm(); this.showModal = true; }
   onEditSession(session: Session): void {
-    if (!session.sessionId) return;
-
-    // --- ADDED RULE ---
-    // Enforce rule: "I can't edit sessions from the past"
-    // We only allow editing if the session is still 'scheduled'.
+    if (!session?.sessionId) return;
     if (session.status !== 'scheduled') {
-      alert("You can only edit sessions that are still scheduled. Past or in-progress sessions cannot be modified.");
-      return;
+      // **** UPDATED: Use snackbar ****
+      this.showSnackbar("Only scheduled sessions can be edited.", true); return;
     }
-    // --- END ADDED RULE ---
-
-    this.isEditMode = true;
-    this.editingSessionId = session.sessionId;
-    this.modalError = null;
-
-    // Format dates for the datetime-local input
+    this.isEditMode = true; this.editingSessionId = session.sessionId; this.modalError = null;
     const format = 'yyyy-MM-ddTHH:mm';
-
-    // Handle 'infinity' string when formatting for the input
-    const endTime = session.end_time === 'infinity'
-      ? ''
-      : this.datePipe.transform(session.end_time, format) || '';
-
+    const start = (session.start_time instanceof Date && !isNaN(session.start_time.getTime())) ? this.datePipe.transform(session.start_time, format) || '' : '';
+    const end = (session.end_time instanceof Date && !isNaN(session.end_time.getTime())) ? this.datePipe.transform(session.end_time, format) || '' : '';
     this.newSession = {
-      title: session.title,
-      // Use DatePipe to format ISO string to datetime-local string
-      start_time: this.datePipe.transform(session.start_time, format) || '',
-      end_time: endTime,
-      status: session.status,
-      location: session.location || '',
-      description: session.description || '',
-      groupid: session.groupid
-    };
-    this.showModal = true;
+      title: session.title || '', start_time: start, end_time: session.end_time === 'infinity' ? '' : end,
+      status: session.status || 'scheduled', location: session.location || 'StudyLink',
+      description: session.description || '', groupid: session.groupid ? String(session.groupid) : ''
+    }; this.showModal = true;
   }
+  cancelSession(): void { this.showModal = false; this.modalError = null; this.isEditMode = false; this.editingSessionId = null; }
+  private resetForm(): void { this.newSession = { title: '', start_time: '', end_time: '', status: 'scheduled', location: 'StudyLink', description: '', groupid: '' }; }
 
-
-  cancelSession(): void {
-    this.showModal = false;
-    this.modalError = null;
-    this.isEditMode = false; // NEW: Reset edit mode
-    this.editingSessionId = null; // NEW: Reset editing ID
-  }
-
-  private resetForm(): void {
-    this.newSession = { title: '', start_time: '', end_time: '', status: 'scheduled', location: '', description: '', groupid: 0 };
-  }
-
-  // UPDATED: This method now handles BOTH create and edit
   async confirmSession(): Promise<void> {
-    if (!this.newSession.title || !this.newSession.start_time) {
-      this.modalError = 'Please fill in all required fields: Title and Start Time.';
-      return;
-    }
+    if (!this.newSession.title || !this.newSession.start_time) { this.modalError = 'Title and Start Time required.'; return; }
+    let startTimeISO: string; let endTimeValue: string | 'infinity';
+    try {
+      startTimeISO = new Date(this.newSession.start_time).toISOString();
+      if(this.newSession.end_time) {
+        const endDate = new Date(this.newSession.end_time);
+        if (endDate <= new Date(this.newSession.start_time)) { this.modalError = 'End time must be after start.'; return; }
+        endTimeValue = endDate.toISOString();
+      } else { endTimeValue = 'infinity'; }
+    } catch (e) { this.modalError = 'Invalid date/time.'; return; }
 
     try {
+      const finalLocation = this.newSession.location || 'StudyLink';
+      const payloadBase = {
+        title: this.newSession.title, description: this.newSession.description || '', location: finalLocation,
+        startTime: startTimeISO, endTime: endTimeValue,
+        groupid: this.newSession.groupid || 0 // Assuming backend wants 0 for general
+      };
+
       if (this.isEditMode && this.editingSessionId) {
-        // --- EDIT MODE ---
-        // Build a payload with the camelCase keys the backend expects
-        // Only include fields that are allowed to be updated
-        const updatePayload = {
-          title: this.newSession.title,
-          description: this.newSession.description,
-          location: this.newSession.location,
-          // Map snake_case from form to camelCase for backend
-          startTime: new Date(this.newSession.start_time).toISOString(),
-          endTime: this.newSession.end_time ? new Date(this.newSession.end_time).toISOString() : 'infinity'
-        };
-
-        console.log("Sending UPDATE payload:", updatePayload);
-        await lastValueFrom(this.sessionsService.updateSession(this.editingSessionId, this.currentUserId, updatePayload));
-        alert('Session updated successfully!');
-
+        const updatePayload = { ...payloadBase };
+        await lastValueFrom(this.sessionsService.updateSession(this.editingSessionId, this.currentUserId, updatePayload as Partial<Session>));
+        // **** UPDATED: Use snackbar ****
+        this.showSnackbar('Session updated successfully!');
       } else {
-        // --- CREATE MODE ---
-        // Build a payload with the camelCase keys the backend expects
-        // Include all fields needed for a new session
-        const createPayload = {
-          title: this.newSession.title,
-          description: this.newSession.description,
-          location: this.newSession.location,
-          status: this.newSession.status,
-          creatorid: this.currentUserId,
-          // Map snake_case from form to camelCase for backend
-          startTime: new Date(this.newSession.start_time).toISOString(),
-          endTime: this.newSession.end_time ? new Date(this.newSession.end_time).toISOString() : 'infinity',
-          groupId: this.newSession.groupid // <-- Map groupid to groupId
-        };
-
-        console.log("Sending CREATE payload:", createPayload);
-        await lastValueFrom(this.sessionsService.createSession(createPayload));
-        alert('Session created successfully!');
+        const createPayload = { ...payloadBase, status: this.newSession.status, creatorid: this.currentUserId };
+        await lastValueFrom(this.sessionsService.createSession(createPayload as Partial<Session>));
+        // **** UPDATED: Use snackbar ****
+        this.showSnackbar('Session created successfully!');
       }
-
-      this.cancelSession();
-      this.loadAllData(); // Refresh all data on success
-
+      this.cancelSession(); this.loadAllData();
     } catch (err: any) {
       console.error('Error saving session:', err);
-      if (err.status === 403) {
-        this.modalError = 'Failed to save: You do not have permission or the session is not in a scheduled state.';
-      } else {
-        // This will catch the 400 error if validation fails again
-        const errorMsg = err.error?.message || 'Failed to save session. Please try again later.';
-        this.modalError = `Failed to save session. Server responded with: "${errorMsg}"`;
-      }
+      let msg = 'Failed to save session.';
+      if (err instanceof HttpErrorResponse) {
+        if (err.status === 403) msg = 'Save failed: Permission denied or session not scheduled.';
+        else if (err.error?.message) msg = `Save failed: ${err.error.message}`;
+        else msg = `HTTP error (${err.status}).`;
+      } else if (err instanceof Error) msg = `Unexpected error: ${err.message}`;
+      this.modalError = msg; // Keep modal error for form issues
+      // **** NEW: Show snackbar for general save errors ****
+      this.showSnackbar(msg, true); // Show error snackbar as well
     }
   }
 
   // --- Session Action Methods ---
-
-  async onJoinSession(sessionId: number): Promise<void> {
+  async onJoinSession(sessionId: number | undefined): Promise<void> {
+    if (sessionId === undefined) return;
     try {
       await lastValueFrom(this.sessionsService.joinSession(sessionId, this.currentUserId));
-      alert('Session joined successfully!');
-      this.activeTab = 'future';
-      this.loadAllData();
+      // **** UPDATED: Use snackbar ****
+      this.showSnackbar('Session joined successfully!');
+      this.activeTab = 'future'; this.loadAllData();
     } catch (error: any) {
-      if (error instanceof HttpErrorResponse) {
-        if (error.status === 409) {
-          alert('Failed to join: This session conflicts with another session you are already in.');
-        } else {
-          alert(`An error occurred: ${error.message}`);
-        }
-      } else {
-        console.error('An unexpected error occurred:', error);
-        alert('An unexpected error occurred. Please try again.');
+      let msg = 'Error joining session.';
+      if (error instanceof HttpErrorResponse && error.status === 409) {
+        msg = 'Failed to join: This session conflicts with another session you are already in.';
+      } else { console.error('Join Error:', error); }
+      // **** UPDATED: Use snackbar ****
+      this.showSnackbar(msg, true);
+    }
+  }
+  onLeaveSession(sessionId: number | undefined): void { // Changed return type, no longer async directly
+    if (sessionId === undefined) return;
+
+    const dialogRef = this.dialog.open(ConfirmDialog, {
+      data: { message: 'Are you sure you want to leave this session?' },
+      width: '350px' // Optional: Set a width
+    });
+
+    dialogRef.afterClosed().pipe(
+      filter(result => result === true) // Only proceed if the user confirmed (clicked 'Yes')
+    ).subscribe(async () => { // Make the inner part async
+      try {
+        await lastValueFrom(this.sessionsService.leaveSession(sessionId, this.currentUserId));
+        this.showSnackbar('You have left the session.');
+        this.loadAllData();
+      } catch (error) {
+        console.error('Leave Error:', error);
+        this.showSnackbar('Error leaving session.', true);
       }
-    }
+    });
   }
-
-  async onLeaveSession(sessionId: number): Promise<void> {
+  onEndSession(sessionId: number | undefined): void { // Changed return type
     if (sessionId === undefined) return;
-    if (!confirm('Are you sure you want to leave this session?')) return;
+
+    const dialogRef = this.dialog.open(ConfirmDialog, {
+      data: { title: 'Confirm End Session', message: 'Are you sure you want to end this session now? This cannot be undone.' },
+      width: '350px'
+    });
+
+    dialogRef.afterClosed().pipe(
+      filter(result => result === true)
+    ).subscribe(async () => {
+      try {
+        await lastValueFrom(this.sessionsService.endSession(sessionId, this.currentUserId));
+        this.showSnackbar('Session has been ended.');
+        this.loadAllData();
+      } catch (error) {
+        console.error('End Error:', error);
+        this.showSnackbar('Error ending session.', true);
+      }
+    });
+  }
+  async onExtendSession(sessionId: number | undefined): Promise<void> {
+    if (sessionId === undefined) return;
+    const defaultTime = this.datePipe.transform(new Date(), 'yyyy-MM-ddTHH:mm') || '';
+    const newTimeStr = prompt('Enter new end time (YYYY-MM-DDTHH:MM):', defaultTime); // Keep prompt for input
+    if (!newTimeStr) return;
     try {
-      await lastValueFrom(this.sessionsService.leaveSession(sessionId, this.currentUserId));
-      alert('You have left the session.');
+      const newTime = new Date(newTimeStr);
+      if (isNaN(newTime.getTime())) throw new Error("Invalid date format");
+      await lastValueFrom(this.sessionsService.extendSession(sessionId, this.currentUserId, newTime.toISOString()));
+      // **** UPDATED: Use snackbar ****
+      this.showSnackbar('Session extended successfully.');
       this.loadAllData();
     } catch (error) {
-      console.error('Error leaving session:', error);
-      alert('Failed to leave session.');
+      console.error('Extend Error:', error);
+      // **** UPDATED: Use snackbar ****
+      this.showSnackbar('Error extending session. Invalid format?', true);
     }
   }
-
-  async onEndSession(sessionId: number): Promise<void> {
+  onDeleteSession(sessionId: number | undefined): void { // Changed return type
     if (sessionId === undefined) return;
-    if (!confirm('Are you sure you want to end this session now? This cannot be undone.')) return;
-    try {
-      await lastValueFrom(this.sessionsService.endSession(sessionId, this.currentUserId));
-      alert('Session has been ended.');
-      this.loadAllData();
-    } catch (error) {
-      console.error('Error ending session:', error);
-      alert('Failed to end session.');
-    }
+
+    const dialogRef = this.dialog.open(ConfirmDialog, {
+      data: { title: 'Confirm Delete', message: 'Are you sure you want to permanently delete this session?' },
+      width: '350px'
+    });
+
+    dialogRef.afterClosed().pipe(
+      filter(result => result === true)
+    ).subscribe(async () => {
+      try {
+        await lastValueFrom(this.sessionsService.deleteSession(sessionId, this.currentUserId));
+        this.showSnackbar('Session deleted successfully.');
+        this.loadAllData();
+      } catch (error) {
+        console.error('Delete Error:', error);
+        this.showSnackbar('Error deleting session.', true);
+      }
+    });
   }
 
-  async onExtendSession(sessionId: number): Promise<void> {
-    if (sessionId === undefined) return;
-    const newTime = prompt('Enter new end time (YYYY-MM-DDTHH:MM):', this.datePipe.transform(new Date(), 'yyyy-MM-ddTHH:mm') || undefined);
-    if (!newTime) return;
-
-    try {
-      await lastValueFrom(this.sessionsService.extendSession(sessionId, this.currentUserId, new Date(newTime).toISOString()));
-      alert('Session extended.');
-      this.loadAllData();
-    } catch (error) {
-      console.error('Error extending session:', error);
-      alert('Failed to extend session.');
-    }
-  }
-
-  async onDeleteSession(sessionId: number): Promise<void> {
-    if (sessionId === undefined) return;
-    if (!confirm('Are you sure you want to permanently delete this session?')) return;
-    try {
-      await lastValueFrom(this.sessionsService.deleteSession(sessionId, this.currentUserId));
-      alert('Session deleted.');
-      this.loadAllData();
-    } catch (error) {
-      console.error('Error deleting session:', error);
-      alert('Failed to delete session.');
-    }
-  }
-
-  // --- Helper & Utility Methods ---
-
+  // --- Helper Methods ---
   scheduleAgain(pastSession: Session): void {
-    this.resetForm();
-    this.newSession = {
-      title: `Copy of: ${pastSession.title}`,
-      groupid: pastSession.groupid,
-      description: pastSession.description ?? '',
-      location: pastSession.location ?? '',
-      status: 'scheduled',
-      start_time: '',
-      end_time: ''
-    };
-    this.isEditMode = false; // Ensure it's in create mode
-    this.editingSessionId = null;
-    this.showModal = true;
+    if (!pastSession) return; this.resetForm();
+    this.newSession = { ...this.newSession, title: `Copy of: ${pastSession.title || 'Session'}`, groupid: pastSession.groupid ? String(pastSession.groupid) : '', description: pastSession.description ?? '', status: 'scheduled', start_time: '', end_time: '' };
+    this.isEditMode = false; this.editingSessionId = null; this.showModal = true;
   }
-
-  isOnline(session: Session): boolean {
-    return !!session.location?.startsWith('http');
-  }
-
-  isCreator(session: Session): boolean {
-    return session.creatorid === this.currentUserId;
-  }
-
-  getDirections(session: Session): void { console.log('Getting directions for:', session.title); }
+  isOnline(session: Session | null | undefined): boolean { return !!session?.location?.startsWith('http') || session?.location === 'StudyLink'; }
+  isCreator(session: Session | null | undefined): boolean { return !!session && session.creatorid === this.currentUserId; }
   joinOnline(session: Session): void {
-    if (session.location) {
-      window.open(session.location, '_blank');
-    }
+    if (session?.location?.startsWith('http')) { window.open(session.location, '_blank'); }
+    else if (session?.location === 'StudyLink' && session.sessionId) { console.log('Join internal:', session.sessionId); this.showSnackbar(`Navigating to StudyLink session ${session.sessionId}... (TODO)`); } // Use snackbar
+    else { console.warn('Invalid location:', session?.location); this.showSnackbar('Cannot join this session online.', true); } // Use snackbar
   }
-  viewDetails(session: Session): void { console.log('Viewing details for:', session.title); }
-  viewSummary(pastSession: Session): void { console.log('Viewing summary for:', pastSession.title); }
+  getDirections(session: Session): void { console.log('Directions for:', session?.title); }
+  viewDetails(session: Session): void { console.log('Details for:', session?.title); }
+  viewSummary(pastSession: Session): void { console.log('Summary for:', pastSession?.title); }
+
+  private showSnackbar(message: string, isError: boolean = false): void {
+    this.snackBar.open(message, 'Dismiss', {
+      duration: 3000, // Duration in milliseconds
+      panelClass: isError ? ['snackbar-error'] : ['snackbar-success'],
+      verticalPosition: 'top', // Or 'bottom'
+      horizontalPosition: 'center' // Or 'start', 'end'
+    });
+  }
+
+  private resetStateOnError(): void {
+    this.allSessions_src = []; this.upcomingSessions_src = []; this.myCreatedSessions_src = []; this.pastSessions_src = []; this.suggestedSessions_src = []; this.currentUserModules = []; this.userNameMap.clear(); this.userCourseMap.clear(); this.allPgUsers = []; this.currentUser = null; this.userStats = null; this.applyFiltersToAllTabs();
+  }
 }
