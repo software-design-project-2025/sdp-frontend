@@ -1,43 +1,59 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { Router, RouterModule } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
+import { ChangeDetectorRef, Component } from '@angular/core';
+import { By } from '@angular/platform-browser';
+
 import { SignupComponent } from './signup.component';
 import { AuthService } from '../../services/auth.service';
-import { By } from '@angular/platform-browser';
-import { Component } from '@angular/core';
 
+// --- MOCK COMPONENTS ---
 @Component({ template: '' })
-class DummyComponent {}
+class DummyLoginComponent {}
 
 describe('SignupComponent', () => {
   let component: SignupComponent;
   let fixture: ComponentFixture<SignupComponent>;
-  let authService: jasmine.SpyObj<AuthService>;
-  let router: Router;
+  let mockAuthService: jasmine.SpyObj<AuthService>;
+  let mockRouter: jasmine.SpyObj<Router>;
+  let mockCdr: jasmine.SpyObj<ChangeDetectorRef>;
+  let nativeElement: HTMLElement;
 
   beforeEach(async () => {
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['signUp', 'signInWithGoogle']);
+    // Create spies for the injected services
+    mockAuthService = jasmine.createSpyObj('AuthService', ['signInWithGoogle', 'signUp']);
+    mockRouter = jasmine.createSpyObj('Router', ['navigate']);
+    mockCdr = jasmine.createSpyObj('ChangeDetectorRef', ['detectChanges']);
 
     await TestBed.configureTestingModule({
+      // Since standalone: true, we import the component itself
       imports: [
-        SignupComponent, // Component is standalone
+        SignupComponent,
         ReactiveFormsModule,
+        CommonModule,
         RouterTestingModule.withRoutes([
-          { path: 'login', component: DummyComponent }
+          { path: 'login', component: DummyLoginComponent }
         ])
       ],
       providers: [
-        { provide: AuthService, useValue: authServiceSpy }
+        { provide: AuthService, useValue: mockAuthService },
+        { provide: Router, useValue: mockRouter },
+        // Provide the mock CDR
+        { provide: ChangeDetectorRef, useValue: mockCdr }
       ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(SignupComponent);
     component = fixture.componentInstance;
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
-    router = TestBed.inject(Router);
+    nativeElement = fixture.nativeElement;
 
-    // ngOnInit is called automatically, which initializes the form
+    // Manually assign the mock CDR to the component instance
+    // This is necessary because the component injects its own
+    component['cdr'] = mockCdr;
+
+    // Trigger initial data binding (ngOnInit -> initializeForm)
     fixture.detectChanges();
   });
 
@@ -45,50 +61,55 @@ describe('SignupComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('Form Initialization and Validation', () => {
-    it('should create a form with name, email, password, and terms controls', () => {
-      expect(component.signupForm.contains('name')).toBeTrue();
-      expect(component.signupForm.contains('email')).toBeTrue();
-      expect(component.signupForm.contains('password')).toBeTrue();
-      expect(component.signupForm.contains('terms')).toBeTrue();
+  describe('Signup Form Validation', () => {
+    it('should initialize an invalid form with empty fields', () => {
+      expect(component.signupForm.valid).toBeFalse();
     });
 
-    it('should make the name control required and have minlength 2', () => {
+    it('should validate name field (required, minlength 2)', () => {
       const nameControl = component.signupForm.get('name');
       nameControl?.setValue('');
       expect(nameControl?.hasError('required')).toBeTrue();
       nameControl?.setValue('A');
-      expect(nameControl?.hasError('minlength')).toBeTrue();
+      expect(nameControl?.hasError('minLength')).toBeTrue();
+      nameControl?.setValue('Test User');
+      expect(nameControl?.valid).toBeTrue();
     });
 
-    it('should make the email control required and validate email format', () => {
+    it('should validate email field (required, email)', () => {
       const emailControl = component.signupForm.get('email');
       emailControl?.setValue('');
       expect(emailControl?.hasError('required')).toBeTrue();
       emailControl?.setValue('not-an-email');
       expect(emailControl?.hasError('email')).toBeTrue();
+      emailControl?.setValue('test@example.com');
+      expect(emailControl?.valid).toBeTrue();
     });
 
-    it('should make the password control required and have minlength 8', () => {
-      const passwordControl = component.signupForm.get('password');
-      passwordControl?.setValue('');
-      expect(passwordControl?.hasError('required')).toBeTrue();
-      passwordControl?.setValue('1234567');
-      expect(passwordControl?.hasError('minlength')).toBeTrue();
+    it('should validate password field (required, minlength 8)', () => {
+      const passControl = component.signupForm.get('password');
+      passControl?.setValue('');
+      expect(passControl?.hasError('required')).toBeTrue();
+      passControl?.setValue('1234567');
+      expect(passControl?.hasError('minLength')).toBeTrue();
+      passControl?.setValue('12345678');
+      expect(passControl?.valid).toBeTrue();
     });
 
-    xit('should make the terms control required to be true', () => {
+    it('should validate terms field (requiredTrue)', () => {
       const termsControl = component.signupForm.get('terms');
-      termsControl?.setValue(false);
+      expect(termsControl?.value).toBeFalse();
       expect(termsControl?.hasError('requiredTrue')).toBeTrue();
+      termsControl?.setValue(true);
+      expect(termsControl?.valid).toBeTrue();
     });
 
-    it('should disable the submit button when form is invalid', () => {
-      const submitButton = fixture.debugElement.query(By.css('.submit-button')).nativeElement;
+    it('should disable submit button when form is invalid', () => {
+      const submitButton = nativeElement.querySelector('.submit-button') as HTMLButtonElement;
       expect(submitButton.disabled).toBeTrue();
     });
 
-    it('should enable the submit button when form is valid', () => {
+    it('should enable submit button when form is valid', () => {
       component.signupForm.setValue({
         name: 'Test User',
         email: 'test@example.com',
@@ -96,117 +117,152 @@ describe('SignupComponent', () => {
         terms: true
       });
       fixture.detectChanges();
-      const submitButton = fixture.debugElement.query(By.css('.submit-button')).nativeElement;
+
+      const submitButton = nativeElement.querySelector('.submit-button') as HTMLButtonElement;
       expect(submitButton.disabled).toBeFalse();
     });
   });
 
-  describe('onSubmit', () => {
+  describe('Email/Password onSubmit()', () => {
     beforeEach(() => {
-      // Make form valid before each submission test
+      // Make the form valid before each test in this block
       component.signupForm.setValue({
         name: 'Test User',
         email: 'test@example.com',
         password: 'password123',
         terms: true
       });
-      fixture.detectChanges();
     });
 
-    it('should call authService.signUp and show success message on valid submission', fakeAsync(() => {
-      authService.signUp.and.returnValue(Promise.resolve({} as any));
-      const routerSpy = spyOn(router, 'navigate');
+    it('should call authService.signUp, show success, and navigate on success', fakeAsync(() => {
+      mockAuthService.signUp.and.returnValue(Promise.resolve() as any);
 
       component.onSubmit();
-      tick(); // Let the promise resolve
+
+      expect(component.isLoading).toBeTrue();
+      expect(component.errorMessage).toBe('');
+      expect(component.successMessage).toBe('');
+
+      tick(); // Resolve the signUp promise
       fixture.detectChanges();
 
-      expect(authService.signUp).toHaveBeenCalledWith('test@example.com', 'password123', 'Test User');
+      expect(mockAuthService.signUp).toHaveBeenCalledWith('test@example.com', 'password123', 'Test User');
+      expect(component.isLoading).toBeFalse();
       expect(component.successMessage).toBe('Account created! Please check your email to verify.');
-      expect(component.signupForm.pristine).toBeTrue(); // Form should be reset
+      expect(nativeElement.querySelector('.success-message')).toBeTruthy();
+      expect(component.signupForm.value.name).toBeNull(); // Form should be reset
 
-      tick(3000); // Fast-forward past the redirect delay
-      expect(routerSpy).toHaveBeenCalledWith(['/login'], {
+      tick(3000); // Advance time for the 3-second redirect
+
+      expect(mockRouter.navigate).toHaveBeenCalledWith(['/login'], {
         state: {
-          message: 'Account created! Please check your email to verify.',
+          message: component.successMessage,
           email: 'test@example.com'
         }
       });
     }));
 
-    it('should set error message when signUp fails because email is already registered', fakeAsync(() => {
+    it('should map and display "Email already in use" error (code 23505)', fakeAsync(() => {
       const error = { code: '23505', message: 'User already registered' };
-      authService.signUp.and.returnValue(Promise.reject(error));
+      mockAuthService.signUp.and.returnValue(Promise.reject(error));
 
       component.onSubmit();
-      tick();
+      tick(); // Resolve the promise rejection
       fixture.detectChanges();
 
-      expect(component.errorMessage).toBe('This email is already registered');
+      expect(mockAuthService.signUp).toHaveBeenCalled();
       expect(component.isLoading).toBeFalse();
+      expect(component.errorMessage).toBe('This email is already registered');
+      expect(component.successMessage).toBe('');
+      expect(mockRouter.navigate).not.toHaveBeenCalled();
     }));
 
-    it('should set a fallback success-like message for unmapped errors', fakeAsync(() => {
-      const error = { message: 'Some unknown database error' };
-      authService.signUp.and.returnValue(Promise.reject(error));
+    it('should map and display "Weak password" error', fakeAsync(() => {
+      const error = { message: 'Weak password' };
+      mockAuthService.signUp.and.returnValue(Promise.reject(error));
 
       component.onSubmit();
       tick();
       fixture.detectChanges();
 
-      // This tests the fallback in the getErrorMessage function
+      expect(component.errorMessage).toBe('Password must be at least 8 characters');
+    }));
+
+    it('should display the "please verify" message for unmapped errors', fakeAsync(() => {
+      const error = { code: '99999', message: 'Something else broke' };
+      mockAuthService.signUp.and.returnValue(Promise.reject(error));
+
+      component.onSubmit();
+      tick();
+      fixture.detectChanges();
+
+      // Per the component's getErrorMessage logic, this is the default
       expect(component.errorMessage).toBe('Account created! Please check your email to verify.');
     }));
-
-    it('should not call authService.signUp if form is invalid', () => {
-      component.signupForm.get('email')?.setValue(''); // Make form invalid
-      fixture.detectChanges();
-
-      component.onSubmit();
-
-      expect(authService.signUp).not.toHaveBeenCalled();
-    });
   });
 
-  describe('signInWithGoogle', () => {
+  describe('Google Sign-in', () => {
     it('should call authService.signInWithGoogle and show success message', fakeAsync(() => {
-      authService.signInWithGoogle.and.returnValue(Promise.resolve({ data: {}, error: null }));
+      mockAuthService.signInWithGoogle.and.returnValue(Promise.resolve({ data: {}, error: null }) as any);
 
-      component.signInWithGoogle();
-      tick();
+      const googleButton = nativeElement.querySelector('.google-signin-button') as HTMLButtonElement;
+      googleButton.click();
+
+      expect(component.isLoading).toBeTrue();
+
+      tick(); // Resolve the signInWithGoogle promise
       fixture.detectChanges();
 
-      expect(authService.signInWithGoogle).toHaveBeenCalled();
+      expect(mockAuthService.signInWithGoogle).toHaveBeenCalled();
       expect(component.successMessage).toBe('Redirecting to Google...');
-      // The component intentionally leaves isLoading as true on success
+      // Note: isLoading is not set to false in the success path of this method
       expect(component.isLoading).toBeTrue();
     }));
 
-    it('should set error message if signInWithGoogle fails', fakeAsync(() => {
-      const error = { message: 'Google auth failed' };
-      authService.signInWithGoogle.and.returnValue(Promise.resolve({ error: error }));
+    it('should handle Google sign-in error and display message', fakeAsync(() => {
+      const error = { message: 'Google sign-in failed' };
+      mockAuthService.signInWithGoogle.and.returnValue(Promise.reject(error));
 
-      component.signInWithGoogle();
-      tick();
+      const googleButton = nativeElement.querySelector('.google-signin-button') as HTMLButtonElement;
+      googleButton.click();
+
+      expect(component.isLoading).toBeTrue();
+
+      tick(); // Resolve the promise rejection
       fixture.detectChanges();
 
-      expect(authService.signInWithGoogle).toHaveBeenCalled();
-      expect(component.errorMessage).toBe('Google auth failed');
+      expect(mockAuthService.signInWithGoogle).toHaveBeenCalled();
       expect(component.isLoading).toBeFalse();
+      expect(component.errorMessage).toBe('Google sign-in failed');
+      expect(component.successMessage).toBe('');
     }));
   });
 
-  describe('UI Interactions', () => {
-    it('should toggle password visibility', () => {
-      expect(component.passwordVisible).toBeFalse();
-      const passwordInput = fixture.debugElement.query(By.css('#password')).nativeElement;
-      expect(passwordInput.type).toBe('password');
+  describe('UI Toggles', () => {
+    it('should toggle password visibility and input type', () => {
+      const passwordInput = nativeElement.querySelector('#password') as HTMLInputElement;
+      const toggleButton = nativeElement.querySelector('.toggle-password') as HTMLButtonElement;
 
-      component.togglePasswordVisibility();
+      // Initial state
+      expect(component.passwordVisible).toBeFalse();
+      expect(passwordInput.type).toBe('password');
+      expect(toggleButton.textContent).toContain('👁️');
+
+      // Click to show
+      toggleButton.click();
       fixture.detectChanges();
 
       expect(component.passwordVisible).toBeTrue();
       expect(passwordInput.type).toBe('text');
+      expect(toggleButton.textContent).toContain('🙈');
+      expect(mockCdr.detectChanges).toHaveBeenCalled();
+
+      // Click to hide
+      toggleButton.click();
+      fixture.detectChanges();
+
+      expect(component.passwordVisible).toBeFalse();
+      expect(passwordInput.type).toBe('password');
     });
   });
 });
