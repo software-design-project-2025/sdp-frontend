@@ -7,161 +7,302 @@
     <section class="search-section">
       <form [formGroup]="searchForm" class="search-form">
         <label for="search-input" class="sr-only">Search conversations</label>
-        <input
+        <input 
           id="search-input"
-          type="search"
-          placeholder="Search conversations..."
+          type="search" 
+          placeholder="Search conversations..." 
           class="search-input"
           formControlName="searchTerm"
           aria-label="Search conversations">
       </form>
     </section>
 
-    @if (!(loading$ | async)) {
-      <nav class="conversations-nav" aria-label="Conversations">
-        <ul class="conversations-list">
-          @for (conversation of filteredConversations; track trackByConversationId) {
-            <li class="conversation-item" [class.active]="activeConversation?.id === conversation.id">
-              <article
-                class="conversation-card"
-                (click)="setActiveConversation(conversation)"
-                (keydown.enter)="setActiveConversation(conversation)"
-                tabindex="0"
-                [attr.aria-label]="getConversationAriaLabel(conversation)"
-                [attr.aria-current]="activeConversation?.id === conversation.id">
-
-                <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(conversation)">
-                  @if (conversation.participant.profile_picture && !isImageLoadingError(conversation)) {
-                    <img
-                      [src]="conversation.participant.profile_picture"
-                      [alt]="conversation.participant.name + ' profile picture'"
-                      class="profile-avatar-image"
-                      (error)="handleImageError($event, conversation)">
-                  } @else {
-                    <abbr class="avatar-initials" [title]="conversation.participant.name">
-                      {{ conversation.participant.name ? conversation.participant.name.charAt(0).toUpperCase() : 'U' }}
-                    </abbr>
-                  }
-                </figure>
-
-                <section class="conversation-content">
-                  <header class="conversation-header">
-                    <h3>{{ conversation.participant.name || 'Unknown User' }}</h3>
-                    @if (conversation.timestamp) {
-                      <time [attr.datetime]="conversation.timestamp.toISOString()">
-                        {{ formatTime(conversation.timestamp) }}
-                      </time>
-                    }
-                    @if (conversation.unreadCount > 0) {
-                      <output class="message-count" [attr.aria-label]="conversation.unreadCount + ' unread messages'">
-                        {{ conversation.unreadCount }}
-                      </output>
-                    }
-                  </header>
-                  <p class="last-message">
-                    {{ conversation.lastMessage || 'Start a conversation' }}
-                  </p>
-                </section>
-              </article>
-            </li>
-          }
-        </ul>
-        @if (filteredConversations.length === 0) {
-          <p class="no-conversations">No conversations found</p>
-        }
-      </nav>
-    } @else {
+    <nav 
+      *ngIf="!(loading | async); else conversationsLoading" 
+      class="conversations-nav" 
+      aria-label="Conversations">
+      <ul class="conversations-list">
+        <li 
+          *ngFor="let conversation of filteredConversations; trackBy: trackByConversationId" 
+          class="conversation-item"
+          [class.active]="activeConversation?.id === conversation.id">
+          <article 
+            class="conversation-card" 
+            (click)="setActiveConversation(conversation)"
+            (keydown.enter)="setActiveConversation(conversation)"
+            (keydown.space)="setActiveConversation(conversation)"
+            tabindex="0"
+            [attr.aria-label]="getConversationAriaLabel(conversation)"
+            [attr.aria-current]="activeConversation?.id === conversation.id ? 'true' : null">
+            
+            <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(conversation)">
+              @if (!isGroupConversation(conversation) && 
+                   conversation.participant.profile_picture && 
+                   conversation.participant.profile_picture !== 'placeholder' &&
+                   !isImageLoadingError(conversation)) {
+                <img 
+                  [src]="conversation.participant.profile_picture" 
+                  [alt]="conversation.participant.name + ' profile picture'"
+                  class="profile-avatar-image"
+                  (load)="onImageLoad($event)"
+                  (error)="handleImageError($event, conversation)">
+              }
+              
+              <abbr 
+                class="avatar-initials" 
+                [class.hidden]="!isGroupConversation(conversation) && 
+                              conversation.participant.profile_picture && 
+                              conversation.participant.profile_picture !== 'placeholder' &&
+                              !isImageLoadingError(conversation)"
+                [title]="getConversationDisplayName(conversation)"
+                [attr.aria-label]="getAvatarAriaLabel(conversation)">
+                {{ getAvatarInitials(conversation) }}
+              </abbr>
+              
+              <output *ngIf="isGroupConversation(conversation)" class="group-badge" aria-label="Group conversation">
+                👥
+              </output>
+            </figure>
+                        
+            <section class="conversation-content">
+              <header class="conversation-header">
+                <h3>{{ getConversationDisplayName(conversation) }}</h3>
+                <time *ngIf="conversation.timestamp" [attr.datetime]="conversation.timestamp?.toISOString()">
+                  {{ conversation.timestamp ? formatTime(conversation.timestamp) : '' }}
+                </time>
+                <output 
+                  *ngIf="conversation.unreadCount > 0" 
+                  class="message-count"
+                  [attr.aria-label]="conversation.unreadCount + ' unread messages'">
+                  {{ conversation.unreadCount }}
+                </output>
+              </header>
+              <p class="last-message">
+                {{ conversation.lastMessage || 'Start a conversation' }}
+              </p>
+            </section>
+          </article>
+        </li>
+      </ul>
+      
+      <p *ngIf="filteredConversations.length === 0" class="no-conversations">
+        No conversations found
+      </p>
+    </nav>
+    
+    <ng-template #conversationsLoading>
       <nav class="conversations-nav conversations-loading" aria-label="Conversations loading">
         <ul class="conversations-list">
-          @for (item of [1,2,3,4,5]; track trackByIndex) {
-            <li class="conversation-item">
-              <article class="conversation-card" tabindex="-1" aria-hidden="true">
-                <figure class="avatar skeleton skeleton-avatar"><abbr class="avatar-initials"></abbr></figure>
-                <section class="conversation-content">
-                  <header class="conversation-header">
-                    <h3 class="skeleton skeleton-text skeleton-text-medium"></h3>
-                    <time class="skeleton skeleton-text skeleton-text-short"></time>
-                  </header>
-                  <p class="last-message skeleton skeleton-text skeleton-text-long"></p>
-                </section>
-              </article>
-            </li>
-          }
+          <li *ngFor="let item of [1,2,3,4,5]" class="conversation-item">
+            <article class="conversation-card" tabindex="0" aria-hidden="true">
+              <figure class="avatar skeleton skeleton-avatar">
+                <abbr class="avatar-initials"> </abbr>
+              </figure>
+              
+              <section class="conversation-content">
+                <header class="conversation-header">
+                  <h3 class="skeleton skeleton-text skeleton-text-medium">Loading username</h3>
+                  <time class="skeleton skeleton-text skeleton-text-short">00:00</time>
+                </header>
+                <p class="last-message skeleton skeleton-text skeleton-text-long">Loading last message content</p>
+              </section>
+            </article>
+          </li>
         </ul>
       </nav>
-    }
+    </ng-template>
   </aside>
 
-  @if (activeConversation) {
-    <section class="chat-main">
-      <header class="chat-header" [class.chat-header-loading]="messagesLoading$ | async">
-        <section class="contact-info">
-          <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
-            @if (activeConversation.participant.profile_picture && !isImageLoadingError(activeConversation)) {
-              <img
-                [src]="activeConversation.participant.profile_picture"
-                [alt]="activeConversation.participant.name + ' profile picture'"
-                class="profile-avatar-image"
-                (error)="handleImageError($event, activeConversation)">
-            } @else {
-              <abbr class="avatar-initials" [title]="activeConversation.participant.name">
-                {{ activeConversation.participant.name ? activeConversation.participant.name.charAt(0).toUpperCase() : 'U' }}
-              </abbr>
-            }
-          </figure>
-          <section class="contact-details">
-            <h2>{{ activeConversation.participant.name || 'Unknown User' }}</h2>
-          </section>
+  <section class="chat-main" 
+    *ngIf="activeConversation; else noConversationSelected"
+    (drop)="onDrop($event)"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)">
+    <header class="chat-header" [class.chat-header-loading]="messagesLoading | async">
+      <section class="contact-info">
+        <figure class="avatar" [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
+          @if (!isGroupConversation(activeConversation) && 
+               activeConversation.participant.profile_picture && 
+               activeConversation.participant.profile_picture !== 'placeholder' &&
+               !isImageLoadingError(activeConversation)) {
+            <img 
+              [src]="activeConversation.participant.profile_picture" 
+              [alt]="activeConversation.participant.name + ' profile picture'"
+              class="profile-avatar-image"
+              (load)="onImageLoad($event)"
+              (error)="handleImageError($event, activeConversation)">
+          }
+          
+          <abbr 
+            class="avatar-initials" 
+            [class.hidden]="!isGroupConversation(activeConversation) && 
+                          activeConversation.participant.profile_picture && 
+                          activeConversation.participant.profile_picture !== 'placeholder' &&
+                          !isImageLoadingError(activeConversation)"
+            [title]="getConversationDisplayName(activeConversation)"
+            [attr.aria-label]="getAvatarAriaLabel(activeConversation)">
+            {{ getAvatarInitials(activeConversation) }}
+          </abbr>
+          
+          <output *ngIf="isGroupConversation(activeConversation)" class="group-badge" aria-label="Group conversation">
+            👥
+          </output>
+        </figure>
+        <section class="contact-details">
+          <h2>{{ getConversationDisplayName(activeConversation) }}</h2>
+          <p *ngIf="isGroupConversation(activeConversation)" class="group-info">
+            Group • {{ activeConversation.participants.length }} members
+          </p>
+          <p *ngIf="!isGroupConversation(activeConversation)" class="status">
+            
+          </p>
         </section>
-      </header>
-
-      <section #messagesContainer class="messages-container" [class.messages-loading]="messagesLoading$ | async" aria-live="polite">
-        @if (messagesLoading$ | async) {
-          <div class="message-container">
-            @for (item of [1,2,3,4,5]; track trackByIndex) {
-              <article class="message" [class.sent]="item % 2 === 0" [class.received]="item % 2 !== 0" aria-hidden="true">
-                <p [class]="item % 2 === 0 ? 'skeleton skeleton-message sent' : 'skeleton skeleton-message received'"></p>
-                <time class="skeleton skeleton-text skeleton-text-short"></time>
-              </article>
-            }
-          </div>
-        } @else {
-          @for (message of activeConversation.messages; track trackByMessageId) {
-            <article class="message" [class.sent]="message.type === 'sent'" [class.received]="message.type === 'received'" [attr.aria-label]="getMessageAriaLabel(message)">
-              @if (message.document) {
-                <div class="document-message" (click)="downloadDocument(message.document)" tabindex="0" (keydown.enter)="downloadDocument(message.document)">
-                  <div class="doc-icon" aria-hidden="true">📄</div>
-                  <div class="doc-info">
-                    <span class="doc-filename">{{ message.document.originalFilename }}</span>
-                    <span class="doc-action">Click to download</span>
-                  </div>
-                  @if (message.document.downloading) {
-                    <div class="doc-spinner"></div>
-                  }
-                </div>
-              } @else {
-                <p>{{ message.content }}</p>
-              }
-              <time [attr.datetime]="message.timestamp.toISOString()">{{ formatTime(message.timestamp) }}</time>
-            </article>
-          }
-
-          @if (activeConversation.messages.length === 0) {
-            <p class="no-messages">No messages yet. Start the conversation!</p>
-          }
-        }
       </section>
+    </header>
 
-      <footer class="message-input-section" [class.message-input-loading]="messagesLoading$ | async">
-        <form [formGroup]="messageForm" (ngSubmit)="sendMessage()" class="message-form" aria-label="Send message">
-          <input #fileInput type="file" (change)="onFileSelectedAndUpload($event)" style="display: none;">
-          <input id="message-input" type="text" placeholder="Type a message..." class="message-input" formControlName="message" aria-required="true">
-          <button type="button" class="attach-button" (click)="triggerFileUpload()" aria-label="Attach a document">📎</button>
-          <button type="submit" class="send-button" aria-label="Send message" [disabled]="messageForm.invalid || (messagesLoading$ | async)">➤</button>
-        </form>
-      </footer>
+    <section 
+      #messagesContainer
+      class="messages-container" 
+      [class.messages-loading]="messagesLoading | async"
+      [class.group-messages]="isGroupConversation(activeConversation)"
+      aria-label="Chat messages">
+      
+      <article *ngIf="(messagesLoading | async); else loadedMessages" class="message-container">
+        <article *ngFor="let item of [1,2,3,4,5,6,7]" 
+                class="message"
+                [class.sent]="item % 2 === 0"
+                [class.received]="item % 2 === 1"
+                aria-hidden="true">
+          
+          <p [class]="item % 2 === 0 ? 'skeleton skeleton-message sent' : 'skeleton skeleton-message received'">
+            {{ item % 2 === 0 ? 'Sent message content' : 'Received message content' }}
+          </p>
+          <time class="skeleton skeleton-text skeleton-text-short">00:00</time>
+        </article>
+      </article>
+      
+      <ng-template #loadedMessages>
+        <ng-container *ngIf="isGroupConversation(activeConversation)">
+          <article 
+            *ngFor="let message of activeConversation.messages; trackBy: trackByMessageId" 
+            class="group-message"
+            [class.sent]="message.type === 'sent'"
+            [class.received]="message.type === 'received'"
+            [attr.aria-label]="getMessageAriaLabel(message)">
+            
+            <section class="message-content">
+              <header class="message-sender">
+                {{ message.type === 'sent' ? 'You' : (message.sender?.name || 'Unknown') }}
+              </header>
+
+              <ng-container *ngIf="message.document as doc; else groupTextMessage">
+                <button 
+                  type="button" 
+                  class="message-body message-document"
+                  (click)="downloadDocument(doc)"
+                  [disabled]="doc.downloading"
+                  [attr.aria-label]="'Download ' + doc.originalFilename">
+                  <i class="doc-icon">📄</i>
+                  <i class="doc-name">{{ doc.originalFilename }}</i>
+                  <i *ngIf="doc.downloading" class="download-spinner" aria-label="downloading"></i>
+                </button>
+              </ng-container>
+              <ng-template #groupTextMessage>
+                <p class="message-body">{{ message.content }}</p>
+              </ng-template>
+
+              <time [attr.datetime]="message.timestamp.toISOString()">
+                {{ formatTime(message.timestamp) }}
+              </time>
+            </section>
+          </article>
+        </ng-container>
+        
+        <ng-container *ngIf="!isGroupConversation(activeConversation)">
+          <article 
+            *ngFor="let message of activeConversation.messages; trackBy: trackByMessageId" 
+            class="message"
+            [class.sent]="message.type === 'sent'"
+            [class.received]="message.type === 'received'"
+            [attr.aria-label]="getMessageAriaLabel(message)">
+            
+              <ng-container *ngIf="message.document as doc; else textMessage">
+                <button 
+                  type="button" 
+                  class="message-body message-document"
+                  (click)="downloadDocument(doc)"
+                  [disabled]="doc.downloading"
+                  [attr.aria-label]="'Download ' + doc.originalFilename">
+                  <i class="doc-icon">📄</i>
+                  <i class="doc-name">{{ doc.originalFilename }}</i>
+                  <i *ngIf="doc.downloading" class="download-spinner" aria-label="downloading"></i>
+                </button>
+              </ng-container>
+              <ng-template #textMessage>
+                <p class="message-body">{{ message.content }}</p>
+              </ng-template>
+
+            <time [attr.datetime]="message.timestamp.toISOString()">
+              {{ formatTime(message.timestamp) }}
+            </time>
+          </article>
+        </ng-container>
+        
+        <p *ngIf="activeConversation.messages.length === 0" class="no-messages">
+          No messages yet. Start the conversation!
+        </p>
+      </ng-template>
     </section>
-  } @else {
+
+    <footer class="message-input-section" [class.message-input-loading]="messagesLoading | async">
+    <input 
+      type="file"
+      #fileInput
+      (change)="onFileSelectedAndUpload($event)"
+      class="sr-only"
+      aria-hidden="true"
+      tabindex="-1"
+      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
+      <button
+      type="button"
+      class="attach-button"
+      (click)="triggerFileUpload()"
+      [disabled]="(messagesLoading | async) || !activeConversation"
+      aria-label="Attach a file">
+      📎
+    </button>     
+      
+     <form 
+        [formGroup]="messageForm" 
+        (ngSubmit)="isGroupConversation(activeConversation) ? sendGroupMessage() : sendMessage()" 
+        class="message-form"
+        aria-label="Send message">
+        <label for="message-input" class="sr-only">Type your message</label>
+        <input 
+          id="message-input"
+          type="text" 
+          placeholder="Type a message..." 
+          class="message-input"
+          formControlName="message"
+          aria-required="true">
+        <button 
+          type="submit" 
+          class="send-button" 
+          aria-label="Send message"
+          [disabled]="messageForm.invalid || (messagesLoading | async)">
+          ➤
+        </button>
+      </form>
+    </footer>
+
+    <figure *ngIf="isDragging" class="drop-zone-overlay">
+      <figcaption class="drop-zone-text">
+        Drop file to upload
+      </figcaption>
+    </figure>
+  </section>
+
+  <ng-template #noConversationSelected>
     <section class="no-conversation">
       <article class="empty-state">
         <figure class="empty-state-icon" aria-hidden="true">💬</figure>
@@ -169,5 +310,5 @@
         <p class="empty-state-text">Choose a conversation from the sidebar to dive into the chat</p>
       </article>
     </section>
-  }
+  </ng-template>
 </main>

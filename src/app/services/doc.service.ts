@@ -10,6 +10,12 @@ export interface NewChatDoc {
   doc: string; // This will be the URL of the uploaded document
 }
 
+export interface NewGroupDoc {
+  senderID: string;
+  groupID: number;
+  doc: string;
+}
+
 export interface Document {
   id: number;
   userId: string;
@@ -89,6 +95,12 @@ export class DocApiService {
     });
   }
 
+  createGroupDoc(groupDocData: NewGroupDoc): Observable<any> {
+    return this.http.post(`${this.url}/api/groupdocs`, groupDocData, {
+      headers: this.getJsonHeaders()
+    });
+  }
+
   /**
    * Retrieves all document records associated with a specific chat.
    * @param chatId The ID of the chat.
@@ -96,6 +108,12 @@ export class DocApiService {
    */
   getDocsByChatId(chatId: number): Observable<any[]> {
     return this.http.get<any[]>(`${this.url}/api/chatdocs/chat/${chatId}`, {
+      headers: this.getJsonHeaders()
+    });
+  }
+
+  getGroupDocsByGroupId(groupId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.url}/api/groupdocs/group/${groupId}`, {
       headers: this.getJsonHeaders()
     });
   }
